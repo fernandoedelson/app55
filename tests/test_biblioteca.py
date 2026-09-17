@@ -95,3 +95,13 @@ def test_api_respeita_blocos_permitidos(app, admin):
     entrar(c, 'soevol', prov)
     post(c, '/trocar-senha', new_password='SoEvol2026abcd', confirm_password='SoEvol2026abcd')
     assert set(c.get('/api/biblioteca/mensal?comp=2026-07&ym=202605').get_json()) == {'mn-evol'}
+
+
+def test_detalhe_de_pedido_da_carteira_dinamica(admin):
+    p = admin.get('/api/biblioteca/carteira_dinamica?comp=2026-07').get_json()
+    status, peds = next((b, l) for b, l in p['cd-status']['pedidos'].items() if l)
+    # a lista por status vai sem os itens; eles só vêm pelo detalhamento
+    assert all(len(x) == 4 for x in peds)
+    r = admin.get('/api/biblioteca/carteira_dinamica/detalhe/pedido',
+                  query_string={'comp': '2026-07', 'ped': peds[0][0], 'status': status})
+    assert r.status_code == 200 and r.get_json()['itens']

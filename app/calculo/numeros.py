@@ -22,3 +22,16 @@ def cagr(val, base, n):
     if val is None or not base or n <= 0:
         return None
     return pot(val / base, 1 / n) - 1
+
+
+def _chave_indice(k):
+    """Chave que o JavaScript trata como índice de array: inteiro canônico de 0 a 2^32-2."""
+    s = str(k)
+    return s.isdigit() and (s == '0' or not s.startswith('0')) and int(s) < 4294967295
+
+
+def ordem_chaves_js(chaves):
+    """Ordem de Object.keys(): índices inteiros em ordem crescente, depois o resto na ordem de inserção."""
+    chaves = list(chaves)
+    return sorted((k for k in chaves if _chave_indice(k)), key=lambda k: int(str(k))) + \
+        [k for k in chaves if not _chave_indice(k)]
