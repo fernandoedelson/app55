@@ -15,6 +15,9 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 
 ## Rodar localmente
 
+Clique duas vezes em **`+55 Design.bat`** (abre o navegador em http://localhost:5055 e deixa a
+janela do servidor aberta), ou pela linha de comando:
+
     C:\Scripts\WPy64-31700\python\python.exe wsgi.py        # http://localhost:5055
 
 No primeiro início é criado o usuário `admin` com senha provisória mostrada UMA vez no console
