@@ -306,6 +306,16 @@ function custosMesLab(ym){ return MES[(ym%100)-1]+'/'+String(Math.floor(ym/100))
 /* ===== Custos — Visão Executiva (custosx): os pontos que importam, prontos p/ apresentação ===== */
 function ymAddMonths(ym,k){ let y=Math.floor(ym/100),m=(ym%100)-1+k; y+=Math.floor(m/12); m=((m%12)+12)%12; return y*100+m+1; }
 
+/* ===== marcação dos blocos =====
+   Mesma convenção de nearestFigTitle(): o <h3> abre o bloco e tudo que vem depois pertence
+   a ele, até o próximo <h3>. Um container com UM <h3> (o par de uma .two, o corpo do
+   dashboard mensal do DRE) é ele próprio um bloco; um com vários (#dre-body, #custosx-body)
+   é percorrido por dentro. Só carimba atributos — não reestrutura nada, então os filtros que
+   reescrevem o corpo da seção continuam funcionando como antes. */
+function marcarBlocos(){
+  document.querySelectorAll('main > section').forEach(function(sec){ marcarEm(sec,{k:'__abre'}); });
+}
+
 function marcarEm(raiz,st){
   const filhos=[...raiz.children];
   for(const el of filhos){
@@ -316,6 +326,14 @@ function marcarEm(raiz,st){
     if(hs.length>1){ el.dataset.blkbox='1'; delete el.dataset.blkOf; marcarEm(el,st); continue; }
     el.dataset.blkOf=st.k;
   }
+}
+
+/* último <h3> antes do bloco, dentro da mesma seção — é o título que acompanha aquele gráfico/tabela */
+function nearestFigTitle(el0){
+  const section=el0.closest('section'); if(!section) return null;
+  let title=null;
+  for(const el of section.querySelectorAll('h3,.fig,.twz')){ if(el===el0) break; if(el.tagName==='H3') title=el; }
+  return title;
 }
 
 /* ===== zoom nas tabelas: envolve cada .tw num .twz e pendura o botão ⤢, igual aos gráficos.
@@ -583,6 +601,10 @@ function boxLabel(cx,cy,txt,color,dy,wmax){ txt=String(txt); dy=dy==null?-12:dy;
   const by=cy+dy-(dy<0?9:-1);
   return `<rect x="${W(bx)}" y="${W(by)}" width="${W(lw)}" height="17" rx="3" fill="#fff" stroke="${color}"/>`
     +`<text x="${W(bx+lw/2)}" y="${W(by+12)}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${color}">${esc(txt)}</text>`;}
+
+const MILHAR=v=>nf(v/1000,0);
+
+const eixoY=(x,ymid,txt)=>`<text x="${x}" y="${W(ymid)}" transform="rotate(-90 ${x} ${W(ymid)})" text-anchor="middle" font-size="10" fill="${MUT}">${esc(txt)}</text>`;
 
 /* áreas sobrepostas a partir do zero (NÃO empilhadas) com etiqueta em cada ponto.
    stackedArea não serve aqui: o realizado vive dentro do orçamento, e empilhar somaria os dois. */

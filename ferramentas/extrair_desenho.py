@@ -34,6 +34,15 @@ NOMES = [
 ]
 
 
+# nunca copiar: cálculo (vai para o Python), datas derivadas dos dados, montagem das seções e estado
+EXCLUIR = re.compile(r'^(render|draw|init|build|wire|apply|carregar|aplicar|montar|toggle|inject|renumerar)'
+                     r'|^(aggregate|concentracao|tabelaClientes|clienteItens|dreAgg|dreMonthly|dreYears|custosAgg|'
+                     r'reconcileCustos|metasCalc|vendaMensalPorAno|pesoMensal|fracaoDecorrida|distribuiSazonal|cagrCalc|'
+                     r'ins|remount|uniqIdentidades|idsRow|famName|SECTIONS|_ALL_SECTIONS|ROTEIROS|DATA|DRE|DPNL|CUSTOS|CF|'
+                     r'CFMENSAL|CARTDIN|METAS|APORTES|FABLOJA|DECK)$'
+                     r'|^(MAXYM|MINYM|_MAXYM|_CUSTOS|ANO_|ANOS_|_ANOS|_PRESET|CUSTOS_PRESETS|CUSTOSX_PRESETS|PRESETS|DRE_PRESETS)')
+
+
 def declaracoes(js):
     """{nome: (inicio, fim)} de cada declaração de nível zero (const/let/function), incluindo o
     comentário que a precede. A declaração vai até o início da próxima."""
@@ -86,7 +95,21 @@ def main():
     faltam = [n for n in NOMES if n not in decl]
     if faltam:
         raise SystemExit('não achei no app.js: %s' % faltam)
-    trechos = sorted({decl[n] for n in NOMES})
+    # dependências: toda declaração de nível zero citada pelo código já incluído entra também,
+    # exceto o que é CÁLCULO ou estado da página (isso vive no servidor ou não existe na Biblioteca)
+    incluidos = list(NOMES)
+    acrescidos = []
+    while True:
+        texto = '\n'.join('\n'.join(linhas[a:b]) for a, b in {decl[n] for n in incluidos})
+        novos = sorted({t for t in re.findall(r'\b[A-Za-z_$][\w$]*\b', texto)
+                        if t in decl and t not in incluidos and not EXCLUIR.match(t)})
+        if not novos:
+            break
+        incluidos += novos
+        acrescidos += novos
+    if acrescidos:
+        print('dependências acrescentadas: %s' % ', '.join(acrescidos))
+    trechos = sorted({decl[n] for n in incluidos})
     corpo = '\n\n'.join('\n'.join(linhas[a:b]).rstrip() for a, b in trechos)
     cab = ('/* ===== +55 · desenho do relatório =====\n'
            '   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag %s.\n'
