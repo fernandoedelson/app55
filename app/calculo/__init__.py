@@ -2,9 +2,10 @@
 """Cálculo no servidor: cada seção devolve {id_do_bloco: payload}.
 
 As seções entram aqui à medida que são portadas e conferidas contra o gabarito (fase 3)."""
-from .secoes import evolutiva, ytd
+from .secoes import evolutiva, resumo, ytd
 
 SECOES_PORTADAS = {
+    'resumo': resumo.calcular,
     'evolutiva': evolutiva.calcular,
     'ytd': ytd.calcular,
 }
