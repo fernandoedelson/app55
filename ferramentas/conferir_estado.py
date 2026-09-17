@@ -9,8 +9,9 @@ Compara bloco a bloco, como o conferir_secao.
 
     python ferramentas/conferir_estado.py dre [custofixo ...] [--comp 2026-07]
 
-Detalhamentos que buscam no servidor (itens de pedido, composição de pacote) ficam de fora: a página
-é aberta como arquivo e não alcança a API. Esses são cobertos pelos testes.
+Detalhamentos (itens de pedido, composição de pacote, clientes de um segmento): a página é aberta como
+arquivo e não alcança a API, então a resposta é buscada antes pelo cliente de teste e servida à página
+por um fetch substituto. O caso declara {nome do detalhe: função(payload) -> parâmetros}.
 Saída: _revisao/estado_<secao>.md
 """
 import argparse
@@ -38,10 +39,12 @@ def _clic(css):
     return "document.querySelector(%r).click();" % css
 
 
-# secao -> [(nome do caso, filtros na URL do app, roteiro no Kit, roteiro no app)]
+# secao -> [(nome do caso, filtros na URL do app, roteiro no Kit, roteiro no app[, detalhes pré-buscados])]
 CASOS = {
     'mensal': [
         ('mês 2026-03', {'ym': 202603}, _sel('#mn-sel', 202603), ''),
+        ('itens do 1º cliente', {}, _clic('#mensal .cli-row'), _clic('#mensal .cli-row'),
+         {'itens': lambda P: {'ym': P['mn-cli']['ym'], 'cli': P['mn-cli']['linhas'][0]['idx']}}),
     ],
     'custofixo': [
         ('Fábrica', {'ent': 'FABRICA'}, _clic('#custofixo .cfb[data-e="FABRICA"]'), ''),
@@ -52,9 +55,18 @@ CASOS = {
          _sel('#cfm-emp', 'LOJA') + _sel('#cfm-mes', 202603) + _sel('#cfm-dim', 'c'), ''),
         ('Fábrica · ano 2026', {'emp': 'FABRICA', 'ym': 'Y2026'},
          _sel('#cfm-emp', 'FABRICA') + _sel('#cfm-mes', 'Y2026'), ''),
+        ('composição de PESSOAL', {}, _clic('.cfm-pac-row[data-p="PESSOAL"]'), _clic('.cfm-pac-row[data-p="PESSOAL"]'),
+         {'composicao': lambda P: {'pac': 'PESSOAL'}}),
+        ('ano 2026 · composição de FACILITIES', {'ym': 'Y2026'},
+         _sel('#cfm-mes', 'Y2026') + _clic('.cfm-pac-row[data-p="FACILITIES"]'), _clic('.cfm-pac-row[data-p="FACILITIES"]'),
+         {'composicao': lambda P: {'ym': 'Y2026', 'pac': 'FACILITIES'}}),
     ],
     'carteira_dinamica': [
         ('status 3', {}, _sel('#cartdin-status-sel', 2), _sel('#cartdin-status-sel', 2)),
+        ('itens do 1º pedido', {}, _clic('#cartdin-status-detail .cartdin-ped-row'),
+         _clic('#cartdin-status-detail .cartdin-ped-row'),
+         {'pedido': lambda P: {'ped': P['cd-status']['pedidos'][P['cd-status']['status'][0][0]][0][0],
+                               'status': P['cd-status']['status'][0][0]}}),
     ],
     'periodo': [
         ('Histórico', {'de': 200001, 'ate': 300000}, _clic('#periodo .preset[data-a="200001"]'), ''),
@@ -62,6 +74,12 @@ CASOS = {
         ('jul/26', {'de': 202607, 'ate': 202607}, _clic('#periodo .preset[data-a="202607"]'), ''),
         ('nov/24–mar/25', {'de': 202411, 'ate': 202503},
          _sel('#f-de', 202503) + _sel('#f-ate', 202411) + _clic('#f-apply'), ''),
+    ],
+    'vendas': [
+        ('janela 6m', {'janela': 6}, _sel('#av-janela', 6), ''),
+        ('janela 24m', {'janela': 24}, _sel('#av-janela', 24), ''),
+        ('clientes Em risco', {}, _clic('#vendas .rfv-seg-row[data-seg="Em risco"]'),
+         _clic('#vendas .rfv-seg-row[data-seg="Em risco"]'), {'segmento': lambda P: {'janela': 12, 'seg': 'Em risco'}}),
     ],
     'dre': [
         ('Fábrica', {'ent': 'FABRICA'}, _clic('#dre .entb[data-e="FABRICA"]'), ''),
@@ -76,10 +94,17 @@ CASOS = {
 }
 
 
-def _com_roteiro(html, js):
+def _com_roteiro(html, js, respostas=None):
     if not js:
         return html
-    tag = ("<script>window.addEventListener('load',function(){setTimeout(function(){"
+    falso = ''
+    if respostas:
+        # fetch substituto: devolve a resposta pré-buscada de cada detalhamento, pelo nome na URL
+        falso = (r"<script>(function(){var R=%s;window.fetch=function(u){var m=/\/detalhe\/([^?]+)/.exec(String(u));"
+                 r"if(m&&R[m[1]])return Promise.resolve({ok:true,json:function(){return Promise.resolve(R[m[1]]);}});"
+                 r"return Promise.reject(new Error('sem resposta pré-buscada: '+u));};})();</script>"
+                 % json.dumps(respostas, ensure_ascii=False).replace('</', r'<\/'))
+    tag = falso + ("<script>window.addEventListener('load',function(){setTimeout(function(){"
            "try{%s}catch(e){document.body.setAttribute('data-erro-roteiro',String(e));}},1500);});</script>" % js)
     i = html.rfind('</body>')
     return html[:i] + tag + html[i:] if i >= 0 else html + tag
@@ -107,14 +132,25 @@ def main():
     tudo_ok = True
     for secao in a.secoes:
         linhas_md = []
-        for n, (nome, params, js_kit, js_app) in enumerate(CASOS.get(secao, [])):
+        for n, caso in enumerate(CASOS.get(secao, [])):
+            nome, params, js_kit, js_app = caso[:4]
+            detalhes = caso[4] if len(caso) > 4 else {}
             kit_arq = os.path.join(CS.REVISAO, 'estado_kit_%s_%d.html' % (secao, n))
             io.open(kit_arq, 'w', encoding='utf-8').write(_com_roteiro(kit_html, js_kit))
             q = urllib.parse.urlencode(dict(params, comp=a.comp))
             resp = c.get('/biblioteca/%s?%s' % (secao, q))
             app_html = resp.get_data(as_text=True).replace('"/static/', '"static/')
             app_arq = os.path.join(CS.REVISAO, 'estado_app_%s_%d.html' % (secao, n))
-            io.open(app_arq, 'w', encoding='utf-8').write(_com_roteiro(app_html, js_app))
+            respostas = {}
+            if detalhes:
+                P = c.get('/api/biblioteca/%s?%s' % (secao, q)).get_json()
+                for det, fn in detalhes.items():
+                    dq = urllib.parse.urlencode(dict(params, comp=a.comp, **fn(P)))
+                    r = c.get('/api/biblioteca/%s/detalhe/%s?%s' % (secao, det, dq))
+                    if r.status_code != 200:
+                        raise SystemExit('%s/%s: HTTP %d' % (secao, det, r.status_code))
+                    respostas[det] = r.get_json()
+            io.open(app_arq, 'w', encoding='utf-8').write(_com_roteiro(app_html, js_app, respostas))
             rk, erro_k = _render(kit_arq)
             ra, erro_a = _render(app_arq)
             esperado, atual = CS.blocos_do_retrato(rk, secao), CS.blocos_do_retrato(ra, secao)
