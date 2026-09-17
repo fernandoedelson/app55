@@ -23,6 +23,9 @@ RECURSOS = [
     ('apresentar', 'Modo Apresentar', 'Tela cheia com navegação por atos'),
     ('nomes_pf', 'Ver nomes de pessoa física', 'Sem este recurso os nomes aparecem mascarados'),
     ('fechamento', 'Fechar o mês', 'Subir as bases, processar, ver o que mudou e publicar'),
+    ('comentar', 'Comentar pela área', 'Escrever o comentário da área nos blocos que ela enxerga'),
+    ('consolidar', 'Enviar o comentário da área', 'Responsável: consolida o texto e envia à Controladoria'),
+    ('curar_comentarios', 'Curar os comentários', 'Pedir, aprovar, ajustar ou recusar e escolher o que vai à apresentação'),
 ]
 RECURSO = {r[0]: r for r in RECURSOS}
 

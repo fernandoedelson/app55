@@ -29,6 +29,12 @@
     </a>
     <nav class="topnav">
       <a href="{{ url_for('inicio.index') }}" class="{{ 'active' if request.blueprint=='inicio' else '' }}">Início</a>
+      {% if pode('recurso:fechamento') %}
+      <a href="{{ url_for('competencias.index') }}" class="{{ 'active' if request.blueprint=='competencias' else '' }}">Fechamento</a>
+      {% endif %}
+      {% if pode('recurso:comentar') or pode('recurso:curar_comentarios') %}
+      <a href="{{ url_for('comentarios.index') }}" class="{{ 'active' if request.blueprint=='comentarios' else '' }}">Comentários</a>
+      {% endif %}
       {% if pode('admin') %}
       <a href="{{ url_for('admin.painel') }}" class="{{ 'active' if request.blueprint=='admin' else '' }}">Administração</a>
       {% endif %}

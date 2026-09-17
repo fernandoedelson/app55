@@ -12,6 +12,7 @@ from flask import Blueprint, abort, current_app, g, jsonify, render_template, re
 
 from .. import calculo
 from .. import catalogo as C
+from .. import comentarios as M
 from .. import destaques as D
 from ..calculo import competencia as comp_mod
 from ..seguranca import usuarios as U

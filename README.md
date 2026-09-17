@@ -13,7 +13,8 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 | 3. Cálculo no servidor (17 seções, 122 blocos) | concluída — igual ao gabarito bloco a bloco |
 | 4. Destaques (50 regras, 114 destaques) | concluída — igual ao gabarito completo |
 | 5. Fechamento e importação pela tela | concluída — a app reproduz as 14 bases da competência publicada |
-| 6. Comentários das áreas | próxima |
+| 6. Comentários das áreas | concluída — escrever, consolidar, curar e publicar o texto |
+| 7. Reunião e apresentação | próxima |
 
 ## Rodar localmente
 
@@ -60,6 +61,20 @@ HTML congelado do Kit e pede ao app a mesma seção com os filtros na URL; os de
 um pedido, composição de um pacote, clientes de um segmento…) são buscados antes pelo cliente de
 teste e servidos à página por um fetch substituto, porque a página é aberta como arquivo.
 
+## Comentário da área
+
+Disponibilizar a competência avisa as áreas por e-mail (se houver SMTP) e abre a janela até o prazo
+que a Controladoria definiu. Quem tem `recurso:comentar` escreve pela **área que é um perfil seu** e
+só nos blocos que esse perfil enxerga; quem tem `recurso:consolidar` envia à Controladoria; quem tem
+`recurso:curar_comentarios` aprova (podendo ajustar o texto — o autor é avisado e o texto original
+fica guardado), recusa com motivo, devolve para reescrever e marca o que vai à apresentação.
+
+O responsável da área é um usuário como os outros: some um perfil "Responsável de área" contendo só
+`recurso:consolidar` aos perfis dele. Assim a área continua sendo o perfil que enxerga os blocos.
+
+Até ser aprovado, o comentário só existe para a própria área. Aprovado, aparece ao pé da página da
+seção para todo mundo que enxerga aquele bloco.
+
 ## Estrutura
 
     app/catalogo/dados.py     seções e blocos — estrutura do relatório, só muda por commit
@@ -69,6 +84,7 @@ teste e servidos à página por um fetch substituto, porque a página é aberta 
     app/calculo/              cálculo por seção (porte do app.js) — devolve números brutos por bloco
     app/destaques/            regras de 2º grau: o que merece régua no gráfico e linha no digest
     app/importacao/           kit_parser.py (leitura das planilhas), motor, comparar e serviço do ciclo
+    app/comentarios.py        comentário da área: escrever, enviar, curar, histórico e painel
     app/static/relatorio/     kit.js (desenho extraído do Kit) e secoes/<id>.js (uma seção cada)
     app/db.py                 SQLite WAL, schema, perfis iniciais, administrador inicial
     tests/                    pytest

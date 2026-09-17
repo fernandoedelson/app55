@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Curadoria dos comentários · {{ codigo }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow"><a href="{{ url_for('comentarios.index', comp=codigo) }}">Comentários</a> · Controladoria</div>
+  <h1>Comentários das áreas em <b>{{ codigo }}</b></h1>
+  <p class="muted">Aprove (podendo ajustar o texto — o autor é avisado), recuse dizendo o motivo, ou
+    devolva para a área reescrever. Marque o que vai à apresentação do mês.</p>
+</div>
+
+<h2>Quem já enviou</h2>
+<table class="tbl">
+  <thead><tr><th>Área</th><th>Rascunhos</th><th>Enviados</th><th>Aprovados</th><th>Recusados</th><th>Pedidos sem resposta</th></tr></thead>
+  <tbody>
+  {% for l in painel %}
+    <tr><td>{{ l.nome }}</td><td>{{ l.rascunho }}</td><td>{{ l.enviado }}</td><td>{{ l.aprovado }}</td>
+        <td>{{ l.recusado }}</td>
+        <td>{% for b in l.pendentes %}{{ titulo[b].titulo }}{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2 class="mt-lg">Pedir comentário num bloco</h2>
+<form method="post" action="{{ url_for('comentarios.pedir', codigo=codigo) }}" class="actions">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <select name="area">{% for a in areas %}<option value="{{ a.codigo }}">{{ a.nome }}</option>{% endfor %}</select>
+  <select name="bloco">
+    {% for b in blocos %}<option value="{{ b.id }}">{{ secao[b.secao].titulo }} · {{ b.titulo }}</option>{% endfor %}
+  </select>
+  <input name="observacao" placeholder="o que você quer entender (opcional)">
+  <button class="btn btn-sm" type="submit">Pedir</button>
+</form>
+
+<h2 class="mt-lg">Para curar</h2>
+{% for c in linhas %}
+  <details class="bloco" {% if c.status == 'enviado' %}open{% endif %}>
+    <summary>{{ titulo[c.bloco].titulo }} · <b>{{ c.area }}</b> · {{ c.status }}
+      {% if c.na_apresentacao %}<span class="pill">apresentação</span>{% endif %}</summary>
+    <form method="post" action="{{ url_for('comentarios.decidir', codigo=codigo) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="area" value="{{ c.area }}">
+      <input type="hidden" name="bloco" value="{{ c.bloco }}">
+      <p class="muted">enviado por {{ c.enviado_por }} em {{ c.enviado_em }}</p>
+      {% if c.texto_area %}<p class="muted">texto original da área: {{ c.texto_area }}</p>{% endif %}
+      <textarea name="texto" rows="5" style="width:100%">{{ c.texto }}</textarea>
+      <label class="check"><input type="checkbox" name="na_apresentacao" value="1"
+        {% if c.na_apresentacao %}checked{% endif %}> entra na apresentação do mês</label>
+      <div class="actions mt">
+        <button class="btn btn-primary" type="submit" name="acao" value="aprovar">Aprovar</button>
+        <input name="motivo" placeholder="motivo (para recusar)">
+        <button class="btn" type="submit" name="acao" value="recusar">Recusar</button>
+        <button class="btn btn-sm" type="submit" name="acao" value="devolver">Devolver para a área</button>
+      </div>
+    </form>
+  </details>
+{% else %}
+  <p class="muted">Nenhuma área enviou comentário ainda.</p>
+{% endfor %}
+{% endblock %}

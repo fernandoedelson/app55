@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Comentários da área · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Comentário da área</div>
+  <h1>O que a sua área tem a dizer sobre <b>{{ codigo or 'o mês' }}</b></h1>
+  <p class="muted">Qualquer pessoa da área escreve; o responsável consolida e envia. Enquanto não for
+    aprovado pela Controladoria, só a sua área enxerga o texto.</p>
+</div>
+
+{% if not codigo %}
+  <p class="muted">Nenhuma competência disponibilizada às áreas no momento.</p>
+{% else %}
+  {% if not aberto %}<div class="aviso">{{ motivo|capitalize }} Você pode ler, mas não escrever.</div>{% endif %}
+
+  {% if cura %}
+    <p class="actions"><a class="btn btn-sm" href="{{ url_for('comentarios.curadoria', codigo=codigo) }}">Curadoria da Controladoria</a></p>
+    <h2>Quem já enviou</h2>
+    <table class="tbl">
+      <thead><tr><th>Área</th><th>Rascunhos</th><th>Enviados</th><th>Aprovados</th><th>Recusados</th><th>Pedidos sem resposta</th></tr></thead>
+      <tbody>
+      {% for l in painel %}
+        <tr><td>{{ l.nome }}</td><td>{{ l.rascunho }}</td><td>{{ l.enviado }}</td><td>{{ l.aprovado }}</td>
+            <td>{{ l.recusado }}</td><td>{{ l.pendentes|length }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% for a in areas %}
+    <h2 class="mt-lg">{{ a.nome }}</h2>
+    <table class="tbl">
+      <thead><tr><th>Bloco</th><th>Situação</th><th>Comentário</th><th></th></tr></thead>
+      <tbody>
+      {% for item in blocos[a.codigo] %}
+        {% set c = item.comentario %}
+        <tr>
+          <td>{{ titulo_secao[item.bloco.secao].titulo }} · <b>{{ item.bloco.titulo }}</b>
+              {% if item.pedido %}<span class="pill">pedido pela Controladoria</span>{% endif %}</td>
+          <td>{% if c %}{{ c.status }}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td>{% if c %}{{ c.texto[:140] }}{% if c.texto|length > 140 %}…{% endif %}
+              {% if c.status == 'recusado' %}<br><span class="muted">motivo: {{ c.motivo }}</span>{% endif %}
+              {% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="right">
+            <a class="btn btn-sm" href="{{ url_for('comentarios.bloco', codigo=codigo, area=a.codigo, bloco=item.bloco.id) }}">
+              {{ 'Abrir' if c else 'Escrever' }}</a>
+            {% if c and c.status == 'rascunho' and pode_enviar and aberto %}
+            <form method="post" class="inline-form"
+                  action="{{ url_for('comentarios.enviar', codigo=codigo, area=a.codigo, bloco=item.bloco.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-primary" type="submit">Enviar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {% if not cura %}<p class="muted">Nenhum dos seus perfis responde por uma área que comenta.</p>{% endif %}
+  {% endfor %}
+{% endif %}
+{% endblock %}

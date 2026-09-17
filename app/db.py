@@ -95,6 +95,42 @@ CREATE TABLE IF NOT EXISTS competencia_arquivos (
     enviado_em TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_comp_arq ON competencia_arquivos(competencia, base);
+CREATE TABLE IF NOT EXISTS comentarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    competencia TEXT NOT NULL REFERENCES competencias(codigo) ON DELETE CASCADE,
+    bloco TEXT NOT NULL,
+    area TEXT NOT NULL,                           -- código do perfil que responde pelo bloco
+    texto TEXT NOT NULL DEFAULT '',               -- o texto vigente (ajustado pela Controladoria, se houve)
+    texto_area TEXT NOT NULL DEFAULT '',          -- o que a área enviou, guardado quando o texto é ajustado
+    status TEXT NOT NULL DEFAULT 'rascunho',      -- rascunho | enviado | aprovado | recusado
+    na_apresentacao INTEGER NOT NULL DEFAULT 0,
+    motivo TEXT NOT NULL DEFAULT '',              -- por que foi recusado
+    criado_por TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL,
+    enviado_por TEXT, enviado_em TEXT,
+    decidido_por TEXT, decidido_em TEXT,
+    UNIQUE (competencia, bloco, area)
+);
+CREATE TABLE IF NOT EXISTS comentario_historico (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    comentario_id INTEGER NOT NULL REFERENCES comentarios(id) ON DELETE CASCADE,
+    em TEXT NOT NULL,
+    quem TEXT NOT NULL DEFAULT '',
+    acao TEXT NOT NULL,                           -- escrever | enviar | aprovar | ajustar | recusar | apresentacao
+    texto TEXT NOT NULL DEFAULT '',
+    detalhes TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS ix_coment_hist ON comentario_historico(comentario_id, em);
+CREATE TABLE IF NOT EXISTS comentario_pedidos (
+    competencia TEXT NOT NULL REFERENCES competencias(codigo) ON DELETE CASCADE,
+    bloco TEXT NOT NULL,
+    area TEXT NOT NULL,
+    observacao TEXT NOT NULL DEFAULT '',
+    pedido_por TEXT NOT NULL DEFAULT '',
+    pedido_em TEXT NOT NULL,
+    PRIMARY KEY (competencia, bloco, area)
+);
 CREATE TABLE IF NOT EXISTS competencia_blocos (
     competencia TEXT NOT NULL REFERENCES competencias(codigo) ON DELETE CASCADE,
     bloco TEXT NOT NULL,
@@ -151,9 +187,9 @@ def _permissoes_sugeridas():
         'administrador': [C.PERMISSAO_ADMIN],
         'gestao55': todos + rec('destaques', 'detalhar', 'exportar', 'filtro_livre', 'apresentar', 'nomes_pf'),
         'controladoria': todos + rec(*[r[0] for r in C.RECURSOS]) + ['base:upload:' + b[0] for b in C.BASES_UPLOAD],
-        'gestao_comercial': secoes(*comercial) + rec('destaques', 'detalhar', 'filtro_livre', 'nomes_pf'),
-        'fabrica': secoes('custosx', 'custos') + rec('destaques', 'detalhar', 'filtro_livre'),
-        'loja': secoes('mensal', 'ytd', 'carteira', 'carteira_dinamica', 'performance') + rec('destaques', 'detalhar', 'nomes_pf'),
+        'gestao_comercial': secoes(*comercial) + rec('destaques', 'detalhar', 'filtro_livre', 'nomes_pf', 'comentar'),
+        'fabrica': secoes('custosx', 'custos') + rec('destaques', 'detalhar', 'filtro_livre', 'comentar'),
+        'loja': secoes('mensal', 'ytd', 'carteira', 'carteira_dinamica', 'performance') + rec('destaques', 'detalhar', 'nomes_pf', 'comentar'),
     }
 
 

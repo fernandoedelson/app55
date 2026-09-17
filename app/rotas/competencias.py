@@ -9,6 +9,7 @@ from flask import Blueprint, abort, current_app, flash, g, redirect, render_temp
 
 from .. import auditoria
 from .. import catalogo as C
+from .. import comentarios as M
 from ..importacao import motor, servico
 from ..seguranca import usuarios as U
 
@@ -138,6 +139,12 @@ def situacao(codigo):
         return redirect(url_for('competencias.ver', codigo=codigo))
     auditoria.registrar('competencia.situacao', '%s · %s%s' % (codigo, status,
                                                                (' · prazo ' + prazo) if prazo else ''))
+    if status == 'disponibilizada':
+        # disponibilizar é o gatilho do ciclo das áreas: elas são avisadas por e-mail (se houver SMTP)
+        n = M.avisar_areas(codigo)
+        flash('Competência %s disponibilizada às áreas%s.'
+              % (codigo, (' — %d pessoa(s) avisadas por e-mail' % n) if n else ''), 'ok')
+        return redirect(url_for('competencias.ver', codigo=codigo))
     flash('Competência %s agora está "%s".' % (codigo, status), 'ok')
     return redirect(url_for('competencias.ver', codigo=codigo))
 

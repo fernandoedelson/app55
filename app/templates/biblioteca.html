@@ -15,6 +15,14 @@
 <main id="main">
   <section id="{{ secao.id }}"></section>
 </main>
+{% if comentarios %}
+<section class="app55-comentarios" style="max-width:1100px;margin:24px auto;padding:0 20px;font-size:.9rem">
+  <h2 style="font-size:1rem">Comentários das áreas</h2>
+  {% for c in comentarios %}
+    <p><b>{{ c.titulo }}</b> · <span style="opacity:.7">{{ c.area }}</span><br>{{ c.texto }}</p>
+  {% endfor %}
+</section>
+{% endif %}
 <script type="application/json" id="payload">{{ payload|safe }}</script>
 <script src="{{ url_for('static', filename='relatorio/kit.js') }}"></script>
 <script src="{{ url_for('static', filename='relatorio/destaques.js') }}"></script>
