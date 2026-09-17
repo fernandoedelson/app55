@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Usuários · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="crumb"><a href="{{ url_for('admin.painel') }}">Administração</a></div>
+  <h1><b>Usuários</b></h1>
+</div>
+<div class="actions" style="margin-bottom:16px"><a class="btn btn-primary btn-sm" href="{{ url_for('admin.usuario_novo') }}">Novo usuário</a></div>
+<div class="tablewrap">
+<table class="tabela">
+  <thead><tr><th>Login</th><th>Nome</th><th>E-mail</th><th>Perfis</th><th>Situação</th><th>Último acesso</th></tr></thead>
+  <tbody>
+  {% for u in usuarios %}
+  <tr>
+    <td><a href="{{ url_for('admin.usuario_editar', uid=u.id) }}">{{ u.login }}</a></td>
+    <td>{{ u.nome }}</td><td>{{ u.email }}</td>
+    <td>{{ (perfis_de.get(u.id) or [])|join(', ') }}</td>
+    <td>{% if not u.ativo %}<span class="tag">Desativado</span>{% elif bloqueado(u) %}<span class="tag">Bloqueado</span>
+        {% elif u.trocar_senha %}<span class="tag">Senha provisória</span>{% else %}Ativo{% endif %}</td>
+    <td>{{ (u.ultimo_login or '—')|replace('T',' ') }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}+55 Design{% endblock %}</title>
+<link rel="icon" href="{{ url_for('static', filename='logo-chip.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='app55.css') }}">
+<script>
+  (function(){ try{ var t=localStorage.getItem('app55-tema'); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){} })();
+</script>
+</head>
+<body>
+{% if usuario %}
+{% if usuario_real %}
+<div class="faixa-ver-como" role="status">
+  <span>Você está vendo a aplicação como o perfil <b>{{ usuario.perfis[0].nome }}</b> — só leitura.</span>
+  <form method="post" action="{{ url_for('admin.ver_como_sair') }}" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-secondary" type="submit">Sair do modo</button>
+  </form>
+</div>
+{% endif %}
+<header class="topbar">
+  <div class="inner">
+    <a class="brandlink" href="{{ url_for('inicio.index') }}">
+      <img class="bl-wide" src="{{ url_for('static', filename='logo-wide.png') }}" alt="+55 Design">
+    </a>
+    <nav class="topnav">
+      <a href="{{ url_for('inicio.index') }}" class="{{ 'active' if request.blueprint=='inicio' else '' }}">Início</a>
+      {% if pode('admin') %}
+      <a href="{{ url_for('admin.painel') }}" class="{{ 'active' if request.blueprint=='admin' else '' }}">Administração</a>
+      {% endif %}
+    </nav>
+    <div class="topright">
+      <span class="who">{{ (usuario_real or usuario).nome }}
+        {% for p in usuario.perfis %}<span class="pill">{{ p.nome }}</span>{% endfor %}</span>
+      {% if not usuario_real %}<a class="btn btn-secondary btn-sm" href="{{ url_for('auth.trocar_senha') }}">Trocar senha</a>{% endif %}
+      <button class="btn btn-secondary btn-sm" id="botao-tema" type="button" title="Alternar tema claro e escuro">Tema</button>
+      <form method="post" action="{{ url_for('auth.logout') }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-secondary btn-sm" type="submit">Sair</button>
+      </form>
+    </div>
+  </div>
+</header>
+{% endif %}
+
+<main class="page">
+  <div class="wrap">
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+      <div class="flashes">
+        {% for cat, msg in mensagens %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<script>
+  var bt=document.getElementById('botao-tema');
+  if(bt) bt.addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    var prox = cur==='dark' ? 'light' : (cur==='light' ? 'dark' : (matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'));
+    document.documentElement.setAttribute('data-theme',prox);
+    try{ localStorage.setItem('app55-tema',prox); }catch(e){}
+  });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

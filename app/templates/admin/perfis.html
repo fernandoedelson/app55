@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Perfis · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="crumb"><a href="{{ url_for('admin.painel') }}">Administração</a></div>
+  <h1><b>Perfis</b></h1>
+  <p>O perfil define quais blocos e recursos a pessoa vê. Um perfil novo nasce sem nenhuma permissão.</p>
+</div>
+<div class="tablewrap">
+<table class="tabela">
+  <thead><tr><th>Perfil</th><th>Descrição</th><th>Blocos</th><th>Usuários</th><th></th></tr></thead>
+  <tbody>
+  {% for p in perfis %}
+  <tr>
+    <td><a href="{{ url_for('admin.perfil_editar', pid=p.id) }}">{{ p.nome }}</a>{% if p.eh_admin %} <span class="tag">Administrador</span>{% endif %}</td>
+    <td>{{ p.descricao }}</td>
+    <td>{{ 'todos' if p.eh_admin else p.n_blocos }}</td>
+    <td>{{ p.n_usuarios }}</td>
+    <td>{% if not p.sistema and not p.n_usuarios %}
+      <form method="post" action="{{ url_for('admin.perfil_excluir', pid=p.id) }}" class="inline-form" onsubmit="return confirm('Excluir o perfil {{ p.nome }}?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger btn-sm" type="submit">Excluir</button></form>
+    {% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2 class="mt-lg">Novo perfil</h2>
+<form method="post" action="{{ url_for('admin.perfil_novo') }}" class="card" style="max-width:520px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="field"><label for="nome">Nome</label><input id="nome" name="nome" required minlength="3" maxlength="80"></div>
+  <div class="field"><label for="descricao">Para que serve</label><input id="descricao" name="descricao" maxlength="240"></div>
+  <button class="btn btn-primary btn-sm" type="submit">Criar perfil</button>
+</form>
+{% endblock %}

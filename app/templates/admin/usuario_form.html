@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar ' + u.login if u else 'Novo usuário' }} · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="crumb"><a href="{{ url_for('admin.painel') }}">Administração</a> / <a href="{{ url_for('admin.usuarios') }}">Usuários</a></div>
+  <h1>{% if u %}Usuário <b>{{ u.login }}</b>{% else %}Novo <b>usuário</b>{% endif %}</h1>
+  {% if not u %}<p>A pessoa recebe uma senha provisória por e-mail e cria a própria senha no primeiro acesso.</p>{% endif %}
+</div>
+<form method="post" class="card" style="max-width:620px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if not u %}
+  <div class="field"><label for="login">Login</label>
+    <input id="login" name="login" required pattern="[A-Za-z0-9._\-]{3,64}" value="{{ request.form.login }}"></div>
+  {% endif %}
+  <div class="field"><label for="nome">Nome</label>
+    <input id="nome" name="nome" value="{{ request.form.nome or (u.nome if u else '') }}"></div>
+  <div class="field"><label for="email">E-mail</label>
+    <input id="email" name="email" type="email" required value="{{ request.form.email or (u.email if u else '') }}"></div>
+  <div class="field"><label>Perfis</label>
+    <div class="checks">
+      {% for p in perfis %}
+      <label class="chk"><input type="checkbox" name="perfis" value="{{ p.id }}" {{ 'checked' if p.id in marcados }}> {{ p.nome }}</label>
+      {% endfor %}
+    </div>
+    <span class="hint">Com mais de um perfil, a pessoa vê a soma do que cada um libera.</span>
+  </div>
+  {% if u %}
+  <label class="chk" style="margin-bottom:18px"><input type="checkbox" name="ativo" value="1" {{ 'checked' if u.ativo }}> Ativo</label>
+  {% endif %}
+  <div class="actions"><button class="btn btn-primary" type="submit">Salvar</button>
+    <a class="btn btn-secondary" href="{{ url_for('admin.usuarios') }}">Cancelar</a></div>
+</form>
+
+{% if u %}
+<div class="actions mt-lg">
+  <form method="post" action="{{ url_for('admin.usuario_resetar', uid=u.id) }}" class="inline-form"
+        onsubmit="return confirm('Gerar nova senha provisória? A pessoa sai de todos os aparelhos.')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-secondary btn-sm" type="submit">Resetar senha</button>
+  </form>
+  {% if bloqueado %}
+  <form method="post" action="{{ url_for('admin.usuario_desbloquear', uid=u.id) }}" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-secondary btn-sm" type="submit">Desbloquear</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

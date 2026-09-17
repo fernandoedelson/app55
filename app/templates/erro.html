@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Erro {{ codigo }} · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Erro {{ codigo }}</div>
+  {% if codigo == 403 %}
+  <h1>Acesso <b>restrito</b></h1>
+  <p>{{ erro.description if erro.description and 'ver como' in erro.description else 'Você não tem permissão para esta área. Se acredita que deveria ter, fale com um administrador.' }}</p>
+  {% elif codigo == 404 %}
+  <h1>Página <b>não encontrada</b></h1>
+  <p>O endereço não existe ou foi removido.</p>
+  {% elif codigo == 429 %}
+  <h1>Muitas <b>tentativas</b></h1>
+  <p>Aguarde alguns minutos antes de tentar de novo.</p>
+  {% else %}
+  <h1>Não foi possível <b>continuar</b></h1>
+  <p>{{ erro.description or 'Recarregue a página e tente de novo.' }}</p>
+  {% endif %}
+</div>
+<a class="btn btn-primary" href="{{ url_for('inicio.index') if usuario else url_for('auth.login') }}">Voltar</a>
+{% endblock %}

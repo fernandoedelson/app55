@@ -1,0 +1,12 @@
+# dados, banco, chaves e backups nunca vão para o git
+data/
+*.db
+*.db-wal
+*.db-shm
+.secret_key
+*_backup_*.zip
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+_revisao/

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Auditoria · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="crumb"><a href="{{ url_for('admin.painel') }}">Administração</a></div>
+  <h1><b>Auditoria</b></h1>
+  <p>Últimos 300 eventos: entradas, senhas, permissões, "ver como perfil" e alterações de usuários.</p>
+</div>
+<form method="get" class="filtros">
+  <div class="field"><label for="login">Login</label><input id="login" name="login" value="{{ login }}"></div>
+  <div class="field"><label for="acao">Ação</label>
+    <select id="acao" name="acao"><option value="">todas</option>
+      {% for a in acoes %}<option value="{{ a }}" {{ 'selected' if a == acao }}>{{ a }}</option>{% endfor %}</select></div>
+  <button class="btn btn-secondary btn-sm" type="submit">Filtrar</button>
+</form>
+<div class="tablewrap">
+<table class="tabela">
+  <thead><tr><th>Quando</th><th>Login</th><th>Ação</th><th>Detalhes</th><th>IP</th><th>Como perfil</th></tr></thead>
+  <tbody>
+  {% for l in linhas %}
+  <tr><td>{{ l.em|replace('T',' ') }}</td><td>{{ l.login }}</td><td>{{ l.acao }}</td>
+      <td class="det">{{ l.detalhes }}</td><td>{{ l.ip }}</td><td>{{ l.como_perfil }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

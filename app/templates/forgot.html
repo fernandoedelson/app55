@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recuperar senha · +55 Design</title>
+<link rel="icon" href="{{ url_for('static', filename='logo-chip.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
+<style>
+  body{background:radial-gradient(1100px 520px at 50% -8%,#3a2e24,#1a140f 60%,#120d09)!important;color:#f2eee4}
+  .authwrap{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
+  .sala-logo{height:40px;width:auto;margin-bottom:40px}
+  .authbox{width:100%;max-width:400px;background:#0e0a07;border:1px solid rgba(227,205,182,.2);padding:34px 34px 28px;box-shadow:0 60px 100px -40px rgba(0,0,0,.9)}
+  .authbox h1{font-family:var(--serif);font-weight:400;font-size:1.5rem;margin-bottom:8px;color:#fff}
+  .authbox p.sub{color:#a99d8f;font-size:.88rem;margin-bottom:24px}
+  .authbox .field label{color:#c9a284;letter-spacing:.24em;font-size:9.5px}
+  .authbox .field input{background:transparent;border:none;border-bottom:1px solid rgba(227,205,182,.3);border-radius:0;color:#fff;padding:9px 2px}
+  .authbox .field input:focus{box-shadow:none;border-bottom-color:#e3cdb6}
+  .btn-porta{display:block;width:100%;text-align:center;justify-content:center;font-size:.72rem;letter-spacing:.32em;padding:16px;border:1px solid #e3cdb6;background:transparent;color:#e3cdb6}
+  .btn-porta:hover{background:#e3cdb6;color:#120d09;transform:none}
+  .authbox .foot{margin-top:22px;text-align:center}
+  .authbox .foot a{font-size:.82rem;color:#8d8175;text-decoration:none}
+  .flash a{word-break:break-all}
+</style>
+</head>
+<body>
+<div class="authwrap">
+  <img class="sala-logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="+55 Design">
+  <div class="authbox">
+    <h1>Recuperar senha</h1>
+    <p class="sub">Informe seu usuário ou e-mail. Enviaremos um link para você criar uma nova senha.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flashes">{% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+    <form method="post" action="{{ url_for('auth.esqueci_senha') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label for="identifier">Usuário ou e-mail</label>
+        <input id="identifier" name="identifier" autofocus required>
+      </div>
+      <button class="btn btn-porta" type="submit">Enviar link de recuperação</button>
+    </form>
+    <p class="foot"><a href="{{ url_for('auth.login') }}">&larr; Voltar à porta da sala</a></p>
+  </div>
+</div>
+</body>
+</html>
