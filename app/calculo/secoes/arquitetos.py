@@ -11,6 +11,9 @@ from .analise_vendas import ORDEM_SEG, _dif_meses, _janela, _linha_comercial
 SEG_BONS = ('Campeões', 'Fiéis')
 SEG_RUINS = ('Em risco', 'Hibernando', 'Perdidos')
 
+# meses: até aqui, um pedido só ainda não é abandono — é relação recém-aberta (atos_ajustes.js)
+CANAL_RECENTE = 3
+
 
 def _quantos_para(vals, fatia):
     tot = soma(vals)
@@ -141,6 +144,92 @@ def _rfv(A):
     return segmenta_rfv([dict(x, f=x['peds']) for x in A['arqs']])
 
 
+def pares_canal(DATA, ym_min, ym_max):
+    """Cada par vendedor × arquiteto da janela: quanto vendeu junto, em quantos pedidos e há
+    quanto tempo foi o último. Porte de paresCanal() (atos_ajustes.js) — é a base dos dois blocos
+    do canal, que só existem na apresentação."""
+    P = {}
+    for r in DATA['rows']:
+        if r[0] < ym_min or r[0] > ym_max or not _linha_comercial(DATA, r):
+            continue
+        lista = r[16] or []
+        if not lista:
+            continue
+        vn = DATA['vd'][r[3]]
+        cota = r[1] / len(lista)
+        for ai, _rt in lista:
+            an = DATA['arq'][ai]
+            k = vn + '\x01' + an
+            o = P.get(k)
+            if o is None:
+                o = P[k] = {'vend': vn, 'arq': an, 'v': 0, 'peds': set(), 'ult': 0}
+            o['v'] += cota
+            if r[15] >= 0:
+                o['peds'].add(r[15])
+            if r[0] > o['ult']:
+                o['ult'] = r[0]
+    por_vend, pares = {}, []
+    for k in ordem_chaves_js(P):
+        o = P[k]
+        atraso, nped = _dif_meses(o['ult'], ym_max), len(o['peds'])
+        g = por_vend.get(o['vend'])
+        if g is None:
+            # 0 = 1 pedido recente · 1 = 1 pedido frio · 2 = 2 pedidos · 3 = 3 ou mais
+            g = por_vend[o['vend']] = {'nome': o['vend'], 'tot': 0, 'totV': 0, 'n': [0, 0, 0, 0], 'v': [0, 0, 0, 0]}
+        faixa = (0 if atraso <= CANAL_RECENTE else 1) if nped <= 1 else (2 if nped == 2 else 3)
+        g['n'][faixa] += 1
+        g['v'][faixa] += o['v']
+        g['tot'] += 1
+        g['totV'] += o['v']
+        pares.append({'vend': o['vend'], 'arq': o['arq'], 'v': o['v'], 'nped': nped, 'r': atraso})
+    return {'porVend': por_vend, 'pares': pares}
+
+
+def _blocos_do_canal(DATA, A, ym_min, ym_max, janela, fim):
+    """aq-esforco e aq-recorrencia: existem só na reunião (porte de blocoEsforco/blocoRecorrencia)."""
+    out = {}
+    vs = [v for v in A['vend'] if v['pedsA'] > 0 and v['nArq'] > 0]
+    if len(vs) >= 3:
+        peds_t = soma(v['pedsA'] for v in vs)
+        arqs_t = soma(v['nArq'] for v in vs)
+        tot_a = soma(v['vArq'] for v in vs)
+        out['aq-esforco'] = {
+            'janela': janela, 'fim': fim,
+            'medX': peds_t / arqs_t if arqs_t else 0, 'medY': tot_a / peds_t if peds_t else 0,
+            'arqsT': arqs_t, 'totA': tot_a, 'share': A['share'], 'totV': A['totV'],
+            'pontos': [{'nome': v['name'], 'x': v['pedsA'] / v['nArq'], 'y': v['ticketA'], 'r': v['vArq']}
+                       for v in vs],
+            'linhas': [[v['name'], v['nArq'], v['pedsA'] / v['nArq'], v['ticketA'], v['vArq'], v['share']]
+                       for v in sorted(vs, key=lambda x: -x['vArq'])]}
+    por = pares_canal(DATA, ym_min, ym_max)['porVend']
+    nomes = [v['name'] for v in A['vend'] if v['pedsA'] > 0]
+    linhas = [por[nm] for nm in nomes if nm in por and por[nm]['tot'] >= 5]
+    if len(linhas) >= 3:
+        linhas = sorted(linhas, key=lambda g: -g['tot'])
+        tot = {'tot': soma(g['tot'] for g in linhas), 'frio': soma(g['n'][1] for g in linhas),
+               'rec': soma(g['n'][0] for g in linhas),
+               'rep': soma(g['n'][2] + g['n'][3] for g in linhas),
+               'vRep': soma(g['v'][2] + g['v'][3] for g in linhas),
+               'v': soma(g['totV'] for g in linhas)}
+        out['aq-recorrencia'] = {'janela': janela, 'fim': fim, 'recente': CANAL_RECENTE, 'total': tot,
+                                 'linhas': [{'nome': g['nome'], 'tot': g['tot'], 'totV': g['totV'],
+                                             'n': g['n'], 'v': g['v']} for g in linhas]}
+    return out
+
+
+def canal_do_vendedor(C, params):
+    """Detalhamento do clique em aq-esforco: os dez maiores arquitetos da carteira do vendedor."""
+    DATA = C.blob('DATA')
+    janela, fim = _janela(params), C.maxym_vendas
+    ini = ym_shift(fim, -(janela - 1))
+    vn = params.get('vend') or ''
+    pares = [p for p in pares_canal(DATA, ini, fim)['pares'] if p['vend'] == vn]
+    pares = sorted(pares, key=lambda p: -p['v'])
+    total = soma(p['v'] for p in pares)
+    return {'vend': vn, 'total': total, 'n': len(pares),
+            'linhas': [[p['arq'], p['v'], p['nped'], p['r']] for p in pares[:10]]}
+
+
 def calcular(C, params=None):
     params = params or {}
     DATA = C.blob('DATA')
@@ -170,6 +259,9 @@ def calcular(C, params=None):
     parados = sorted((x for x in A['arqs'] if x['r'] >= 6), key=lambda x: -x['v'])[:12]
     if parados:
         out['aq-parados'] = {'linhas': [[x['name'], x['v'], x['peds'], x['r'], x['dono']] for x in parados]}
+    if params.get('_extras') or params.get('extras'):
+        # só a reunião pede os blocos do canal: na Biblioteca a seção continua igual ao aprovado
+        out.update(_blocos_do_canal(DATA, A, ym_shift(fim, -(janela - 1)), fim, janela, fim))
     R = _rfv(A)
     if R:
         itens = R['itens']

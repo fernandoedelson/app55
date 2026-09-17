@@ -32,6 +32,7 @@ DETALHES = {
     ('vendas', 'segmento'): ('av-rfv', analise_vendas.clientes_do_segmento),
     ('arquitetos', 'vendedor'): ('aq-quantos', arquitetos.arquitetos_do_vendedor),
     ('arquitetos', 'segmento'): ('aq-rfv', arquitetos.arquitetos_do_segmento),
+    ('arquitetos', 'canal'): ('aq-esforco', arquitetos.canal_do_vendedor),
     ('custosx', 'material'): ('cx-materia', custosx.materiais_da_categoria),
     ('custosx', 'driver'): ('cx-drivers', custosx.produtos_do_driver),
     ('custos', 'material'): ('cu-composicao', custos.materiais_da_categoria),

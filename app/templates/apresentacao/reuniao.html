@@ -136,9 +136,10 @@ document.addEventListener('DOMContentLoaded',function(){
     const ctx={
       payload:P,
       pode:r=>RECURSOS.indexOf(r)>=0,
-      buscar:async params=>{ const r=await fetch(url('/api/biblioteca/'+sid,params),{credentials:'same-origin'}); if(!r.ok) throw new Error(r.status);
+      /* extras=1: o recálculo por filtro continua trazendo os blocos que só a reunião mostra */
+      buscar:async params=>{ const r=await fetch(url('/api/biblioteca/'+sid,Object.assign({extras:1},params)),{credentials:'same-origin'}); if(!r.ok) throw new Error(r.status);
         const p=await r.json(); carregarDestaques(p); return p; },
-      detalhe:async (nome,params)=>{ const r=await fetch(url('/api/biblioteca/'+sid+'/detalhe/'+nome,params),{credentials:'same-origin'}); if(!r.ok) throw new Error(r.status); return r.json(); },
+      detalhe:async (nome,params)=>{ const r=await fetch(url('/api/biblioteca/'+sid+'/detalhe/'+nome,Object.assign({extras:1},params)),{credentials:'same-origin'}); if(!r.ok) throw new Error(r.status); return r.json(); },
       remarcar:()=>setTimeout(desenhar,20),
       marcar:()=>setTimeout(()=>marcarEm(sec,{k:'__abre'}),20),
     };
@@ -149,8 +150,9 @@ document.addEventListener('DOMContentLoaded',function(){
   SECOES.forEach(sid=>{ const sec=document.getElementById(sid); if(!sec) return;
     if(window.INSRT) INSRT.mount(sec);
     marcarEm(sec,{k:'__abre'}); });
-  ATOS.distribuir();
+  /* os listeners entram ANTES da mudança de lugar: mover preserva o que já está ligado */
   SECOES.forEach(sid=>{ const sec=document.getElementById(sid); if(sec&&sec._pos) sec._pos(); });
+  ATOS.distribuir();
   const b=document.getElementById('btn-apresentar');
   if(b) b.addEventListener('click',()=>ATOS.apresentar(!document.body.classList.contains('modo-apresentar')));
 });

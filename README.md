@@ -14,7 +14,8 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 | 4. Destaques (50 regras, 114 destaques) | concluída — igual ao gabarito completo |
 | 5. Fechamento e importação pela tela | concluída — a app reproduz as 14 bases da competência publicada |
 | 6. Comentários das áreas | concluída — escrever, consolidar, curar e publicar o texto |
-| 7. Reunião e apresentação | em curso — roteiro em atos e encaminhamentos prontos |
+| 7. Reunião e apresentação | concluída — atos, canal, comentários e encaminhamentos |
+| 8. Entrada no ar | próxima |
 
 ## Rodar localmente
 
@@ -88,8 +89,16 @@ Os comentários que a Controladoria marcou para a apresentação entram abaixo d
 Os encaminhamentos ficam ao pé: o responsável marca feito (só ele), a Controladoria confirma, e o que
 não foi confirmado reaparece como **retomada** na reunião seguinte.
 
-Pendência conhecida: `aq-esforco` e `aq-recorrencia` só existem na versão em Atos do Kit (nascem no
-`atos_ajustes.js`) e ainda não foram portados — os dois slots do Ato 4 ficam vazios.
+`aq-esforco` e `aq-recorrencia` (o esforço comercial e a recorrência do canal) só existem na reunião:
+nasceram no `atos_ajustes.js` do Kit e foram portados para `app/calculo/secoes/arquitetos.py`
+(`pares_canal`) e para o desenho da seção. O servidor só os calcula quando a reunião pede, então a
+Biblioteca continua idêntica ao relatório aprovado. Como todo bloco novo, nascem negados.
+
+O que ficou de fora do `atos_ajustes.js`: a camada de acabamento exclusiva da versão em Atos —
+rótulos de ponta nas linhas, corte da cascata no EBIT, recálculo de `av-jogo` com corte de
+materialidade, totalizador nas tabelas de segmento do RFV e a supressão de alguns KPIs. A reunião
+mostra hoje os números do relatório aprovado. `conferir_apresentacao.py --atos` compara com o
+retrato da versão em Atos e lista exatamente esses blocos.
 
 ## Estrutura
 

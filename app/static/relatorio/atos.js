@@ -71,7 +71,19 @@
       paraOSlot(slot, palco).forEach(el => slot.appendChild(el));
       slot.classList.toggle('vazio', slot.children.length === 0);
     });
+    marcarSlots();
+    /* o zoom de tabela embrulha cada .tw num .twz NOVO, por observador (setTimeout 0) — e a caixa
+       nasce sem dono. Sem esta segunda passada o botão ⤢ fica fora do bloco a que pertence. */
+    setTimeout(marcarSlots, 30);
     if (raiz !== false) marcarVazios();
+  }
+
+  /* dentro do ato o bloco não está mais sob a seção: quem carimba o dono aqui é o slot */
+  function marcarSlots() {
+    if (typeof marcarEm !== 'function') return;
+    document.querySelectorAll('[data-slot]').forEach(slot => {
+      marcarEm(slot, { k: slot.dataset.blk || '__abre' });
+    });
   }
 
   function marcarVazios() {

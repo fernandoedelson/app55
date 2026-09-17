@@ -44,7 +44,9 @@ def ver(codigo=None):
     dados = comp_mod.carregar(current_app.config, comp)
     payloads = {}
     for secao in A.secoes_necessarias(roteiro):
-        p = calculo.payloads_da_secao(dados, secao, pode, {})
+        # _extras liga os blocos que só existem na reunião (o canal, no ato 4); a Biblioteca
+        # nunca manda esse parâmetro, e ele não vem da URL (PARAMS_PERMITIDOS não o inclui)
+        p = calculo.payloads_da_secao(dados, secao, pode, {'_extras': True})
         if p is None:
             continue
         for bloco, mapa in D.para_secao(dados, secao, {}, pode).items():

@@ -59,12 +59,25 @@ def por_bloco(retratado):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--comp', default='2026-07')
+    ap.add_argument('--atos', action='store_true',
+                    help='compara com o retrato da versão em Atos do Kit (que tem a camada do '
+                         'atos_ajustes.js: rótulos de ponta, corte da cascata no EBIT, recálculo de '
+                         'av-jogo e totalizadores do RFV). Sem a bandeira, a régua é o relatório aprovado.')
     a = ap.parse_args()
     import retrato
 
     from app.apresentacao import atos as A
-    gab = json.load(open(os.path.join(KIT, '_referencia', 'gabarito', a.comp, 'retrato.json'), encoding='utf-8'))
-    esperado = por_bloco(gab)
+    # a régua é o relatório aprovado: a reunião não recalcula nada, só reordena. Com --atos a
+    # comparação passa a ser com o retrato da versão em Atos do Kit, que traz uma camada de
+    # acabamento própria (e por isso acusa diferença nos blocos que ela mexe).
+    arq_gab = 'retrato_atos.json' if a.atos else 'retrato.json'
+    esperado = por_bloco(json.load(open(os.path.join(KIT, '_referencia', 'gabarito', a.comp, arq_gab),
+                                       encoding='utf-8')))
+    if a.atos:
+        inteiro = por_bloco(json.load(open(os.path.join(KIT, '_referencia', 'gabarito', a.comp, 'retrato.json'),
+                                          encoding='utf-8')))
+        for blk, v in inteiro.items():
+            esperado.setdefault(blk, v)
 
     os.makedirs(REVISAO, exist_ok=True)
     destino_static = os.path.join(REVISAO, 'static')
@@ -104,8 +117,7 @@ def main():
             _, texto, graficos = no_ato[0]
             ref = esperado.get(blk)
             if not ref:
-                problemas += 1
-                linhas.append('### %s — não existe no gabarito' % blk)
+                # aq-esforco e aq-recorrencia não existem no relatório: nasceram na reunião
                 continue
             _, texto_ref, graficos_ref = ref[0]
             if texto == texto_ref and list(graficos) == list(graficos_ref):
