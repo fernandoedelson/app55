@@ -105,3 +105,24 @@ def test_detalhe_de_pedido_da_carteira_dinamica(admin):
     r = admin.get('/api/biblioteca/carteira_dinamica/detalhe/pedido',
                   query_string={'comp': '2026-07', 'ped': peds[0][0], 'status': status})
     assert r.status_code == 200 and r.get_json()['itens']
+
+
+def test_custo_fixo_por_entidade_fecha_com_o_consolidado(admin):
+    tot = {e: admin.get('/api/biblioteca/custofixo', query_string={'comp': '2026-07', 'ent': e}).get_json()['cf-cat']['tot']
+           for e in ('CONSOLIDADO', 'FABRICA', 'DESIGN')}
+    assert abs(tot['FABRICA'] + tot['DESIGN'] - tot['CONSOLIDADO']) < 1
+
+
+def test_custo_fixo_mensal_ano_e_composicao_batem_com_os_pacotes(admin):
+    q = {'comp': '2026-07', 'emp': 'FABRICA', 'dim': 'c'}
+    mes = admin.get('/api/biblioteca/custofixo_mensal', query_string=q).get_json()['cfm-pacotes']
+    assert mes['modo'] == 'mes'
+    pac, valor = next((r[0], r[1]) for r in mes['linhas'] if r[1])
+    det = admin.get('/api/biblioteca/custofixo_mensal/detalhe/composicao', query_string=dict(q, pac=pac)).get_json()
+    assert abs(det['tot'][0] - valor) < 0.01
+    ano = admin.get('/api/biblioteca/custofixo_mensal', query_string=dict(q, ym='Y2026')).get_json()['cfm-pacotes']
+    assert ano['modo'] == 'ano' and len(ano['yms']) == len(ano['col_tot'])
+    det = admin.get('/api/biblioteca/custofixo_mensal/detalhe/composicao',
+                    query_string=dict(q, ym='Y2026', pac=pac)).get_json()
+    linha = next(r for r in ano['linhas'] if r['p'] == pac)
+    assert abs(det['tot'] - linha['tot']) < 0.01
