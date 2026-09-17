@@ -23,6 +23,12 @@ janela do servidor aberta), ou pela linha de comando:
 No primeiro início é criado o usuário `admin` com senha provisória mostrada UMA vez no console
 (ou a de `APP55_ADMIN_SENHA`). O banco fica em `data/app55.db` (fora do git).
 
+Perdeu a senha provisória (ou a janela fechou)? Defina a sua, digitada no terminal:
+
+    C:\Scripts\WPy64-31700\python\python.exe ferramentas\senha_admin.py
+
+Ela derruba as sessões abertas do usuário e dispensa a troca obrigatória no acesso seguinte.
+
 ## Testes
 
     C:\Scripts\WPy64-31700\python\python.exe -m pytest -q
