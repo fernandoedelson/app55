@@ -19,7 +19,7 @@ function _cfmCorpo(P){
      +T.linhas.map(r=>`<tr class="cfm-pac-row" data-p="${esc(r[0])}"><td class="left">${esc(r[0])}</td><td class="right">${money(r[1])}</td><td class="right">${money(r[2])}</td><td class="right">${deltaCost(r[2]?r[3]/r[2]:null)} ${money(r[3])}</td></tr>`).join('')
      +'</tbody><tfoot><tr><td class="left">Total</td><td class="right">'+money(T.tot[0])+'</td><td class="right">'+money(T.tot[1])+'</td><td class="right">'+money(T.tot[2])+'</td></tr></tfoot></table></div>';
     s+=cap('Clique num pacote para ver a composição por '+D.titulo+'.');
-    s+='<div class="tw-ins"></div>';
+    s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('cfPacoteVariacao','cf-pacote-variacao')):'')+'</div>';
   } else {
     s+=H3('Pacotes — '+entName+' · '+T.ano+' (evolutivo)','','cfm-pacotes');
     s+='<div class="tw"><table class="dt"><thead><tr><th class="left">Pacote</th>'

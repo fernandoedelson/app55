@@ -13,11 +13,11 @@ function _cfCorpo(P){
     const series=cats.map(c=>({name:c,values:K.cats[c],color:CFCOLORS[c]}));
     s+='<div id="cf-cat-chart">'+fig(stackedCols(K.meses,series,{valfmt:v=>mi(v,1),
         linhaPct:{name:'Pessoal + Facilities',values:K.pesfac,color:'#c9a227',cls:'cf-pesfac'}}),
-      ins('cfCategoriaContraFluxo'))+'</div>';
+      ins('cfCategoriaContraFluxo','cf-categoria-contrafluxo')||ins('cfCategoriaContraFluxo','cf-categoria-contrafluxo-fabrica')||ins('cfCategoriaContraFluxo','cf-categoria-contrafluxo-design'))+'</div>';
     s+=table(['Categoria','Total '+nM+'m','% do custo fixo','Média/mês'],
       K.linhas.map(l=>[l[0],money(l[1]),pct(l[2],1),money(l[3])]),
       ['left','right','right','right'],['Custo fixo total',money(K.tot),'100,0%',money(K.media)],
-      ins('cfConcentracao'));
+      ins('cfConcentracao','cf-concentracao')||ins('cfConcentracao','cf-concentracao-fabrica')||ins('cfConcentracao','cf-concentracao-design'));
     s+=call('<b>Pessoal e Facilities</b> concentram '+pct(K.conc,0)+' do custo fixo dos últimos '+nM+' meses. '+esc(K.vol[0])+' é o item mais volátil mês a mês (oscila '+pct(K.vol[1],0)+' em torno da média).');
     const nApr=K.n_apr;
     s+=cap('Total de cada mês e entidade igual à despesa operacional da DRE. Abertura por categoria: '
@@ -27,7 +27,7 @@ function _cfCorpo(P){
   const E=P['cf-ent'];
   if(E){ const nE=E.nE;
     s+=H3('Custo fixo total por entidade — Fábrica × Loja','','cf-ent');
-    s+=fig(line([['Fábrica',E.fabrica,SER[0]],['Loja',E.loja,SER[1]]],E.meses,{valfmt:v=>mi(v,1),w:980,h:270}),ins('cfComposicao'));
+    s+=fig(line([['Fábrica',E.fabrica,SER[0]],['Loja',E.loja,SER[1]]],E.meses,{valfmt:v=>mi(v,1),w:980,h:270}),ins('cfComposicao','cf-composicao'));
     s+=table(['Entidade','Custo fixo '+nE+'m','Média/mês','% do total'],
       E.linhas.map(l=>[l[0],money(l[1]),money(l[2]),pct(l[3],1)]),
       ['left','right','right','right'],['Consolidado',money(E.total[0]),money(E.total[1]),'100,0%']);

@@ -41,14 +41,14 @@ function _dreCorpo(P){
       {label:'(−) Financeiro',value:g.financeiro},
       {label:'(+) Absorção/ñ op.',value:g.ajuste},
       {label:'Resultado Líquido',value:g.result_liq,type:'t'},
-    ],{valfmt:v=>mi(v,1)}),ins('dreCustoFixoNivel')); }
+    ],{valfmt:v=>mi(v,1)}),ins('dreCustoFixoNivel','dre-cf-nivel')); }
   const T=P['dre-tabela'];
   if(T){
     s+=H3('Demonstração de resultado (DRE)','','dre-tabela');
     s+=table(['Linha','Valor','% ROL'],T.linhas.map(l=>{const t=l[1], v=l[2];
         const st=t==='t'?'font-weight:700':(t==='h'?'font-weight:600':'');
         return [`<span style="${st}">${esc(l[0])}</span>`, v<0?`<span style="color:${BAD}">${money(v)}</span>`:money(v), pct(l[3],1)];
-      }),['left','right','right'],null,ins('dreLinhaQueMudou')); }
+      }),['left','right','right'],null,ins('dreLinhaQueMudou','dre-linha-que-mudou')); }
   const BE=P['dre-breakeven'], MD=P['dre-minidre'];
   if(BE||MD){ const pe=BE?BE.pe:true;
     if(BE) s+=H3('Ponto de equilíbrio — '+BE.nome,'','dre-breakeven');
@@ -61,7 +61,7 @@ function _dreCorpo(P){
          +kpi('Margem de segurança',pct(e.marg_seg,0),(e.marg_seg>=0?'acima':'abaixo')+' do equilíbrio',e.marg_seg>=0?'ok':'warn')
          +'</div>';
         s+=fig(line([['Receita Líquida',e.receita,SER[0]],['Custo total (fixo + variável)',e.custo,SER[1]]],e.qs.map(q=>nf(Math.round(q))),{valfmt:v=>mi(v,1),w:980,h:300}),
-          ins('equilibrioBruta'));
+          ins('equilibrioBruta','equilibrio-bruta'));
         s+=cap('Quantidade de produtos no eixo. O cruzamento das linhas é o equilíbrio operacional: <b>'+nf(Math.round(e.pe_q))+' produtos</b> / <b>'+mi(e.pe_v)+'</b> de receita líquida (real: '+nf(Math.round(e.vol))+' produtos / '+mi(e.rolv)+'). Preço médio líq. R$ '+nf(e.preco_u,0)+' · custo variável R$ '+nf(e.cv_u,0)+' · custo fixo '+mi(e.cf)+'.');
       }
       if(MD){ const perMini=ymLab(MD.ini)+'–'+ymLab(MD.fim), mesesYTD=MD.meses;
@@ -82,7 +82,7 @@ function _dreCorpo(P){
            +'</thead><tbody>'
            +rows6.map(r=>'<tr>'+r.map((x,i)=>`<td class="${i===0?'left':'right'}">${x}</td>`).join('')+'</tr>').join('')
            +'</tbody></table></div>';
-          s+='<div class="tw-ins"></div>';
+          s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('equilibrioAlavanca','equilibrio-alavanca')):'')+'</div>';
           s+=call('No <b>equilíbrio operacional</b> do período ('+perMini+', '+mesesYTD+' '+(mesesYTD===1?'mês':'meses')+') a margem de contribuição iguala o custo fixo ('+mi(MD.cf)+') e o EBITDA zera — exigindo '+mi(MD.pe_v)+' de receita líquida ('+nf(Math.round(MD.pe_q))+' produtos), equivalente a '+mi(MD.rob_eb)+' de receita bruta, contra '+mi(MD.rl)+' de líquida ('+mi(MD.rb)+' de bruta) realizados. Em média mensal, isso é '+mi(MD.pe_v_mes)+' de receita líquida por mês, contra '+mi(MD.rl_mes)+' realizados por mês. Receita bruta no equilíbrio estimada aplicando o % de deduções real do período ('+pct(-MD.ded_pct,1)+') — assume deduções proporcionais à receita.',MD.marg_seg>=0?'ok':'warn');
         } else {
           s+=call('No período ('+perMini+') a margem de contribuição não é positiva para este recorte — a Mini-DRE de equilíbrio não é aplicável. Selecione o Consolidado ou outro período para ver o equilíbrio operacional.','warn');
@@ -94,7 +94,7 @@ function _dreCorpo(P){
   }
   const EV=P['dre-evol'];
   if(EV){ s+=H3('Evolução mensal — receita líquida e EBITDA','','dre-evol');
-    s+=fig(line([['Receita Líquida',EV.rl,SER[0]],['EBITDA',EV.eb,SER[2]]],EV.yms.map(ymLab),{valfmt:v=>mi(v,1),w:980,h:300}),ins('dreJurosEbitda')); }
+    s+=fig(line([['Receita Líquida',EV.rl,SER[0]],['EBITDA',EV.eb,SER[2]]],EV.yms.map(ymLab),{valfmt:v=>mi(v,1),w:980,h:300}),ins('dreJurosEbitda','dre-juros-ebitda')); }
   const PR=P['dre-produto'];
   if(PR){
     s+=H3('Ticket médio, custo e margem por produto','','dre-produto');
@@ -108,7 +108,7 @@ function _dreCorpo(P){
      +'</div>';
     const S=PR.serie;
     if(S){ s+=fig(line([['Ticket médio (ROB) / produto',S.ticket,SER[0]],['ROL / produto',S.rol,SER[2]],['Custo médio (CPV) / produto',S.custo,SER[1]]],S.yms.map(ymLab),{valfmt:v=>money(v),w:980,h:300}),
-      ins('dreMargemVolume'));
+      ins('dreMargemVolume','dre-margem-volume')||ins('auto','auto-dre-ticket'));
       s+=cap('Ticket médio = Receita Bruta ÷ qtd faturada · ROL/produto = Receita Líquida ÷ qtd · Custo médio = Custo do Produto Vendido ÷ qtd. GVV/produto (comissões, royalties, RT, fretes) e margem de contribuição por produto no quadro anual abaixo.'); }
   }
   const PA=P['dre-produto-ano'];
@@ -116,7 +116,7 @@ function _dreCorpo(P){
     s+=H3('Histórico anual — indicadores por produto','todos os anos','dre-produto-ano');
     s+=table(['Ano','Qtd faturada','Ticket (ROB)/prod','ROL/prod','Custo (CPV)/prod','GVV/prod','Margem contrib./prod','Margem %'],
       PA.anos.map(x=>[x[0],nf(Math.round(x[1])),money(x[2]),money(x[3]),money(x[4]),money(x[5]),money(x[6]),pct(x[7],1)]),
-      ['left','right','right','right','right','right','right','right'],null,ins('auto'));
+      ['left','right','right','right','right','right','right','right'],null,ins('auto','auto-dre-hist-prod'));
   }
   const FL=P['dre-fabloja'];
   if(FL){ const f=FL.f,d=FL.d,g=FL.g;
@@ -129,9 +129,9 @@ function _dreCorpo(P){
       ['Custo Fixo',money(-f.despesas_op),money(-d.despesas_op),money(-g.despesas_op)],
       ['EBITDA',`<span style="color:${f.ebitda<0?BAD:GOOD}">${money(f.ebitda)}</span>`,`<span style="color:${d.ebitda<0?BAD:GOOD}">${money(d.ebitda)}</span>`,`<span style="color:${g.ebitda<0?BAD:GOOD}">${money(g.ebitda)}</span>`],
       ['Resultado Líquido',`<span style="color:${f.result_liq<0?BAD:GOOD}">${money(f.result_liq)}</span>`,`<span style="color:${d.result_liq<0?BAD:GOOD}">${money(d.result_liq)}</span>`,`<span style="color:${g.result_liq<0?BAD:GOOD}">${money(g.result_liq)}</span>`],
-    ],['left','right','right','right'],null,ins('dreFabricaLoja'));
+    ],['left','right','right','right'],null,ins('dreFabricaLoja','dre-fabrica-loja'));
     s+=fig(line([['Receita Líq. Fábrica',FL.rl_f,SER[0]],['Receita Líq. Loja',FL.rl_d,SER[1]]],
-      FL.yms.map(ymLab),{valfmt:v=>mi(v,1),w:980,h:280}),ins('dreCustoFixoRol'));
+      FL.yms.map(ymLab),{valfmt:v=>mi(v,1),w:980,h:280}),ins('dreCustoFixoRol','dre-cf-rol'));
   }
   return s;
 }
@@ -143,7 +143,7 @@ function _dreSnap(S){
   const rows=S.linhas.map(l=>{ const st=l[1]==='t'?'font-weight:700':(l[1]==='h'?'font-weight:600':''), v=l[2];
     return [`<span style="${st}">${esc(l[0])}</span>`,cel(v[0]),cel(v[1]),_dreVar(v[0],v[1]),cel(v[2]),cel(v[3]),_dreVar(v[2],v[3])]; });
   return H3('Demonstração de resultado — comparativo',S.nome,'dre-snap')
-    +table(headers,rows,['left','right','right','right','right','right','right'],null,ins('dreComparativoMotor'))
+    +table(headers,rows,['left','right','right','right','right','right','right'],null,ins('dreComparativoMotor','dre-comparativo-motor'))
     +cap('A variação mostra quanto a própria linha mudou. A <b>cor</b> segue o efeito no resultado, não o sinal do número: '
       +'verde quando melhorou, vermelho quando piorou. Numa linha de custo isso se inverte — deduções caindo aparecem em '
       +'verde com percentual negativo. Onde o valor trocou de sinal entre os dois períodos, a variação percentual não é '

@@ -29,7 +29,7 @@ DESENHO.divida=function(P){
     s+=fig(stackedArea(S.yms.map(ymLab),[
       {name:'Aporte líquido acumulado',values:S.aporte,color:SER[0]},
       {name:'Correção/juros acumulados',values:S.correcao,color:WARN},
-    ],{valfmt:v=>mi(v,1)}),ins('dividaCorrecao'));
+    ],{valfmt:v=>mi(v,1)}),ins('dividaCorrecao','divida-correcao'));
     s+=cap('O saldo cresce majoritariamente por correção monetária, não por novos aportes: '+mi(S.total_remessas)+' aportados historicamente (com '+mi(Math.abs(S.total_recebimentos))+' devolvidos) já viraram '+mi(S.saldo_atual)+' corrigidos — '+mi(S.total_correcao)+' de juros/correção acumulados ('+pct(S.total_correcao/S.saldo_atual,0)+' do saldo atual).');
   }
   const N=P['dv-ano'];
@@ -40,12 +40,12 @@ DESENHO.divida=function(P){
     s+=fig(evolCombo(anoRows.map(rotAno),[
       {name:'Aporte líquido',values:anoRows.map(o=>o.liq),color:SER[0]},
       {name:'Correção do ano',values:anoRows.map(o=>o.cor),color:WARN}],
-      anoRows.map(o=>o.saldo),{valfmt:v=>mi(v,1)}),ins('dividaJuroAno'));
+      anoRows.map(o=>o.saldo),{valfmt:v=>mi(v,1)}),ins('dividaJuroAno','divida-juro-ano'));
     s+=table(['Ano','Saldo inicial','Aporte novo','Devolvido','Correção do ano','Saldo final'],
       anoRows.map(o=>[rotAno(o),money(o.ini),money(o.rem),o.rec?money(o.rec):'—',
         `<span style="color:${WARN};font-weight:600">${money(o.cor)}</span>`,money(o.saldo)]),
       ['left','right','right','right','right','right'],
-      ['Total','—',money(T[0]),money(T[1]),money(T[2]),money(T[3])],ins('auto'));
+      ['Total','—',money(T[0]),money(T[1]),money(T[2]),money(T[3])],ins('auto','auto-divida-anos'));
     s+=cap('Aporte líquido = remessas menos devoluções; somado à correção, é exatamente a variação do saldo no ano — por isso as barras fecham com o degrau da área.');
     if(virada) s+=call('<b>'+virada.ano+' foi o ano em que a dívida passou a crescer mais por juro do que por dinheiro novo</b> — '
       +mi(virada.cor)+' de correção contra '+mi(virada.liq)+' de aporte líquido. O aporte caiu de '
@@ -56,13 +56,13 @@ DESENHO.divida=function(P){
   const D=P['dv-endiv'];
   if(D){
     s+=H3('Endividamento gerado — acumulado desde '+ymLabAno(D.D0*100+1),'','dv-endiv');
-    s+=fig(line([['Endividamento acumulado',D.cum,SER[7]]],D.yms.map(ymLab),{valfmt:v=>mi(v,1),w:980,h:290}),ins('serieOscilacao'));
+    s+=fig(line([['Endividamento acumulado',D.cum,SER[7]]],D.yms.map(ymLab),{valfmt:v=>mi(v,1),w:980,h:290}),ins('serieOscilacao','serie-oscilacao-endiv-acum')||ins('auto','auto-endiv-acum'));
     s+=cap('Acumulado da geração mensal de endividamento (consumo de caixa coberto por dívida) — proxy extraída da DRE, não é o saldo real da dívida'+(D.tem_ap?' (esse já aparece acima, a partir do saldo diário do acionista)':' com o acionista')+'.');
   }
   const J=P['dv-juros'];
   if(J){
     s+=H3('Custo financeiro — juros passivos a terceiros','','dv-juros');
-    s+=fig(line([['Juros passivos a terceiros (mês)',J.juros,SER[1]]],J.yms.map(ymLab),{valfmt:v=>mi(v,1),w:980,h:270}),ins('serieOscilacao'));
+    s+=fig(line([['Juros passivos a terceiros (mês)',J.juros,SER[1]]],J.yms.map(ymLab),{valfmt:v=>mi(v,1),w:980,h:270}),ins('serieOscilacao','serie-oscilacao-juros-terceiros')||ins('auto','auto-juros-terceiros'));
     const mut='<span class="mut">—</span>', ver=v=>`<span style="color:${BAD}">${money(v)}</span>`;
     s+=table(['Ano','Juros passivos a terceiros','Endividamento gerado','Aporte no ano (acionista)','Correção/juros no ano (acionista)'],
       J.linhas.map(l=>[l[0]===null?J.D1+' ('+ytdLab(J.maxym)+')':l[0],ver(l[1]),l[2]===null?mut:ver(l[2]),
@@ -76,7 +76,7 @@ DESENHO.divida=function(P){
       G.yms.map((ym,i)=>[ymLab(ym),
         (G.ger[i]>=0?`<span style="color:${BAD}">${money(G.ger[i])}</span>`:`<span style="color:${GOOD}">${money(G.ger[i])}</span>`),
         money(G.cum[i]), money(G.juros[i])]),
-      ['left','right','right','right'],null,ins('auto'));
+      ['left','right','right','right'],null,ins('auto','auto-endiv-mes'));
     const jA=G.jA, jB=G.jB;
     const verboJuros=jB>jA*1.2?'saltou':(jB>=jA?'subiu':'caiu');
     s+=call('O custo financeiro (juros a terceiros) '+verboJuros+' de '+mi(jA)+' em '+(G.D0-1)+' para '+mi(jB)+' em '+G.D0+(jB>=jA?' — é o principal vetor do resultado líquido negativo':'')+'. A geração de endividamento operacional (consumo de caixa) somou '+mi(G.endiv0)+' em '+G.D0+' e '+mi(G.endiv1)+' em '+ano26lab+'.','warn');

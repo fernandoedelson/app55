@@ -25,7 +25,7 @@ function _estCorpo(P){
   s+='<button id="est-grp-toggle" type="button" class="cxgrp-toggle">'
     +(E.aberto?'Recolher os subgrupos de despesa':'Abrir os 16 subgrupos de despesa')+'</button>';
   s+=H3('O DRE por unidade','Modelo A · até o EBIT · '+esc(E.periodo),'est-dre');
-  s+=table(['Linha do DRE','Fábrica','Loja','Consolidado'],rows,['left','right','right','right'],null,ins('fabLojaLinhas'));
+  s+=table(['Linha do DRE','Fábrica','Loja','Consolidado'],rows,['left','right','right','right'],null,ins('fabLojaLinhas','fabloja-linhas'));
   s+=cap('<b>Sem rateio.</b> Despesa operacional e depreciação vão direto para a entidade que as registrou: '
     +'o que é da 55 Fábrica fica na Fábrica, o que é da 55 Design fica na Loja. Essas linhas batem, ao centavo, '
     +'com as abas <code>REAL — 55 FÁBRICA</code> e <code>REAL — 55 DESIGN</code> do Painel. '

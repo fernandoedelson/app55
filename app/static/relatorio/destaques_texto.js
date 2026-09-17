@@ -508,6 +508,227 @@ TXT.rfvArqQualidade=d=>({
   trigger:`aproveitamento por arquiteto variando ${nf(d.razao,1)}× entre os maiores vendedores (limiar 1,4×)`,
 });
 
+/* ---------- DRE ---------- */
+TXT.dreJurosEbitda=d=>({
+  verdict:d.eb>0
+    ? `<b>${pct(d.juros/d.eb,0)} do que a operação gera vai para juros</b> — ${mi(d.juros)} sobre ${mi(d.eb)} de EBITDA.`
+    : `A operação <b>consumiu ${mi(Math.abs(d.eb))}</b> no período e ainda há <b>${mi(d.juros)} de juros</b> a pagar.`,
+  texto:`Juros a terceiros somam ${mi(d.juros)}, o equivalente a ${pct(d.juros/d.rol,0)} de toda a receita líquida do período. `
+    +(d.eb>0?`É mais que ${nf(d.juros/Math.max(d.eb,1),1)}× o que sobra da operação. `
+            :`Sem geração positiva, esse custo é coberto por aporte ou por mais dívida. `)
+    +`Para comparar as ordens de grandeza: 1 ponto de margem sobre toda a receita vale ${mi(d.umPP)}, `
+    +`e 1% a menos no valor de juros vale ${mi(d.umPctJuros)}.`,
+  ev:[['Juros a terceiros',mi(d.juros)],['EBITDA',mi(d.eb)],
+      ['Juros / receita líquida',pct(d.juros/d.rol,0)],['Resultado líquido',mi(d.result)]],
+  trigger:d.eb>0?`juros consomem ${pct(d.juros/d.eb,0)} do EBITDA (limiar 35%)`:'EBITDA não positivo com juros a pagar',
+});
+
+TXT.dreMargemVolume=d=>({
+  verdict:`Cada real vendido deixa <b>${pct(d.mcPct,1)} contra ${pct(d.mcPctPrev,1)}</b> antes, mas saíram <b>${un(Math.abs(d.vol-d.volPrev))} a ${d.dVol<0?'menos':'mais'}</b>.`,
+  texto:`Em dinheiro a margem ${d.dMcAbs>0?'cresceu':'caiu'} ${mi(Math.abs(d.dMcAbs))} — muito menos do que a melhora percentual sugere. `
+    +(d.dMc>0
+      ? `A margem melhorou porque mudou o tipo de peça vendida, não porque o custo caiu. `
+      : `O crescimento veio de peças de margem menor. `)
+    +`Na margem por peça de hoje (${money(d.mcPeca)}), o volume do período anterior daria ${mi(d.seVolIgual)}.`,
+  ev:[['Margem por real',pct(d.mcPctPrev,1)+' → '+pct(d.mcPct,1)],['Peças faturadas',nf(Math.round(d.volPrev))+' → '+nf(Math.round(d.vol))],
+      ['Margem por peça',money(d.mcPeca)],['Margem em dinheiro',mi(d.dMcAbs)]],
+  trigger:`margem (${nf(d.dMc*100,1)} p.p.) e quantidade (${spct(d.dVol,0)}) em direções opostas`,
+});
+
+TXT.dreCustoFixoNivel=d=>({
+  verdict:`A margem gerada foi <b>${mi(d.mcAbs)}</b> e o custo fixo, <b>${mi(d.cf)}</b>. Faltaram <b>${mi(d.buraco)}</b>.`,
+  texto:`Cada R$ 1 vendido deixa ${money(d.mc,2)} depois do custo do produto. `
+    +`Para cobrir ${mi(d.cf)} de estrutura seria preciso vender ${mi(d.peV)} — a venda foi ${mi(d.rol)}. `
+    +`O mesmo buraco de ${mi(d.buraco)} aparece de dois jeitos: ${mi(d.falta)} de venda a mais `
+    +`(${pct(d.falta/d.rol,0)} acima de hoje) ou ${pct(d.buraco/d.cf,0)} da estrutura a menos.`,
+  ev:[['Margem gerada',mi(d.mcAbs)],['Custo fixo',mi(d.cf)],
+      ['Venda para empatar',mi(d.peV)],['Venda realizada',mi(d.rol)]],
+  trigger:`custo fixo em ${pct(d.sh,0)} da receita líquida (limiar 55%)`,
+});
+
+TXT.dreCustoFixoRol=d=>({
+  verdict:`O custo fixo passou a comer <b>${pct(d.shB,0)} da receita, contra ${pct(d.shA,0)}</b> antes.`,
+  texto:`A receita ${d.dRol<0?'caiu':'subiu'} ${pct(Math.abs(d.dRol),1)} e o custo fixo ${d.dCf<0?'caiu':'subiu'} ${pct(Math.abs(d.dCf),1)}. `
+    +`Para manter o peso de antes, o custo fixo do período seria ${mi(d.seAcompanhasse)} — `
+    +`${mi(Math.abs(d.cfB-d.seAcompanhasse))} de diferença.`,
+  ev:[['Peso na receita',pct(d.shA,1)+' → '+pct(d.shB,1)],['Receita',spct(d.dRol,1)],
+      ['Custo fixo',spct(d.dCf,1)],['Diferença',mi(d.cfB-d.seAcompanhasse)]],
+  trigger:`peso do custo fixo na receita subiu ${nf((d.shB-d.shA)*100,1)} p.p. (limiar 3 p.p.)`,
+});
+
+TXT.dreLinhaQueMudou=d=>{
+  const nome=esc(d.nome).toLowerCase();
+  return {
+    verdict:d.engole&&d.ajuda
+      ? `O resultado ${d.dResult>0?'melhorou':'piorou'} ${mi(Math.abs(d.dResult))}, mas <b>${nome} sozinho ${d.dResult>0?'trouxe':'tirou'} ${mi(Math.abs(d.d))}</b> — o resto da DRE andou para o outro lado.`
+      : `O resultado ${d.dResult>0?'melhorou':'piorou'} ${mi(Math.abs(d.dResult))} e <b>${nome} responde por ${mi(Math.abs(d.d))}</b> disso.`,
+    texto:`Linha a linha contra o período anterior, ${nome} foi de ${mi(d.a)} para ${mi(d.b)}. `
+      +(d.engole&&d.ajuda
+        ? `Somadas, as outras linhas ${d.resto<0?'consumiram':'somaram'} ${mi(Math.abs(d.resto))} — sem ${nome}, `
+          +`o resultado teria ${d.resto<0?'piorado':'melhorado'} ${mi(Math.abs(d.resto))}.`
+        : `Os dois movimentos seguintes foram `
+          +d.outras.map(o=>esc(o.nome).toLowerCase()+' ('+mi(o.d)+')').join(' e ')+`.`),
+    ev:[[d.nome,mi(d.a)+' → '+mi(d.b)],['Efeito no resultado',mi(d.d)],
+        ['Variação do resultado',mi(d.dResult)],['Demais linhas',mi(d.resto)]],
+    trigger:`maior movimento de linha vale ${nf(d.razao,2)}× a variação do resultado (limiar 0,30×)`,
+  };
+};
+
+TXT.equilibrioAlavanca=d=>({
+  verdict:`De cada R$ 100 vendidos, sobram <b>${money(d.mcPct*100)}</b> depois do que varia com a venda. `
+    +`É por isso que cada real de custo fixo exige <b>${money(d.porReal,2)} de venda</b> para se pagar.`,
+  texto:`A conta do equilíbrio é essa: o que sobra de cada venda tem de cobrir tudo o que a empresa gasta `
+    +`independentemente de vender. Como sobram ${pct(d.mcPct,0)}, o custo fixo de ${mi(d.cf)} precisa de `
+    +`${mi(d.receita)} de receita só para empatar. `
+    +(d.fin?`Somando os juros da dívida (${mi(d.fin)})`+(d.dep?` e a depreciação (${mi(d.dep)})`:'')
+          +`, o alvo sobe para ${mi(d.alvo)}. `:'')
+    +`Quanto menor a sobra por venda, mais receita cada despesa fixa custa — é o mesmo custo fixo pesando mais.`,
+  ev:[['Sobra por venda',pct(d.mcPct,1)],['Venda por R$ 1 de fixo',money(d.porReal,2)],
+      ['Custo fixo',mi(d.cf)],['Receita para empatar',mi(d.receita)]],
+  trigger:`cada R$ 1 de custo fixo exige ${money(d.porReal,2)} de venda (limiar R$ 1,15)`,
+});
+
+TXT.equilibrioBruta=d=>({
+  verdict:`Para parar de dar prejuízo na operação a empresa precisa vender <b>${mi(d.mesEB)} por mês</b> — `
+    +`hoje vende ${mi(d.mesReal)}. É <b>${nf(d.razao,2)}× o que vende hoje</b>.`,
+  texto:`O número que a área comercial usa é a venda cheia, antes de imposto — é essa que aparece aqui. `
+    +`No ano, seriam ${mi(d.robEB)} contra ${mi(d.rob)} realizados em ${d.meses} ${plural(d.meses,'mês','meses')}. `
+    +(d.faltaRZ!=null&&d.faltaRZ>d.faltaEB
+      ? `E isso só empata a operação. Para cobrir também os juros da dívida, o número sobe para ${mi(d.robRZ)} — `
+        +`${mi(d.faltaRZ-d.faltaEB)} a mais, que é o que a dívida custa por si só. `
+      : '')
+    +(d.peQ&&d.vol?`Em produto, são ${un(d.peQ)} contra ${un(d.vol)} vendidas.`:''),
+  ev:[['Vende hoje (mês)',mi(d.mesReal)],['Precisa vender (mês)',mi(d.mesEB)],
+      ['Falta no período',mi(d.faltaEB)],['Com os juros',d.faltaRZ!=null?mi(d.robRZ):'—']],
+  trigger:`equilíbrio a ${nf(d.razao,2)}× a venda atual`,
+});
+
+TXT.dreFabricaLoja=d=>({
+  verdict:d.inverte
+    ? `<b>${d.maiorN} tem a melhor margem (${pct(d.maiorM,0)} contra ${pct(d.menorM,0)}) e ainda assim o pior resultado</b> — `
+      +`o custo fixo dela é ${mi(d.maiorFx)}, contra ${mi(d.menorFx)}.`
+    : `De cada R$ 100 de receita, sobram <b>${money(d.maiorM*100)} na ${d.maiorN}</b> e ${money(d.menorM*100)} na ${d.menorN}, `
+      +`antes das despesas fixas.`,
+  texto:`Margem e resultado não são a mesma coisa. A ${d.maiorN} guarda ${pct(d.maiorM,0)} de cada venda depois do que `
+    +`varia; a ${d.menorN}, ${pct(d.menorM,0)}. Mas cada uma carrega uma estrutura fixa diferente: `
+    +`${mi(d.maiorFx)} contra ${mi(d.menorFx)}. `
+    +(d.inverte
+      ? `Por isso a de melhor margem termina atrás: ela precisa de muito mais volume para pagar a própria estrutura.`
+      : `Como as duas leituras apontam para o mesmo lado, aqui a margem já antecipa o resultado.`),
+  ev:[[d.maiorN+' · sobra por venda',pct(d.maiorM,1)],[d.menorN+' · sobra por venda',pct(d.menorM,1)],
+      [d.maiorN+' · custo fixo',mi(d.maiorFx)],[d.menorN+' · custo fixo',mi(d.menorFx)]],
+  trigger:`margens distantes ${pct(d.gap,0)} entre as duas unidades (limiar 6 p.p.)`,
+});
+
+TXT.dreComparativoMotor=d=>({
+  verdict:d.iguais
+    ? `<b>${esc(d.nomeMes)}</b> é a linha que mais se mexe nos dois recortes: `
+      +`${money(d.dMes)} no mês e ${money(d.dAno)} no acumulado do ano.`
+    : `No mês quem mais se mexe é <b>${esc(d.nomeMes)}</b> (${money(d.dMes)}); no acumulado do ano, `
+      +`<b>${esc(d.nomeAno)}</b> (${money(d.dAno)}). <b>Não é a mesma linha.</b>`,
+  texto:(d.iguais
+    ? `A mesma linha manda no mês e no ano, então o que se vê aqui não é oscilação de um mês solto. `
+    : `Um mês forte numa linha não quer dizer que ela seja a que decide o ano — e é o ano que aparece no `
+      +`resultado publicado. Olhar só a coluna do mês leva a conclusão diferente da que os doze meses dariam. `)
+    +(d.contra>0
+      ? `Outras linhas andaram ${money(d.contra)} no sentido contrário no mês, cobrindo parte do movimento — `
+        +`por isso o total varia menos do que a maior linha isolada.`
+      : `Neste mês as linhas andaram todas para o mesmo lado.`),
+  ev:[['Mais move no mês',trunc(d.nomeMes,20)],['Valor',money(d.dMes)],
+      ['Mais move no ano',trunc(d.nomeAno,20)],['Valor',money(d.dAno)]],
+  trigger:d.iguais?`mesma linha domina mês e acumulado`:`linha dominante do mês difere da do acumulado`,
+});
+
+/* ---------- Custo fixo, dívida e estudos ---------- */
+TXT.cfComposicao=d=>({
+  verdict:`O custo fixo caiu ${pct(-d.dCons,0)}, mas <b>${esc(d.lider)} caiu ${pct(-d.dLider,0)} e ${esc(d.parada)} ficou parado (${spct(d.dParada,0)})</b>.`,
+  texto:`Comparando a média dos 3 primeiros meses com a dos 3 últimos. `
+    +`${esc(d.lider)} saiu de ${mi(d.iniLider)} para ${mi(d.fimLider)} por mês; ${esc(d.parada)} continua em ${mi(d.fimParada)}. `
+    +`No ritmo de ${esc(d.lider)}, ${esc(d.parada)} estaria em ${mi(d.seAcompanhasse)} — `
+    +`${mi(d.difAno)} de diferença no ano.`,
+  ev:[[d.lider,spct(d.dLider,1)],[d.parada,spct(d.dParada,1)],
+      ['Consolidado',spct(d.dCons,1)],['Diferença no ano',mi(d.difAno)]],
+  trigger:`${esc(d.parada)} variou ${spct(d.dParada,0)} contra ${spct(d.dCons,0)} do consolidado`,
+});
+
+TXT.cfCategoriaContraFluxo=d=>({
+  verdict:d.soUma
+    ? `<b>${esc(d.nome)} subiu ${pct(d.d,0)}</b> enquanto o custo fixo total ${d.dTot<0?'caiu':'subiu'} ${pct(Math.abs(d.dTot),0)}.`
+    : `<b>${esc(d.contra.map(c=>c.nome+' '+spct(c.d,0)).join(' e '))}</b>, enquanto o custo fixo total ${d.dTot<0?'caiu':'subiu'} ${pct(Math.abs(d.dTot),0)}.`,
+  texto:`Comparando a média dos 3 primeiros meses com a dos 3 últimos. `
+    +`${esc(d.nome)} passou de ${mi(d.ini)} para ${mi(d.fim)} por mês e hoje é ${pct(d.peso,1)} do custo fixo. `
+    +`${d.soUma?'É a única linha':'São as únicas linhas'} que não acompanharam o conjunto — `
+    +`a diferença vale ${mi(d.custo)} por mês, ${mi(d.custo*12)} no ano.`,
+  ev:[[d.nome,mi(d.ini)+' → '+mi(d.fim)],['Variação',spct(d.d,1)],
+      ['Custo fixo total',spct(d.dTot,1)],['Diferença por mês',mi(d.custo)]],
+  trigger:`categoria com peso ≥ 4% variando ${spct(d.d,0)} contra ${spct(d.dTot,0)} do total`,
+});
+
+TXT.cfConcentracao=d=>({
+  verdict:`<b>${esc(d.n1)} e ${esc(d.n2)} são ${pct(d.duas,0)} do custo fixo</b> — ${mi(d.v1+d.v2)} em ${d.meses} meses.`,
+  texto:`As outras ${d.nCauda} categorias somadas dão ${mi(d.vCauda)}, ${pct(d.vCauda/d.tot,0)} do total. `
+    +`Dez por cento de ${esc(d.n1)} valem ${mi(d.v1*.1/d.meses)} por mês; `
+    +`os mesmos 10% em todas as outras ${d.nCauda} juntas valem ${mi(d.vCauda*.1/d.meses)}.`,
+  ev:[[d.n1,mi(d.v1)],[d.n2,mi(d.v2)],
+      ['Somadas',pct(d.duas,0)+' do total'],['Outras '+d.nCauda+' categorias',mi(d.vCauda)]],
+  trigger:`duas maiores categorias com ${pct(d.duas,0)} do custo fixo (limiar 60%)`,
+});
+
+TXT.cfPacoteVariacao=d=>({
+  verdict:`O custo fixo ${d.dTot>=0?'subiu':'caiu'} <b>${money(Math.abs(d.dTot))}</b> no mês, mas `
+    +`<b>${esc(d.maior)} sozinho ${d.dMaior>=0?'subiu':'caiu'} ${money(Math.abs(d.dMaior))}</b>.`,
+  texto:`A diferença entre os dois números não some: ela está em pacotes andando para o lado contrário. `
+    +(d.contra
+      ? `Enquanto ${esc(d.maior)} ${d.dMaior>=0?'subia':'caía'}, ${esc(d.contra)} foi na direção oposta, `
+        +`${d.dContra>=0?'subindo':'caindo'} ${money(Math.abs(d.dContra))} — e um cobriu parte do outro no total. `
+      : `Somados, os demais pacotes andaram ${money(Math.abs(d.resto))} no sentido inverso. `)
+    +`Olhar só a linha de total do mês faz os dois movimentos desaparecerem.`,
+  ev:[['Total do mês',money(d.totA)],['Mês anterior',money(d.totP)],
+      [trunc(d.maior,18),(d.dMaior>=0?'+':'')+money(d.dMaior)],
+      [d.contra?trunc(d.contra,18):'Demais',(d.contra?(d.dContra>=0?'+':'')+money(d.dContra):money(d.resto))]],
+  trigger:`maior pacote move ${nf(d.domina,1)}× a variação do total (limiar 1,15×)`,
+});
+
+TXT.dividaCorrecao=d=>({
+  verdict:`A dívida com o acionista é <b>${mi(d.saldo)}</b>, mas só <b>${mi(d.liq)} foi dinheiro que entrou</b> — ${mi(d.correcao)} é juro acumulado.`,
+  texto:`Entraram ${mi(d.remessas)} ao longo do tempo e voltaram ${mi(Math.abs(d.recebimentos))}. `
+    +`O resto do saldo é correção pelo CDI, que continua correndo todo mês sem ninguém tomar um real a mais. `
+    +(d.cor12?`Só nos últimos 12 meses ela somou ${mi(d.cor12)}.`:''),
+  ev:[['Saldo hoje',mi(d.saldo)],['Dinheiro que entrou',mi(d.liq)],
+      ['Juro acumulado',mi(d.correcao)],['Juro dos últimos 12m',d.cor12?mi(d.cor12):'—']],
+  trigger:`correção representa ${pct(d.sh,0)} do saldo (limiar 25%)`,
+});
+
+TXT.dividaJuroAno=d=>({
+  verdict:`Em <b>${d.ano}</b> o juro do ano (${mi(d.cor)}) passou o dinheiro novo que entrou `
+    +`(${mi(d.liq)}) — e não voltou atrás depois disso.`,
+  texto:`Até ali a dívida crescia porque o acionista colocava dinheiro. De ${d.ano} em diante ela cresce `
+    +`principalmente sozinha. `
+    +(d.picoLiq!=null?`O aporte anual saiu de ${mi(d.picoLiq)} no melhor ano para ${mi(d.ultLiq)} no último. `:'')
+    +(d.dobra!=null
+      ? `No ritmo de juro do último ano fechado, o saldo dobraria em cerca de ${nf(d.dobra,0)} anos sem ninguém `
+        +`tomar mais um real.`
+      : ''),
+  ev:[['Ano da virada',String(d.ano)],['Juro do ano',mi(d.cor)],
+      ['Dinheiro novo',mi(d.liq)],['Saldo hoje',mi(d.saldo)]],
+  trigger:`juro do ano supera o aporte líquido a partir de ${d.ano}`,
+});
+
+TXT.fabLojaLinhas=d=>({
+  verdict:`Os <b>${pct(d.margNova,1)}</b> de margem da Fábrica no quadro não são desempenho: são a `
+    +`<b>regra de transferência</b>. Na leitura antiga a mesma linha dava ${pct(d.margAntiga,1)}.`,
+  texto:`No modelo antigo a Fábrica vendia ao cliente final e a margem dela era o que sobrava do preço de mercado. `
+    +`No Modelo A ela não vende: repassa para a Loja pelo custo de absorção mais um markup fixo acordado. `
+    +`A margem dela vira esse markup — ${mi(d.mc)} sobre ${mi(d.rl)} transferidos. `
+    +`Isso muda o que o número significa: ele para de medir se a fábrica produziu bem ou mal e passa a repetir `
+    +`a regra de transferência. Comparar a coluna da Fábrica com a da Loja nesta linha, portanto, não compara duas `
+    +`operações — compara uma operação com uma premissa. O que a fábrica faz de fato aparece mais abaixo, na `
+    +`absorção da produção.`,
+  ev:[['Margem antes (% da ROL)',pct(d.margAntiga,1)],['Margem depois (% da ROL)',pct(d.margNova,1)],
+      ['Transferido no período',money(d.rl)],['Margem em R$',money(d.mc)]],
+  trigger:`margem da Fábrica sobre a ROL passa de ${pct(d.margAntiga,1)} para ${pct(d.margNova,1)} (limiar 5 p.p.)`,
+});
+
 /* ---------- motor automático: uma função por leitura ---------- */
 const AUTO={};
 
