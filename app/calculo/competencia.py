@@ -77,6 +77,12 @@ class Competencia:
         return min(r[0] for r in d['rows']) if d and d.get('rows') else self.maxym_vendas
 
     @cached_property
+    def minym_dre(self):
+        fonte = self.blob('DRE') or (self.blob('DPNL') or {}).get('CONSOLIDADO') or {}
+        anos = [int(a) for a in fonte if str(a).isdigit() and int(a)]
+        return min(anos) * 100 + 1 if anos else self.minym_vendas
+
+    @cached_property
     def ano_v(self):
         return (self.maxym_vendas or 0) // 100
 

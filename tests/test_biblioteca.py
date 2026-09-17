@@ -126,3 +126,11 @@ def test_custo_fixo_mensal_ano_e_composicao_batem_com_os_pacotes(admin):
                     query_string=dict(q, ym='Y2026', pac=pac)).get_json()
     linha = next(r for r in ano['linhas'] if r['p'] == pac)
     assert abs(det['tot'] - linha['tot']) < 0.01
+
+
+def test_dre_filtro_invalido_cai_no_ytd(admin):
+    p = admin.get('/api/biblioteca/dre', query_string={'comp': '2026-07', 'de': 'x', 'ate': '202613', 'ent': 'NADA'}).get_json()
+    A = p['dre.abertura']
+    assert (A['ent'], A['a'], A['b']) == ('CONSOLIDADO', A['ano'] * 100 + 1, A['maxym'])
+    assert 'dre-fabloja' in p
+    assert 'dre-fabloja' not in admin.get('/api/biblioteca/dre', query_string={'comp': '2026-07', 'ent': 'FABRICA'}).get_json()
