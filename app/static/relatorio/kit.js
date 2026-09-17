@@ -3,9 +3,12 @@
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
-/* destaques chegam na fase 4: por ora nenhuma régua */
-const ins=()=>null;
-const remount=()=>{};
+/* destaques: o servidor manda, por bloco, o destaque já escolhido e com os números;
+   aqui só se procura o destaque daquele ponto do desenho (a chave é o id do Kit).
+   Devolve o OBJETO: quem desenha a régua é fig()/table(), que chamam INSRT.strip. */
+const ins=(regra,slot)=>{ const D=window.__DESTAQUES||{}; return D[slot||regra]||null; };
+const remount=sec=>{ if(!window.INSRT) return;
+  INSRT.mount(typeof sec==='string'?document.getElementById(sec):sec); };
 
 const SER=['#92705d','#577c69','#27455c','#b08e78','#8c9a6b','#a8763e','#6e8ca0','#7a5c48'];
 

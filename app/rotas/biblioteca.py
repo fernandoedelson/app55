@@ -12,6 +12,7 @@ from flask import Blueprint, abort, current_app, g, jsonify, render_template, re
 
 from .. import calculo
 from .. import catalogo as C
+from .. import destaques as D
 from ..calculo import competencia as comp_mod
 from ..seguranca import usuarios as U
 
@@ -35,10 +36,21 @@ def _contexto(secao):
     return pode, comp, comp_mod.carregar(current_app.config, comp), params
 
 
+def _com_destaques(dados, secao, pode, params, payloads):
+    """Pendura em cada bloco os destaques dele (regra que lê bloco negado não vem)."""
+    if payloads is None:
+        return None
+    for bloco, mapa in D.para_secao(dados, secao, params, pode).items():
+        if bloco in payloads:
+            payloads[bloco].setdefault('_ins', {}).update(mapa)
+    return payloads
+
+
 @bp.route('/biblioteca/<secao>')
 def secao(secao):
     pode, comp, dados, params = _contexto(secao)
-    payloads = calculo.payloads_da_secao(dados, secao, pode, params)
+    payloads = _com_destaques(dados, secao, pode, params,
+                              calculo.payloads_da_secao(dados, secao, pode, params))
     if payloads is None:
         return render_template('biblioteca_pendente.html', secao=C.SECAO[secao]), 200
     # o JSON vai dentro de <script type="application/json">: fechar a tag cedo é o único risco
@@ -51,7 +63,8 @@ def secao(secao):
 @bp.route('/api/biblioteca/<secao>')
 def api_secao(secao):
     pode, comp, dados, params = _contexto(secao)
-    payloads = calculo.payloads_da_secao(dados, secao, pode, params)
+    payloads = _com_destaques(dados, secao, pode, params,
+                              calculo.payloads_da_secao(dados, secao, pode, params))
     if payloads is None:
         abort(404)
     return jsonify(payloads)

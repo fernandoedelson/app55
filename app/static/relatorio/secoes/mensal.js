@@ -32,12 +32,12 @@ function _mensalCorpo(P){
   }
   const E=P['mn-evol'];
   if(E){ s+=H3('Evolução — 12 meses até '+mesLongo(E.ym),'','mn-evol');
-    s+=fig(line([['Venda contratada',E.serie,SER[0]]],E.meses.map(ymLab),{valfmt:v=>mi(v,1),w:960,h:260}),ins('vendasPrecoVolume')); }
+    s+=fig(line([['Venda contratada',E.serie,SER[0]]],E.meses.map(ymLab),{valfmt:v=>mi(v,1),w:960,h:260}),ins('vendasPrecoVolume','vendas-preco-volume')||ins('mesVsAnterior','mes-vs-anterior')); }
   const V=P['mn-vend'], C=P['mn-cat'];
   if(V||C){
     s+='<div class="two">';
-    if(V) s+='<div>'+H3('Top vendedoras','','mn-vend')+fig(hbar(V.top,{valfmt:v=>mi(v,1),padLeft:200,w:520}),ins('concentracao'))+'</div>';
-    if(C) s+='<div>'+H3('Top categorias','','mn-cat')+fig(hbar(C.top,{valfmt:v=>mi(v,1),color:SER[2],padLeft:150,w:520}),ins('concentracao'))+'</div>';
+    if(V) s+='<div>'+H3('Top vendedoras','','mn-vend')+fig(hbar(V.top,{valfmt:v=>mi(v,1),padLeft:200,w:520}),ins('concentracao','concentracao-vend-mes')||ins('auto','auto-vend-mes-alt'))+'</div>';
+    if(C) s+='<div>'+H3('Top categorias','','mn-cat')+fig(hbar(C.top,{valfmt:v=>mi(v,1),color:SER[2],padLeft:150,w:520}),ins('concentracao','concentracao-fam-mes'))+'</div>';
     s+='</div>';
   }
   const T=P['mn-cli'];
@@ -47,7 +47,7 @@ function _mensalCorpo(P){
     s+=cap('Clique num cliente para ver os itens comprados no mês.'
       +(p80&&T.n>p80.n?' A linha marcada é onde o acumulado cruza os 80%.':'')
       +(T.restantes>0?' Outros '+nf(T.restantes)+' clientes compraram no mês e somam '+pct(1-T.share,1)+'.':''));
-    s+='<div class="tw-ins"></div>';
+    s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('concentracao','concentracao-cli-mes')):'')+'</div>';
     s+='<div id="mn-cli-detail"></div>';
   }
   return s;

@@ -14,7 +14,7 @@ DESENHO.ytd=function(P){
       +kpi(`Ticket médio ${Y1}`,mi(b.ticket),deltaHtml(b.ticket/a.ticket-1)+' vs '+Y0)+'</div>'; }
   const L=P['ytd-linha'];
   if(L) s+=fig(line([[String(L.Y0),L.serieA,SER[3]],[String(L.Y1),L.serieB,SER[0]]],
-     L.labels,{valfmt:v=>mi(v,1),w:900,h:300}),ins('serieOscilacao'),'ytd-linha');
+     L.labels,{valfmt:v=>mi(v,1),w:900,h:300}),ins('serieOscilacao','serie-oscilacao-ytd'),'ytd-linha');
   const I=P['ytd-ind'];
   if(I){ const a=I.a,b=I.b;
     s+=B('ytd-ind',table(['Indicador',String(I.Y0),String(I.Y1),'Variação'],[
@@ -28,6 +28,6 @@ DESENHO.ytd=function(P){
       `<span style="color:${x[2]-x[1]>=0?GOOD:BAD}">${money(x[2]-x[1])}</span>`, x[1]?deltaHtml(x[2]/x[1]-1):'<span class="mut">novo</span>']);
     s+=H3('Variação por vendedor(a)','','ytd-vendedor');
     s+=table(['Vendedor(a)',String(V.Y0),String(V.Y1),'Variação R$','Var. %'],rows,['left','right','right','right','right'],null,
-      ins('rotatividade')); }
+      ins('rotatividade','rotatividade-vendedor-ytd')); }
   return s;
 };

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Copia do Kit congelado (tag gabarito-v1) as funções de DESENHO e FORMATAÇÃO do app.js para
-app/static/relatorio/kit.js, e o style2.css para app/static/relatorio/style2.css.
+app/static/relatorio/kit.js, o runtime da régua de destaques do insights.js para
+app/static/relatorio/destaques.js, e o style2.css para app/static/relatorio/style2.css.
 
 O desenho não é reescrito: é o mesmo código que gerou o gabarito. O cálculo (aggregate, dreAgg,
 custosAgg...) NÃO é copiado — ele vive em Python (app/calculo) e chega ao navegador como números.
@@ -32,6 +33,13 @@ NOMES = [
     # marcação de blocos (data-blk-of)
     'marcarEm',
 ]
+
+# runtime da régua de destaques (insights.js): só apresentação — gatilho, número e escolha da regra
+# ficam no servidor (app/destaques); o texto de cada destaque vive em destaques_texto.js.
+INSIGHTS_NOMES = ['FAM', 'strip', 'mount', 'abre', 'acende', 'digest', 'casaRotulo', 'rehydrate', 'todos',
+                  'aplicaOverride', 'TETO_SECAO',
+                  # usados pelos textos (destaques_texto.js): plural e artigo do escopo
+                  'plural', 'artPl', 'un']
 
 
 # nunca copiar: cálculo (vai para o Python), datas derivadas dos dados, montagem das seções e estado
@@ -86,6 +94,41 @@ def declaracoes(js):
     return linhas, out
 
 
+def destaques(ja_no_kit):
+    """Runtime da régua, extraído do insights.js. O que já existe no kit.js não entra de novo."""
+    js = subprocess.run(['git', '-C', KIT, 'show', TAG + ':insights.js'], capture_output=True, text=True,
+                        encoding='utf-8').stdout
+    linhas, decl = declaracoes(js)
+    faltam = [n for n in INSIGHTS_NOMES if n not in decl]
+    if faltam:
+        raise SystemExit('não achei no insights.js: %s' % faltam)
+    incluidos, acrescidos = list(INSIGHTS_NOMES), []
+    while True:
+        texto = '\n'.join('\n'.join(linhas[a:b]) for a, b in {decl[n] for n in incluidos})
+        novos = sorted({t for t in re.findall(r'\b[A-Za-z_$][\w$]*\b', texto)
+                        if t in decl and t not in incluidos and t not in ja_no_kit})
+        if not novos:
+            break
+        incluidos += novos
+        acrescidos += novos
+    if acrescidos:
+        print('destaques.js — dependências acrescentadas: %s' % ', '.join(acrescidos))
+    corpo = '\n\n'.join('\n'.join(linhas[a:b]).rstrip() for a, b in sorted({decl[n] for n in incluidos}))
+    # a última declaração arrasta o fecho do IIFE do insights.js; o fecho daqui é outro
+    corpo = corpo.split('\nG.INSRT=')[0].rstrip()
+    cab = ('/* ===== +55 · régua de destaques (runtime) =====\n'
+           '   GERADO por ferramentas/extrair_desenho.py a partir do insights.js do Kit na tag %s.\n'
+           '   Só apresentação: quem decide se o destaque existe, com que número e para qual perfil\n'
+           '   é o servidor (app/destaques). Os textos são montados em destaques_texto.js.\n'
+           '   ====================================================================== */\n'
+           "'use strict';\n"
+           '(function(G){\n\n') % TAG
+    # plural/artPl/un saem junto: os textos dos destaques (destaques_texto.js) escrevem com eles
+    fim = '\n\nG.INSRT={strip,mount,abre,todos,rehydrate,TETO_SECAO,plural,artPl,un};\n\n})(window);\n'
+    open(os.path.join(DESTINO, 'destaques.js'), 'w', encoding='utf-8').write(cab + corpo + fim)
+    print('destaques.js: %d declarações, %d linhas' % (len(incluidos), corpo.count('\n') + 1))
+
+
 def main():
     js = subprocess.run(['git', '-C', KIT, 'show', TAG + ':app.js'], capture_output=True, text=True,
                         encoding='utf-8').stdout
@@ -116,12 +159,17 @@ def main():
            '   Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.\n'
            '   ====================================================================== */\n'
            "'use strict';\n"
-           '/* destaques chegam na fase 4: por ora nenhuma régua */\n'
-           'const ins=()=>null;\nconst remount=()=>{};\n\n') % TAG
+           '/* destaques: o servidor manda, por bloco, o destaque já escolhido e com os números;\n'
+           '   aqui só se procura o destaque daquele ponto do desenho (a chave é o id do Kit).\n'
+           '   Devolve o OBJETO: quem desenha a régua é fig()/table(), que chamam INSRT.strip. */\n'
+           'const ins=(regra,slot)=>{ const D=window.__DESTAQUES||{}; return D[slot||regra]||null; };\n'
+           'const remount=sec=>{ if(!window.INSRT) return;\n'
+           "  INSRT.mount(typeof sec==='string'?document.getElementById(sec):sec); };\n\n") % TAG
     os.makedirs(DESTINO, exist_ok=True)
     open(os.path.join(DESTINO, 'kit.js'), 'w', encoding='utf-8').write(cab + corpo + '\n')
     open(os.path.join(DESTINO, 'style2.css'), 'w', encoding='utf-8').write(css)
     print('kit.js: %d declarações, %d linhas | style2.css copiado' % (len(NOMES), corpo.count('\n') + 1))
+    destaques(incluidos)
 
 
 if __name__ == '__main__':

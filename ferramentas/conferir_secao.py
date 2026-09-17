@@ -60,10 +60,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('secoes', nargs='+')
     ap.add_argument('--comp', default='2026-07')
+    ap.add_argument('--com-destaques', action='store_true',
+                    help='compara com o gabarito COM destaques (retrato.json), critério da fase 4')
     a = ap.parse_args()
     import retrato
 
-    gab = json.load(open(os.path.join(KIT, '_referencia', 'gabarito', a.comp, 'retrato_sem_destaques.json'), encoding='utf-8'))
+    arq_gab = 'retrato.json' if a.com_destaques else 'retrato_sem_destaques.json'
+    gab = json.load(open(os.path.join(KIT, '_referencia', 'gabarito', a.comp, arq_gab), encoding='utf-8'))
     os.makedirs(REVISAO, exist_ok=True)
     destino_static = os.path.join(REVISAO, 'static')
     shutil.rmtree(destino_static, ignore_errors=True)

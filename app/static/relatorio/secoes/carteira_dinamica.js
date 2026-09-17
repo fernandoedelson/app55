@@ -19,32 +19,33 @@ DESENHO.carteira_dinamica=function(P){
   const S=P['cd-status'];
   if(S){
     s+=H3('Classificação da carteira por status','','cd-status');
-    s+=`<div class="fig" id="cartdin-status-fig">${pareto(S.status,{valfmt:v=>mi(v,1),colors:[SER[0],GOOD,WARN,BAD],clickable:true})}</div>`;
+    s+=`<div class="fig" id="cartdin-status-fig">${pareto(S.status,{valfmt:v=>mi(v,1),colors:[SER[0],GOOD,WARN,BAD],clickable:true})}`
+     +`${window.INSRT?INSRT.strip(ins('carteiraAtrasoConcentrado','carteira-atraso-concentrado')||ins('auto','auto-cartdin-status')):''}</div>`;
     s+=cap('Clique em uma barra para ver os pedidos daquele status.');
   }
   const E=P['cd-evol'];
   if(E){ const C=E.evol;
     s+=H3('Evolutiva mensal da carteira','por mês de venda · barras = valor do mês · área = acumulado','cd-evol');
     s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Vendas',values:C.vendas,color:SER[0]},{name:'Atrasados',values:C.atrasados,color:BAD}],
-      C.acum,{valfmt:v=>mi(v,1)}),ins('auto')); }
+      C.acum,{valfmt:v=>mi(v,1)}),ins('auto','auto-cartdin-evol')); }
   const D=P['cd-adiados'];
   if(D){ const C=D.evol;
     s+=H3('Carteira de pedidos adiados','evolutiva mensal · barras = valor do mês · área = acumulado','cd-adiados');
-    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Adiado',values:C.valor,color:WARN}],C.acum,{valfmt:v=>mi(v,1)}),ins('carteiraAdiadoTicket')); }
+    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Adiado',values:C.valor,color:WARN}],C.acum,{valfmt:v=>mi(v,1)}),ins('carteiraAdiadoTicket','carteira-adiado-ticket')); }
   const R=P['cd-previsao'];
   if(R){ const C=R.evol;
     s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
-    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Previsto',values:C.valor,color:SER[0]}],C.acum,{valfmt:v=>mi(v,1)}),ins('carteiraPicoEntrega')); }
+    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Previsto',values:C.valor,color:SER[0]}],C.acum,{valfmt:v=>mi(v,1)}),ins('carteiraPicoEntrega','carteira-pico-entrega')||ins('auto','auto-cartdin-entrega')); }
   const V=P['cd-vend'], K=P['cd-peds'];
   if(V||K){
     s+='<div class="two">';
     if(V) s+='<div>'+H3('Carteira por vendedor(a)','','cd-vend')
-      +(V.tem?table(['Vendedor(a)','Pendente','Pedidos'],V.vend.map(x=>[esc(x[0]),money(x[1]),nf(x[2])]),['left','right','right'],null,ins('auto'))
+      +(V.tem?table(['Vendedor(a)','Pendente','Pedidos'],V.vend.map(x=>[esc(x[0]),money(x[1]),nf(x[2])]),['left','right','right'],null,ins('auto','auto-cartdin-vend'))
              :call('Coluna "VENDEDORA" não encontrada nesta geração da planilha.','warn'))+'</div>';
     if(K) s+='<div>'+H3('Maiores pedidos em carteira','','cd-peds')
       +table(['Pedido','Cliente','Status','Pendente'],
          K.peds.map(x=>[esc(String(x[0])),esc(trunc(x[1],22)),esc(x[2].join(' + ')),money(x[3])]),
-         ['left','left','left','right'],null,ins('concentracao'))+'</div>';
+         ['left','left','left','right'],null,ins('concentracao','concentracao-ped-carteira'))+'</div>';
     s+='</div>';
     s+=cap('Pendente = valor ainda em carteira (excluídos cancelados, devoluções e entregues). '
       +'Os 12 maiores pedidos somam todos os status: quando um pedido tem itens em situações diferentes, os dois aparecem na coluna Status.');
@@ -80,7 +81,7 @@ DESENHO_POS.carteira_dinamica=function(sec,ctx){
           <th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Itens</th>
           <th class="right">Valor</th><th class="right">% do status</th><th class="right">% acumulada</th>
         </tr></thead><tbody>${rows}</tbody></table></div>`
-      +'<div class="tw-ins"></div>'
+      +'<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('auto','auto-cartdin-peds-'+bucket)):'')+'</div>'
       +cap('Clique num pedido para ver os itens.')
       +'<div id="cartdin-ped-detail"></div>';
     if(!ctx.pode('detalhar')) return;

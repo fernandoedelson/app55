@@ -34,7 +34,7 @@ DESENHO.performance=function(P){
     s+=fig(areaCum(M.labels,[
       {name:'Acumulado Orçamento',values:M.metaAcum,color:GOOD},
       {name:'Vendas Realizadas Acum.',values:M.realAcum,color:SER[2],abaixo:true}],{w:980,h:360}),
-      ins('metaRitmo'));
+      ins('metaRitmo','meta-ritmo'));
     s+=cap('Valores em R$ mil. A área verde é a meta acumulada do ano; a azul, o realizado acumulado, que se encerra em '+ymLab(M.fim)+' — último mês da base comercial.');
   }
   if(P['perf-mes']){
@@ -49,7 +49,7 @@ DESENHO.performance=function(P){
              {name:'Ritmo CAGR'+(M.cagrV!=null?' ('+spct(M.cagrV)+' a.a.)':''),values:M.projCagr,color:'#8c6bb1',
               dashFrom:M.iUlt,cls:'perf-projcagr',oculta:true,semLabel:true}],
       barName:'GAP',w:980,h:430}),
-      ins('projecaoDistancia'))+'</div>';
+      ins('projecaoDistancia','projecao-distancia'))+'</div>';
     s+=cap('Valores em R$ mil, todos na mesma escala. As barras cinza são o gap do mês contra a meta. '
       +'A linha âmbar é <b>sólida no realizado</b> e <b>tracejada na projeção</b>: de '+proxMes+' em diante ela mostra a '
       +'<b>meta sazonal</b> — o que falta para o orçamento, distribuído pelo <b>peso histórico de cada mês</b> ('+base.anosSaz0+'–'+(M.ano-1)+') '
@@ -75,7 +75,7 @@ DESENHO.performance=function(P){
       ['Ano',money(M.metaAno),money(M.realAteAgora),
        `<span style="color:${M.gapAcum>0?BAD:GOOD};font-weight:600">${money(-M.gapAcum)}</span>`,
        pct(atg,1),'—',money(M.aRealizar),M.totProjHist!=null?money(M.totProjHist):'—'],
-      ins('metaDispersao'));
+      ins('metaDispersao','meta-dispersao'));
     const mesPico=M.idxRest.length?M.idxRest.reduce((a,b)=>M.peso[a]>=M.peso[b]?a:b):null;
     s+=call('Para fechar '+M.ano+' no orçado faltam <b>'+mi(M.aRealizar)+'</b> em '+M.restantes+' meses — média de <b>'
       +mi(mediaRest)+' por mês</b> contra <b>'+mi(mediaReal)+'</b> realizados nos '+(M.iUlt+1)+' primeiros. '

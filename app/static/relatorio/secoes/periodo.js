@@ -21,34 +21,34 @@ function _peCorpo(P){
       {valfmt:v=>mi(v,1),acumfmt:v=>nf(v,1)+'x',dashName:'Meses de carteira',dashArea:false,dashColor:BAD,dashLabels:true,
        leftLine:[{name:'Venda contratada',values:CH.venda,color:'#c9a227'},
                  {name:'Média faturamento 6M',values:CH.fat6m,color:SER[2],cls:'evolcombo-fat6m'}],
-       linesHidden:true,w:980,h:320}),ins('carteiraMesesCobertura'))+'</div>';
+       linesHidden:true,w:980,h:320}),ins('carteiraMesesCobertura','carteira-meses-cobertura')||ins('auto','auto-cart-hist'))+'</div>';
     s+=cap('Barras = saldo em aberto no fim de cada mês (pedidos sem NF até aquela data — mesmo critério da foto atual de carteira). Linha amarela = venda contratada do mês (mesmo eixo, R$). Linha tracejada vermelha (eixo direito) = carteira ÷ faturamento médio dos últimos 6 meses (Receita Bruta da DRE) — quantas vezes o faturamento a carteira representa naquele mês.');
   }
   const V=P['pe-vend'];
   if(V){
     s+=H3('Desempenho por vendedor(a)','','pe-vend');
-    s+=fig(hbar(V.top,{valfmt:v=>mi(v,1),maxbars:10}),ins('auto'));
+    s+=fig(hbar(V.top,{valfmt:v=>mi(v,1),maxbars:10}),ins('auto','auto-vend-periodo'));
     s+=table(['Vendedor(a)','Venda','% contrib.','Pedidos','Ticket/pedido','Ticket/item','Custo comissão','% custo'],
       V.linhas.map(x=>[esc(x[0]),money(x[1]),pct(x[2]),nf(x[3]),money(x[4]),money(x[5]),money(x[6]),pct(x[7])]),
-      ['left','right','right','right','right','right','right','right'],null,ins('auto'));
+      ['left','right','right','right','right','right','right','right'],null,ins('auto','auto-vend-periodo-tab'));
   }
   const F=P['pe-cat'];
   if(F){
     s+=H3('Categorias (famílias de produto)','','pe-cat');
-    s+=fig(hbar(F.top,{valfmt:v=>mi(v,1),color:SER[2],maxbars:12,pct:true,total:F.total}),ins('auto'));
+    s+=fig(hbar(F.top,{valfmt:v=>mi(v,1),color:SER[2],maxbars:12,pct:true,total:F.total}),ins('auto','auto-fam-periodo'));
     s+=cap('Percentuais sobre '+mi(F.total)+' — o total das categorias no período selecionado, já sem Frete/Serviço.'
       +(F.n>12?' O gráfico mostra as 12 maiores das '+F.n+' categorias, por isso o acumulado não fecha 100%.':''));
   }
   const M=P['pe-catvend'];
   if(M){ const md={}; M.linhas.forEach((vn,i)=>{md[vn]={}; M.colunas.forEach((fn,j)=>md[vn][fn]=M.mat[i][j]);});
     s+=H3('Principais categorias por vendedor(a)','R$ mil','pe-catvend');
-    s+=fig(heatmap(M.linhas,M.colunas,md,{valfmt:v=>v>1000?nf(v/1000,0):'',padLeft:150,w:900}),ins('mixCruzado'));
+    s+=fig(heatmap(M.linhas,M.colunas,md,{valfmt:v=>v>1000?nf(v/1000,0):'',padLeft:150,w:900}),ins('mixCruzado','mix-cruzado-vend-fam-periodo'));
   }
   const K=P['pe-canal'];
   if(K){
     s+=H3('Clientes e canal','','pe-canal');
-    s+='<div class="two"><div>'+fig(hbar(K.top,{valfmt:v=>mi(v,1),padLeft:210,w:520,maxbars:12}),ins('auto'))+'</div>';
-    s+='<div>'+fig(donut(K.canal,{valfmt:v=>mi(v,1)}),ins('auto'))+'</div></div>';
+    s+='<div class="two"><div>'+fig(hbar(K.top,{valfmt:v=>mi(v,1),padLeft:210,w:520,maxbars:12}),ins('auto','auto-cli-periodo'))+'</div>';
+    s+='<div>'+fig(donut(K.canal,{valfmt:v=>mi(v,1)}),ins('auto','auto-canal-periodo'))+'</div></div>';
   }
   const T=P['pe-cli'];
   if(T){ const total=T.total; let acum=0;
@@ -65,7 +65,7 @@ function _peCorpo(P){
     s+='<div class="tw"><table class="dt"><thead><tr><th class="left">Cliente</th>'
       +`<th class="right">Venda</th><th class="right">${esc('% do total')}</th><th class="right">% acumulado</th>`
       +`</tr></thead><tbody>${trs}</tbody></table></div>`;
-    s+='<div class="tw-ins"></div>';
+    s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('auto','auto-cli-periodo-tab')):'')+'</div>';
     s+=cap(T.truncado
       ? 'Os '+nf(T.n)+' maiores clientes do período, que somam '+pct(T.share,1)+' da venda. Chegar a 80% exigiria '
         +nf(T.corte.n)+' clientes dos '+nf(T.n_clis)+' do período — quanto mais longo o período escolhido, mais espalhada fica a venda entre os clientes.'
@@ -75,23 +75,23 @@ function _peCorpo(P){
   const D=P['pe-desig'];
   if(D){
     s+=H3('Designers — royalties pagos','','pe-desig');
-    s+=fig(hbar(D.top,{valfmt:v=>money(v),color:SER[4],padLeft:240,w:760,maxbars:12}),ins('auto'));
+    s+=fig(hbar(D.top,{valfmt:v=>money(v),color:SER[4],padLeft:240,w:760,maxbars:12}),ins('auto','auto-desg-periodo'));
     s+=table(['Designer','Royalties pagos','Venda associada','% roy.','Pedidos'],
-      D.linhas.map(x=>[esc(x[0]),money(x[1]),money(x[2]),pct(x[3]),nf(x[4])]),['left','right','right','right','right'],null,ins('auto'));
+      D.linhas.map(x=>[esc(x[0]),money(x[1]),money(x[2]),pct(x[3]),nf(x[4])]),['left','right','right','right','right'],null,ins('auto','auto-desg-periodo-tab'));
   }
   const R=P['pe-arq'];
   if(R){
     s+=H3('Arquitetos — RT paga','','pe-arq');
-    s+=fig(hbar(R.top,{valfmt:v=>money(v),color:SER[6],padLeft:240,w:760,maxbars:12}),ins('auto'));
+    s+=fig(hbar(R.top,{valfmt:v=>money(v),color:SER[6],padLeft:240,w:760,maxbars:12}),ins('auto','auto-arq-periodo'));
     s+=table(['Arquiteto / escritório','RT paga','Venda associada','% RT','Pedidos'],
-      R.linhas.map(x=>[esc(x[0]),money(x[1]),money(x[2]),pct(x[3]),nf(x[4])]),['left','right','right','right','right'],null,ins('auto'));
+      R.linhas.map(x=>[esc(x[0]),money(x[1]),money(x[2]),pct(x[3]),nf(x[4])]),['left','right','right','right','right'],null,ins('auto','auto-arq-periodo-tab'));
   }
   const Q=P['pe-repasses'];
   if(Q){
     s+=H3('Composição de repasses e comissões','','pe-repasses');
-    s+=fig(stackbar(Q.comp.map(x=>[x[0],x[1]]),{valfmt:v=>mi(v,1)}),ins('auto'));
+    s+=fig(stackbar(Q.comp.map(x=>[x[0],x[1]]),{valfmt:v=>mi(v,1)}),ins('auto','auto-rep-periodo'));
     s+=table(['Componente','Valor pago','% das vendas'],Q.comp.map(x=>[esc(x[0]),money(x[1]),pct(x[2]==null?NaN:x[2])]),['left','right','right'],
-      ['Total repasses',money(Q.total),pct(Q.pct==null?NaN:Q.pct)],ins('auto'));
+      ['Total repasses',money(Q.total),pct(Q.pct==null?NaN:Q.pct)],ins('auto','auto-rep-periodo-tab'));
   }
   return s;
 }
