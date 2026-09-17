@@ -15,6 +15,8 @@ def _bool(nome, padrao=False):
 class Config:
     DATA_DIR = os.environ.get('APP55_DATA_DIR') or os.path.join(RAIZ, 'data')
     DB_PATH = os.path.join(DATA_DIR, 'app55.db')
+    # dados das competências (mês fechado) — separado do banco para os testes usarem os dados reais
+    COMPETENCIAS_DIR = os.environ.get('APP55_COMPETENCIAS_DIR') or os.path.join(DATA_DIR, 'competencias')
 
     # sessão
     SESSION_COOKIE_HTTPONLY = True

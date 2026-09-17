@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ secao.titulo }} · +55 Design</title>
+<link rel="icon" href="{{ url_for('static', filename='logo-chip.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='relatorio/style2.css') }}">
+</head>
+<body>
+<div class="app55-barra" style="display:flex;gap:16px;align-items:center;padding:10px 20px;font-size:.85rem">
+  <a href="{{ url_for('inicio.index') }}">&larr; Início</a>
+  <span>{{ secao.titulo }} · competência {{ comp }}</span>
+</div>
+<main id="main">
+  <section id="{{ secao.id }}"></section>
+</main>
+<script type="application/json" id="payload">{{ payload|safe }}</script>
+<script src="{{ url_for('static', filename='relatorio/kit.js') }}"></script>
+<script src="{{ url_for('static', filename='relatorio/secoes/' + secao.id + '.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const P=JSON.parse(document.getElementById('payload').textContent);
+  const sec=document.getElementById('{{ secao.id }}');
+  sec.innerHTML=DESENHO['{{ secao.id }}'](P);
+  setupTableTools(); setupChartZoom(); setupTableZoom();
+  /* a marcação de blocos vem por último: o zoom de tabela embrulha cada tabela numa caixa nova,
+     que precisa herdar o bloco (no Kit isso é feito por um observador que remarca a seção) */
+  marcarEm(sec,{k:'__abre'});
+});
+</script>
+</body>
+</html>

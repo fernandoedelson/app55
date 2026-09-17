@@ -30,7 +30,9 @@ def criar_app(config=None):
     from .rotas.auth import bp as bp_auth
     from .rotas.inicio import bp as bp_inicio
     from .rotas.admin import bp as bp_admin
+    from .rotas.biblioteca import bp as bp_biblioteca
     app.register_blueprint(bp_auth)
+    app.register_blueprint(bp_biblioteca)
     app.register_blueprint(bp_inicio)
     app.register_blueprint(bp_admin, url_prefix='/admin')
 

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ secao.titulo }} · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Biblioteca</div>
+  <h1>{{ secao.titulo }}</h1>
+  <p>Esta seção ainda está sendo portada para o cálculo no servidor.</p>
+</div>
+<a class="btn btn-primary" href="{{ url_for('inicio.index') }}">Voltar</a>
+{% endblock %}
