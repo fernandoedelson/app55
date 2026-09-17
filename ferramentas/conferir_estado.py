@@ -56,6 +56,13 @@ CASOS = {
     'carteira_dinamica': [
         ('status 3', {}, _sel('#cartdin-status-sel', 2), _sel('#cartdin-status-sel', 2)),
     ],
+    'periodo': [
+        ('Histórico', {'de': 200001, 'ate': 300000}, _clic('#periodo .preset[data-a="200001"]'), ''),
+        ('2024', {'de': 202401, 'ate': 202412}, _clic('#periodo .preset[data-a="202401"]'), ''),
+        ('jul/26', {'de': 202607, 'ate': 202607}, _clic('#periodo .preset[data-a="202607"]'), ''),
+        ('nov/24–mar/25', {'de': 202411, 'ate': 202503},
+         _sel('#f-de', 202503) + _sel('#f-ate', 202411) + _clic('#f-apply'), ''),
+    ],
     'dre': [
         ('Fábrica', {'ent': 'FABRICA'}, _clic('#dre .entb[data-e="FABRICA"]'), ''),
         ('Loja · 2025', {'ent': 'DESIGN', 'de': 202501, 'ate': 202512},

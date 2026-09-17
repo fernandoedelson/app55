@@ -2,7 +2,7 @@
 """Cálculo no servidor: cada seção devolve {id_do_bloco: payload}.
 
 As seções entram aqui à medida que são portadas e conferidas contra o gabarito (fase 3)."""
-from .secoes import carteira, custofixo, divida, dre, evolutiva, mensal, performance, resumo, ytd
+from .secoes import carteira, custofixo, divida, dre, evolutiva, mensal, performance, periodo, resumo, ytd
 
 SECOES_PORTADAS = {
     'resumo': resumo.calcular,
@@ -16,6 +16,7 @@ SECOES_PORTADAS = {
     'custofixo_mensal': custofixo.calcular_mensal,
     'divida': divida.calcular,
     'dre': dre.calcular,
+    'periodo': periodo.calcular,
 }
 
 # detalhamentos: (seção, nome) -> (bloco exigido, função). Exigem também o recurso 'detalhar'.
