@@ -81,6 +81,13 @@ CASOS = {
         ('clientes Em risco', {}, _clic('#vendas .rfv-seg-row[data-seg="Em risco"]'),
          _clic('#vendas .rfv-seg-row[data-seg="Em risco"]'), {'segmento': lambda P: {'janela': 12, 'seg': 'Em risco'}}),
     ],
+    'arquitetos': [
+        ('janela 24m', {'janela': 24}, _sel('#aq-janela', 24), ''),
+        ('carteira do 1º vendedor', {}, _clic('#arquitetos .aq-vend-row'), _clic('#arquitetos .aq-vend-row'),
+         {'vendedor': lambda P: {'vend': P['aq-quantos']['linhas'][0][0]}}),
+        ('arquitetos Em risco', {}, _clic('#arquitetos .aqrfv-row[data-seg="Em risco"]'),
+         _clic('#arquitetos .aqrfv-row[data-seg="Em risco"]'), {'segmento': lambda P: {'seg': 'Em risco'}}),
+    ],
     'dre': [
         ('Fábrica', {'ent': 'FABRICA'}, _clic('#dre .entb[data-e="FABRICA"]'), ''),
         ('Loja · 2025', {'ent': 'DESIGN', 'de': 202501, 'ate': 202512},

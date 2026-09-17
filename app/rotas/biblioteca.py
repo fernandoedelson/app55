@@ -17,7 +17,7 @@ from ..seguranca import usuarios as U
 
 bp = Blueprint('biblioteca', __name__)
 
-PARAMS_PERMITIDOS = {'ym', 'de', 'ate', 'ent', 'janela', 'cli', 'seg', 'grupo', 'cat', 'ped', 'status', 'emp', 'dim', 'pac', 'seg'}
+PARAMS_PERMITIDOS = {'ym', 'de', 'ate', 'ent', 'janela', 'cli', 'seg', 'grupo', 'cat', 'ped', 'status', 'emp', 'dim', 'pac', 'seg', 'vend'}
 
 
 def _contexto(secao):
