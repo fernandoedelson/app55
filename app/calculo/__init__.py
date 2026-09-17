@@ -2,7 +2,7 @@
 """Cálculo no servidor: cada seção devolve {id_do_bloco: payload}.
 
 As seções entram aqui à medida que são portadas e conferidas contra o gabarito (fase 3)."""
-from .secoes import analise_vendas, arquitetos, carteira, custofixo, custosx, divida, dre, estudos, evolutiva, mensal, performance, periodo, resumo, ytd
+from .secoes import analise_vendas, arquitetos, carteira, custofixo, custos, custosx, divida, dre, estudos, evolutiva, mensal, performance, periodo, resumo, ytd
 
 SECOES_PORTADAS = {
     'resumo': resumo.calcular,
@@ -21,6 +21,7 @@ SECOES_PORTADAS = {
     'arquitetos': arquitetos.calcular,
     'estudos': estudos.calcular,
     'custosx': custosx.calcular,
+    'custos': custos.calcular,
 }
 
 # detalhamentos: (seção, nome) -> (bloco exigido, função). Exigem também o recurso 'detalhar'.
@@ -33,6 +34,8 @@ DETALHES = {
     ('arquitetos', 'segmento'): ('aq-rfv', arquitetos.arquitetos_do_segmento),
     ('custosx', 'material'): ('cx-materia', custosx.materiais_da_categoria),
     ('custosx', 'driver'): ('cx-drivers', custosx.produtos_do_driver),
+    ('custos', 'material'): ('cu-composicao', custos.materiais_da_categoria),
+    ('custos', 'grupo'): ('cu-grupos', custos.produtos_do_grupo),
 }
 
 

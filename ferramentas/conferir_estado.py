@@ -39,6 +39,11 @@ def _clic(css):
     return "document.querySelector(%r).click();" % css
 
 
+def _clic_svg(css):
+    """SVG não tem click(); o clique vai como evento de mouse."""
+    return ("document.querySelector(%r).dispatchEvent(new MouseEvent('click',{bubbles:true}));" % css)
+
+
 # secao -> [(nome do caso, filtros na URL do app, roteiro no Kit, roteiro no app[, detalhes pré-buscados])]
 CASOS = {
     'mensal': [
@@ -105,6 +110,22 @@ CASOS = {
          {'material': lambda P: {'cat': P['cx-materia']['materiais'][0][0]}}),
         ('produtos de um driver', {}, _clic('.cxg-driver-cell'), _clic('.cxg-driver-cell'),
          {'driver': lambda P: {'grp': P['cx-drivers']['grupos'][0][0]}}),
+    ],
+    'custos': [
+        ('ano anterior', {'de': 202501, 'ate': 202512}, _clic('#custos .custpreset[data-a="202501"]'), ''),
+        ('2026 YTD', {'de': 202601, 'ate': 202607}, _clic('#custos .custpreset[data-a="202601"]'), ''),
+        ('comparar com jan–jun/25', {'cbde': 202501, 'cbate': 202506},
+         _sel('#cb-de', 202501) + _sel('#cb-ate', 202506) + _clic('#cb-apply'), ''),
+        ('busca de produto', {}, "var i=document.getElementById('prodsearch');i.value='mesa';i.dispatchEvent(new Event('input'));",
+         "var i=document.getElementById('prodsearch');i.value='mesa';i.dispatchEvent(new Event('input'));"),
+        ('materiais de uma categoria', {}, _clic('#custos .pl-row[data-cat]'), _clic('#custos .pl-row[data-cat]'),
+         {'material': lambda P: {'cat': P['cu-composicao']['materiais'][0][0]}}),
+        ('produtos de um grupo', {}, _clic_svg('#grpchart rect[data-lab]'), _clic_svg('#grpchart rect[data-lab]'),
+         {'grupo': lambda P: {'grp': P['cu-grupos']['grupos'][0][0]}}),
+        ('nível zero · outro produto e mês', {'nza': 202601, 'nzb': 202607},
+         _sel('#nz-a', 202601) + _sel('#nz-b', 202607), ''),
+        ('evolutivo · período 2026', {'pcde': 202601, 'pcate': 202607},
+         _sel('#pc-de', 202601) + _sel('#pc-ate', 202607) + _clic('#pc-apply'), ''),
     ],
     'dre': [
         ('Fábrica', {'ent': 'FABRICA'}, _clic('#dre .entb[data-e="FABRICA"]'), ''),
