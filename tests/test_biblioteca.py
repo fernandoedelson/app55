@@ -63,3 +63,35 @@ def test_secao_sem_nenhum_bloco_liberado_e_403(app, admin):
 def test_admin_recebe_todos_os_blocos_da_secao(admin):
     p = _payload(admin.get('/biblioteca/ytd?comp=2026-07').get_data(as_text=True))
     assert set(p) == {'ytd.abertura', 'ytd-kpi', 'ytd-linha', 'ytd-ind', 'ytd-vendedor'}
+
+
+def test_filtro_de_mes_pela_api(admin):
+    r = admin.get('/api/biblioteca/mensal?comp=2026-07&ym=202606')
+    assert r.status_code == 200
+    p = r.get_json()
+    assert p['mensal.abertura']['ym'] == 202606 and p['mn-evol']['meses'][-1] == 202606
+    # mês fora da base cai no último mês disponível, nunca em erro
+    assert admin.get('/api/biblioteca/mensal?comp=2026-07&ym=199901').get_json()['mensal.abertura']['ym'] == 202607
+
+
+def test_detalhe_exige_recurso_detalhar(app, admin):
+    p = admin.get('/api/biblioteca/mensal?comp=2026-07').get_json()
+    cli = p['mn-cli']['linhas'][0]['idx']
+    ok = admin.get('/api/biblioteca/mensal/detalhe/itens?comp=2026-07&ym=202607&cli=%d' % cli)
+    assert ok.status_code == 200 and ok.get_json()['itens']
+    codigo = _perfil_com(app, admin, 'Mensal sem detalhe', ['bloco:mn-cli', 'bloco:mensal.abertura'])
+    prov = criar_usuario(app, admin, 'semdetalhe', [codigo])
+    c = app.test_client()
+    entrar(c, 'semdetalhe', prov)
+    post(c, '/trocar-senha', new_password='SemDetalhe2026x', confirm_password='SemDetalhe2026x')
+    assert c.get('/api/biblioteca/mensal?comp=2026-07').status_code == 200
+    assert c.get('/api/biblioteca/mensal/detalhe/itens?comp=2026-07&ym=202607&cli=%d' % cli).status_code == 403
+
+
+def test_api_respeita_blocos_permitidos(app, admin):
+    codigo = _perfil_com(app, admin, 'Só evolução mensal', ['bloco:mn-evol'])
+    prov = criar_usuario(app, admin, 'soevol', [codigo])
+    c = app.test_client()
+    entrar(c, 'soevol', prov)
+    post(c, '/trocar-senha', new_password='SoEvol2026abcd', confirm_password='SoEvol2026abcd')
+    assert set(c.get('/api/biblioteca/mensal?comp=2026-07&ym=202605').get_json()) == {'mn-evol'}

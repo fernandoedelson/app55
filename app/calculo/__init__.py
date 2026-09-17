@@ -2,13 +2,19 @@
 """Cálculo no servidor: cada seção devolve {id_do_bloco: payload}.
 
 As seções entram aqui à medida que são portadas e conferidas contra o gabarito (fase 3)."""
-from .secoes import evolutiva, performance, resumo, ytd
+from .secoes import evolutiva, mensal, performance, resumo, ytd
 
 SECOES_PORTADAS = {
     'resumo': resumo.calcular,
     'evolutiva': evolutiva.calcular,
     'ytd': ytd.calcular,
+    'mensal': mensal.calcular,
     'performance': performance.calcular,
+}
+
+# detalhamentos: (seção, nome) -> (bloco exigido, função). Exigem também o recurso 'detalhar'.
+DETALHES = {
+    ('mensal', 'itens'): ('mn-cli', mensal.itens_do_cliente),
 }
 
 

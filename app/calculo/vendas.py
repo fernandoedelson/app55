@@ -86,3 +86,36 @@ def agregar(DATA, ym_min, ym_max):
     return {'total': total, 'qnt': qnt, 'peds': ped_n, 'ticket': total / ped_n if ped_n else 0, 'vend': vend,
             'desg': desg, 'arqs': arqs, 'fams': fams, 'clis': clis, 'clss': clss, 'comp': comp,
             'monthly': monthly, 'VF': VF}
+
+
+def concentracao(lista, total, alvo):
+    """Quantos itens do topo de uma lista já ordenada concentram `alvo` do total (Pareto)."""
+    if not total or total <= 0 or not lista:
+        return None
+    acum = 0
+    for i, x in enumerate(lista):
+        acum += x['v']
+        if acum / total >= alvo:
+            return {'n': i + 1, 'acum': acum, 'share': acum / total}
+    return None
+
+
+def tabela_clientes(clis, total, minimo=10, maximo=30, alvo=.8):
+    """Dados de tabelaClientes() do app.js: as linhas exibidas e o corte de Pareto.
+    Só as linhas que aparecem saem do servidor — o resto da carteira vira contagem e participação."""
+    corte = concentracao(clis, total, alvo)
+    n = min(len(clis), max(minimo, min(corte['n'] if corte else minimo, maximo)))
+    linhas = clis[:n]
+    acum = 0
+    for x in linhas:
+        acum += x['v']
+    return {'linhas': [{'name': x['name'], 'idx': x['idx'], 'v': x['v']} for x in linhas], 'n': n,
+            'corte': corte, 'mostrado': acum, 'restantes': len(clis) - n,
+            'truncado': bool(corte and n < corte['n']), 'share': acum / total if total else 0, 'total': total}
+
+
+def cliente_itens(DATA, cli_idx, ym_min, ym_max):
+    itens = [[DATA['prod'][r[17]], r[2], r[1], r[18]] for r in DATA['rows']
+             if r[5] == cli_idx and ym_min <= r[0] <= ym_max]
+    itens.sort(key=lambda it: -it[2])
+    return itens

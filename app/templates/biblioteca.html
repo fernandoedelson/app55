@@ -20,13 +20,24 @@
 <script src="{{ url_for('static', filename='relatorio/secoes/' + secao.id + '.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded',function(){
+  const SID='{{ secao.id }}', COMP='{{ comp }}', RECURSOS={{ recursos|safe }};
   const P=JSON.parse(document.getElementById('payload').textContent);
-  const sec=document.getElementById('{{ secao.id }}');
-  sec.innerHTML=DESENHO['{{ secao.id }}'](P);
+  const sec=document.getElementById(SID);
+  const url=(caminho,params)=>{ const q=new URLSearchParams(Object.assign({comp:COMP},params||{})); return caminho+'?'+q.toString(); };
+  const ctx={
+    payload:P,
+    pode:r=>RECURSOS.indexOf(r)>=0,
+    buscar:async params=>{ const r=await fetch(url('/api/biblioteca/'+SID,params),{credentials:'same-origin'}); if(!r.ok) throw new Error(r.status); return r.json(); },
+    detalhe:async (nome,params)=>{ const r=await fetch(url('/api/biblioteca/'+SID+'/detalhe/'+nome,params),{credentials:'same-origin'}); if(!r.ok) throw new Error(r.status); return r.json(); },
+    /* o zoom de tabela redecora por observador (setTimeout 0): a marcação espera ele terminar */
+    remarcar:()=>setTimeout(()=>marcarEm(sec,{k:'__abre'}),20),
+  };
+  sec.innerHTML=DESENHO[SID](P,ctx);
   setupTableTools(); setupChartZoom(); setupTableZoom();
   /* a marcação de blocos vem por último: o zoom de tabela embrulha cada tabela numa caixa nova,
      que precisa herdar o bloco (no Kit isso é feito por um observador que remarca a seção) */
   marcarEm(sec,{k:'__abre'});
+  if(window.DESENHO_POS&&DESENHO_POS[SID]) DESENHO_POS[SID](sec,ctx);
 });
 </script>
 </body>
