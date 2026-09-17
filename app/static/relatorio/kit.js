@@ -312,6 +312,28 @@ function custosMesLab(ym){ return MES[(ym%100)-1]+'/'+String(Math.floor(ym/100))
 /* ===== Custos — Visão Executiva (custosx): os pontos que importam, prontos p/ apresentação ===== */
 function ymAddMonths(ym,k){ let y=Math.floor(ym/100),m=(ym%100)-1+k; y+=Math.floor(m/12); m=((m%12)+12)%12; return y*100+m+1; }
 
+/* ===== Estudos e Análises — modelo gerencial Fábrica × Loja (item 7 da ata de 26/08/2026) =====
+   Leitura executiva da aba 12 do Modelo_Gerencial_Fabrica_Loja.xlsx: o que muda do DRE ANTIGO
+   (por entidade jurídica, como o Painel reporta) para o Modelo A (por função industrial ×
+   comercial), e a prova de que o resultado consolidado não se altera (item 7.6). */
+/* A planilha do modelo grava os rótulos sem acento ("MARGEM DE CONTRIBUICAO"). Aqui é camada de
+   apresentação: restaura o acento só na exibição, preservando a caixa original. Palavra fora do
+   mapa passa intacta, então renomear uma linha na planilha nunca quebra nada. */
+const ACENTOS_DRE={LIQUIDA:'LÍQUIDA',LIQUIDO:'LÍQUIDO',CONTRIBUICAO:'CONTRIBUIÇÃO',ABSORCAO:'ABSORÇÃO',
+  PRODUCAO:'PRODUÇÃO',DEDUCOES:'DEDUÇÕES',DEPRECIACAO:'DEPRECIAÇÃO',AMORTIZACAO:'AMORTIZAÇÃO',
+  NAO:'NÃO',VARIAVEL:'VARIÁVEL',VARIAVEIS:'VARIÁVEIS',OPERACAO:'OPERAÇÃO',SERVICOS:'SERVIÇOS',
+  TRANSFERENCIA:'TRANSFERÊNCIA',FABRICA:'FÁBRICA',INDUSTRIAIS:'INDUSTRIAIS',PERIODO:'PERÍODO'};
+
+function acentuaDre(txt){
+  return String(txt).replace(/[A-Za-zÀ-ÿ]+/g,w=>{
+    const k=w.toUpperCase(), a=ACENTOS_DRE[k];
+    if(!a) return w;
+    if(w===k) return a;                                                   // TUDO MAIÚSCULO
+    if(w[0]===w[0].toUpperCase()) return a.charAt(0)+a.slice(1).toLowerCase();  // Capitalizado
+    return a.toLowerCase();
+  });
+}
+
 /* ===== marcação dos blocos =====
    Mesma convenção de nearestFigTitle(): o <h3> abre o bloco e tudo que vem depois pertence
    a ele, até o próximo <h3>. Um container com UM <h3> (o par de uma .two, o corpo do

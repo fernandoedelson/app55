@@ -88,6 +88,9 @@ CASOS = {
         ('arquitetos Em risco', {}, _clic('#arquitetos .aqrfv-row[data-seg="Em risco"]'),
          _clic('#arquitetos .aqrfv-row[data-seg="Em risco"]'), {'segmento': lambda P: {'seg': 'Em risco'}}),
     ],
+    'estudos': [
+        ('subgrupos abertos', {'grp': 1}, _clic('#est-grp-toggle'), ''),
+    ],
     'dre': [
         ('Fábrica', {'ent': 'FABRICA'}, _clic('#dre .entb[data-e="FABRICA"]'), ''),
         ('Loja · 2025', {'ent': 'DESIGN', 'de': 202501, 'ate': 202512},
