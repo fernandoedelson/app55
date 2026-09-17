@@ -91,6 +91,21 @@ CASOS = {
     'estudos': [
         ('subgrupos abertos', {'grp': 1}, _clic('#est-grp-toggle'), ''),
     ],
+    'custosx': [
+        ('ano anterior', {'de': 202501, 'ate': 202512}, _clic('#custosx .cxpreset[data-a="202501"]'), ''),
+        ('último mês', {'de': 202607, 'ate': 202607}, _clic('#custosx .cxpreset[data-a="202607"][data-b="202607"]'), ''),
+        ('últimos 12m', {'de': 202508, 'ate': 202607}, _clic('#custosx .cxpreset[data-a="202508"]'), ''),
+        ('A/B mai x jul', {'cxa': 202605, 'cxb': 202607},
+         _sel('#cxg-a', 202605) + _sel('#cxg-b', 202607) + _clic('#cxg-apply'), ''),
+        ('desagrupar CPV', {}, _clic('#cx-grp-toggle'), _clic('#cx-grp-toggle')),
+        ('busca de produto', {}, "var i=document.getElementById('cx-prodsearch');i.value='mesa';"
+         "i.dispatchEvent(new Event('input'));",
+         "var i=document.getElementById('cx-prodsearch');i.value='mesa';i.dispatchEvent(new Event('input'));"),
+        ('materiais de uma categoria', {}, _clic('#cx-mat-pie .pl-row[data-cat]'), _clic('#cx-mat-pie .pl-row[data-cat]'),
+         {'material': lambda P: {'cat': P['cx-materia']['materiais'][0][0]}}),
+        ('produtos de um driver', {}, _clic('.cxg-driver-cell'), _clic('.cxg-driver-cell'),
+         {'driver': lambda P: {'grp': P['cx-drivers']['grupos'][0][0]}}),
+    ],
     'dre': [
         ('Fábrica', {'ent': 'FABRICA'}, _clic('#dre .entb[data-e="FABRICA"]'), ''),
         ('Loja · 2025', {'ent': 'DESIGN', 'de': 202501, 'ate': 202512},

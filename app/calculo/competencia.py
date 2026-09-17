@@ -83,6 +83,23 @@ class Competencia:
         return min(anos) * 100 + 1 if anos else self.minym_vendas
 
     @cached_property
+    def _custos_yms(self):
+        cu = self.blob('CUSTOS')
+        return [r[0] for r in cu['cpv']] if cu and cu.get('cpv') else []
+
+    @cached_property
+    def minym_custos(self):
+        return min(self._custos_yms) if self._custos_yms else None
+
+    @cached_property
+    def maxym_custos(self):
+        return max(self._custos_yms) if self._custos_yms else None
+
+    @cached_property
+    def ano_c(self):
+        return (self.maxym_custos or 0) // 100
+
+    @cached_property
     def ano_v(self):
         return (self.maxym_vendas or 0) // 100
 
