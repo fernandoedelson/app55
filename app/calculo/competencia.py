@@ -34,6 +34,15 @@ def carregar(app_config, comp):
         return _cache[chave]
 
 
+def esquecer(pasta=None):
+    """Tira do cache a competência que acabou de ser (re)processada — o próximo pedido relê os dados."""
+    with _trava:
+        if pasta is None:
+            _cache.clear()
+        else:
+            _cache.pop(os.path.abspath(pasta), None)
+
+
 class Competencia:
     def __init__(self, comp, pasta):
         self.comp = comp

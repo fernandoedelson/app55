@@ -38,6 +38,8 @@ document.addEventListener('DOMContentLoaded',function(){
     /* o zoom de tabela redecora por observador (setTimeout 0): a marcação espera ele terminar */
     /* a régua entra antes da marcação: o digest nasce depois do sec-head e precisa herdar o bloco */
     remarcar:()=>setTimeout(()=>{ if(window.INSRT) INSRT.mount(sec); marcarEm(sec,{k:'__abre'}); },20),
+    /* detalhe aberto no clique só remarca: no Kit o digest da seção não se refaz a cada clique */
+    marcar:()=>setTimeout(()=>marcarEm(sec,{k:'__abre'}),20),
   };
   sec.innerHTML=DESENHO[SID](P,ctx);
   setupTableTools(); setupChartZoom(); setupTableZoom();

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Fechamento {{ comp.codigo }} · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow"><a href="{{ url_for('competencias.index') }}">Fechamento</a></div>
+  <h1>Competência <b>{{ comp.codigo }}</b> <span class="muted">· {{ comp.status }}</span></h1>
+</div>
+
+{% if faltando %}
+  <div class="aviso">Faltam bases obrigatórias:
+    {% for b in faltando %}<b>{{ bases[b].titulo }}</b>{% if not loop.last %}, {% endif %}{% endfor %}.</div>
+{% endif %}
+
+{% if passado %}
+  <div class="aviso aviso-erro">
+    <b>O passado mudou.</b> {{ passado|length }} mês(es) que a competência anterior já publicava vieram
+    diferentes nesta leitura. Confira antes de publicar — e, se for para seguir assim, escreva a justificativa.
+    <table class="tbl mt-sm">
+      <thead><tr><th>Base</th><th>Mês</th><th>Antes</th><th>Agora</th><th>Diferença</th></tr></thead>
+      <tbody>
+      {% for d in passado[:20] %}
+        <tr><td>{{ d.base }}</td><td>{{ d.ym }}</td>
+            <td class="right">{{ '%.2f'|format(d.antes) }}</td>
+            <td class="right">{{ '%.2f'|format(d.depois) }}</td>
+            <td class="right">{{ '%.2f'|format(d.dif) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+<h2>Bases do mês</h2>
+<table class="tbl">
+  <thead><tr><th>Base</th><th>Arquivo</th><th>Posição</th><th>Enviado</th><th></th></tr></thead>
+  <tbody>
+  {% for bid, b in bases.items() %}
+    {% set envios = arquivos|selectattr('base','equalto',bid)|list %}
+    <tr>
+      <td>{{ b.titulo }}{% if b.obrigatoria %} <span class="muted">(obrigatória)</span>{% endif %}</td>
+      <td>{% for a in envios %}{{ a.arquivo }}<br>{% else %}<span class="muted">—</span>{% endfor %}</td>
+      <td>{% for a in envios %}{{ a.data_posicao }}<br>{% endfor %}</td>
+      <td>{% for a in envios %}<span class="muted">{{ a.enviado_por }} · {{ a.enviado_em }}</span><br>{% endfor %}</td>
+      <td class="right">
+        {% if pode_upload.get(bid) and comp.status != 'fechada' %}
+        <form method="post" action="{{ url_for('competencias.upload', codigo=comp.codigo) }}"
+              enctype="multipart/form-data" class="actions">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="base" value="{{ bid }}">
+          <input type="file" name="arquivo" accept=".xlsx,.xlsm" required>
+          <input name="data_posicao" placeholder="posição (ex.: 31/07/2026)" required>
+          <button class="btn btn-sm" type="submit">Enviar</button>
+        </form>
+        {% else %}<span class="muted">sem permissão</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2 class="mt-lg">Processar</h2>
+<p class="muted">Lê as planilhas e gera os dados desta competência — é a mesma leitura que gerou o relatório aprovado.</p>
+<form method="post" action="{{ url_for('competencias.processar', codigo=comp.codigo) }}" class="actions">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-primary" type="submit" {% if faltando %}disabled{% endif %}>Processar as bases</button>
+  {% if comp.processada_em %}<span class="muted">última vez: {{ comp.processada_em }}</span>{% endif %}
+</form>
+
+{% if comp.processada_em %}
+<h2 class="mt-lg">Publicar</h2>
+<p class="muted">Publicação é por bloco: o que você marcar passa a ler esta competência. Um bloco nunca mistura meses.</p>
+<form method="post" action="{{ url_for('competencias.publicar', codigo=comp.codigo) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if passado %}
+    <label class="bloco">Justificativa (obrigatória porque o passado mudou)
+      <textarea name="justificativa" rows="2" style="width:100%"></textarea></label>
+  {% endif %}
+  {% for s in secoes %}
+    <details class="bloco">
+      <summary>{{ s.titulo }}</summary>
+      {% for b in s.blocos %}
+        <label class="check"><input type="checkbox" name="bloco" value="{{ b.id }}"
+          {% if b.id in blocos_publicados %}checked{% endif %}> {{ b.titulo }}</label>
+      {% endfor %}
+    </details>
+  {% endfor %}
+  <div class="actions mt">
+    <button class="btn btn-primary" type="submit">Publicar os blocos marcados</button>
+    <a class="btn btn-sm" href="{{ url_for('competencias.mudancas', codigo=comp.codigo) }}">Ver o que mudou</a>
+  </div>
+</form>
+{% endif %}
+
+<h2 class="mt-lg">Situação</h2>
+<form method="post" action="{{ url_for('competencias.situacao', codigo=comp.codigo) }}" class="actions">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <select name="status">
+    <option value="rascunho" {% if comp.status=='rascunho' %}selected{% endif %}>rascunho (só a Controladoria vê)</option>
+    <option value="disponibilizada" {% if comp.status=='disponibilizada' %}selected{% endif %}>disponibilizada (áreas comentam)</option>
+    <option value="fechada" {% if comp.status=='fechada' %}selected{% endif %}>fechada</option>
+  </select>
+  <label>Prazo dos comentários <input name="prazo_comentarios" value="{{ comp.prazo_comentarios or '' }}" placeholder="ex.: 12/08/2026"></label>
+  <button class="btn btn-sm" type="submit">Salvar</button>
+</form>
+
+{% if comp.status == 'rascunho' %}
+<form method="post" action="{{ url_for('competencias.descartar', codigo=comp.codigo) }}" class="actions mt"
+      onsubmit="return confirm('Descartar o rascunho {{ comp.codigo }} e apagar as bases enviadas?')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-sm btn-perigo" type="submit">Descartar rascunho</button>
+</form>
+{% endif %}
+{% endblock %}

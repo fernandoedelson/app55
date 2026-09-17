@@ -11,7 +11,9 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 | 1. Gabarito | concluída — `C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design\_referencia\gabarito\2026-07` |
 | 2. Fundação (login, perfis, permissões, auditoria, ver como, catálogo) | concluída localmente |
 | 3. Cálculo no servidor (17 seções, 122 blocos) | concluída — igual ao gabarito bloco a bloco |
-| 4. Destaques | próxima |
+| 4. Destaques (50 regras, 114 destaques) | concluída — igual ao gabarito completo |
+| 5. Fechamento e importação pela tela | concluída — a app reproduz as 14 bases da competência publicada |
+| 6. Comentários das áreas | próxima |
 
 ## Rodar localmente
 
@@ -50,7 +52,10 @@ O critério de pronto da fase 3 é a igualdade com o relatório aprovado, bloco 
     python ferramentas/conferir_secao.py dre custos ...    # tela inicial x gabarito
     python ferramentas/conferir_estado.py dre custos ...   # estados filtrados x Kit congelado
 
-O primeiro compara com o retrato do gabarito sem destaques. O segundo roda um roteiro de cliques no
+    python ferramentas/conferir_destaques.py               # slots do desenho x destaques x textos
+    python ferramentas/conferir_importacao.py              # importar pela app x competência publicada
+
+O primeiro compara com o retrato do gabarito (`--com-destaques` usa o retrato completo). O segundo roda um roteiro de cliques no
 HTML congelado do Kit e pede ao app a mesma seção com os filtros na URL; os detalhamentos (itens de
 um pedido, composição de um pacote, clientes de um segmento…) são buscados antes pelo cliente de
 teste e servidos à página por um fetch substituto, porque a página é aberta como arquivo.
@@ -62,6 +67,8 @@ teste e servidos à página por um fetch substituto, porque a página é aberta 
     app/seguranca/            senha, usuários e permissões, reset, e-mail, proteções por requisição
     app/rotas/                auth (entrar/sair/senhas), inicio, admin, biblioteca
     app/calculo/              cálculo por seção (porte do app.js) — devolve números brutos por bloco
+    app/destaques/            regras de 2º grau: o que merece régua no gráfico e linha no digest
+    app/importacao/           kit_parser.py (leitura das planilhas), motor, comparar e serviço do ciclo
     app/static/relatorio/     kit.js (desenho extraído do Kit) e secoes/<id>.js (uma seção cada)
     app/db.py                 SQLite WAL, schema, perfis iniciais, administrador inicial
     tests/                    pytest

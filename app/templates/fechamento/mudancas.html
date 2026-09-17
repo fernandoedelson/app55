@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}O que mudou · {{ codigo }} · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow"><a href="{{ url_for('competencias.index') }}">Fechamento</a> · {{ codigo }}</div>
+  <h1>O que <b>mudou</b></h1>
+  <p class="muted">Bloco a bloco, o maior número que se moveu em relação à competência anterior.
+    Bloco novo aparece como novo; bloco sem diferença não aparece.</p>
+</div>
+
+{% if passado %}
+  <div class="aviso aviso-erro"><b>Meses já publicados que vieram diferentes:</b>
+    {% for d in passado[:10] %}{{ d.base }} {{ d.ym }} ({{ '%.2f'|format(d.dif) }}){% if not loop.last %}; {% endif %}{% endfor %}
+  </div>
+{% endif %}
+
+{% for s in secoes %}
+  {% set linhas = [] %}
+  {% for b in s.blocos %}{% if mudancas.get(b.id) %}{% set _ = linhas.append((b, mudancas[b.id])) %}{% endif %}{% endfor %}
+  {% if linhas %}
+    <h2>{{ s.titulo }}</h2>
+    <table class="tbl">
+      <thead><tr><th>Bloco</th><th>Campo</th><th>Antes</th><th>Agora</th><th>Diferença</th></tr></thead>
+      <tbody>
+      {% for b, m in linhas %}
+        <tr>
+          <td>{{ b.titulo }}</td>
+          {% if m.novo %}<td colspan="4" class="muted">bloco novo nesta competência</td>{% else %}
+          <td class="muted">{{ m.campo }}</td>
+          <td class="right">{{ '%.2f'|format(m.antes) }}</td>
+          <td class="right">{{ '%.2f'|format(m.depois) }}</td>
+          <td class="right">{{ '%.2f'|format(m.dif) }}{% if m.rel is not none %} <span class="muted">({{ '%.1f'|format(m.rel*100) }}%)</span>{% endif %}</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% else %}
+  <p class="muted">Sem competência anterior para comparar.</p>
+{% endfor %}
+{% endblock %}

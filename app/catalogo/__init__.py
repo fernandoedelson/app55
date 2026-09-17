@@ -22,19 +22,21 @@ RECURSOS = [
     ('filtro_livre', 'Filtro livre de período', 'Escolher qualquer intervalo de meses'),
     ('apresentar', 'Modo Apresentar', 'Tela cheia com navegação por atos'),
     ('nomes_pf', 'Ver nomes de pessoa física', 'Sem este recurso os nomes aparecem mascarados'),
+    ('fechamento', 'Fechar o mês', 'Subir as bases, processar, ver o que mudou e publicar'),
 ]
 RECURSO = {r[0]: r for r in RECURSOS}
 
-# bases que podem ser enviadas (a fase 5 detalha o contrato de cada uma)
+# bases que podem ser enviadas — os ids são os mesmos de app/importacao/motor.py (quem lê as planilhas)
 BASES_UPLOAD = [
-    ('vendas', 'Controle ADM de Vendas'),
-    ('dre', 'Painel Resultado (DRE)'),
-    ('custos', 'Custos (5 planilhas)'),
+    ('comercial', 'Controle ADM de Vendas (base comercial)'),
+    ('painel', 'Painel Resultado (DRE e razão do custo fixo)'),
+    ('custos', 'Custos (pasta com as 5 planilhas)'),
     ('carteira', 'VENDAS LOJA (carteira dinâmica)'),
-    ('metas', 'Metas de vendas'),
-    ('aportes', 'Aportes'),
-    ('apelidos', 'Apelidos'),
+    ('metas', 'Metas de vendas do ano'),
+    ('aportes', 'Aportes (dívida com o acionista)'),
+    ('apelidos', 'Apelidos (de-para de nomes)'),
     ('designers', 'Designers'),
+    ('fabloja', 'Modelo gerencial Fábrica × Loja'),
 ]
 BASE_UPLOAD = dict(BASES_UPLOAD)
 

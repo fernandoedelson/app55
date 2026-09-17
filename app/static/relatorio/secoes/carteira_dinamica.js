@@ -100,8 +100,8 @@ DESENHO_POS.carteira_dinamica=function(sec,ctx){
       });
     });
   }
-  bars.forEach(el=>el.addEventListener('click',()=>{ desenha(+el.dataset.i); ctx.remarcar(); }));
+  bars.forEach(el=>el.addEventListener('click',()=>{ desenha(+el.dataset.i); ctx.marcar(); }));
   const sel=document.getElementById('cartdin-status-sel');
-  if(sel) sel.addEventListener('change',()=>{ desenha(+sel.value); ctx.remarcar(); });
+  if(sel) sel.addEventListener('change',()=>{ desenha(+sel.value); ctx.marcar(); });
   if(bars.length){ desenha(0); ctx.remarcar(); }
 };

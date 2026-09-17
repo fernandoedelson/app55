@@ -72,6 +72,36 @@ CREATE TABLE IF NOT EXISTS auditoria (
     como_perfil TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS ix_auditoria_em ON auditoria(em);
+CREATE TABLE IF NOT EXISTS competencias (
+    codigo TEXT PRIMARY KEY,                      -- AAAA-MM
+    status TEXT NOT NULL DEFAULT 'rascunho',      -- rascunho | disponibilizada | fechada
+    criada_em TEXT NOT NULL,
+    criada_por TEXT NOT NULL DEFAULT '',
+    processada_em TEXT,
+    disponibilizada_em TEXT,
+    fechada_em TEXT,
+    prazo_comentarios TEXT,                       -- a Controladoria define a cada mês
+    observacao TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS competencia_arquivos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    competencia TEXT NOT NULL REFERENCES competencias(codigo) ON DELETE CASCADE,
+    base TEXT NOT NULL,                           -- id da base (o mesmo de base:upload:<id>)
+    arquivo TEXT NOT NULL,                        -- nome como foi gravado na pasta de fontes
+    sha256 TEXT NOT NULL DEFAULT '',
+    tamanho INTEGER NOT NULL DEFAULT 0,
+    data_posicao TEXT NOT NULL DEFAULT '',        -- declarada por quem sobe
+    enviado_por TEXT NOT NULL DEFAULT '',
+    enviado_em TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_comp_arq ON competencia_arquivos(competencia, base);
+CREATE TABLE IF NOT EXISTS competencia_blocos (
+    competencia TEXT NOT NULL REFERENCES competencias(codigo) ON DELETE CASCADE,
+    bloco TEXT NOT NULL,
+    publicado_em TEXT NOT NULL,
+    publicado_por TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (competencia, bloco)
+);
 """
 
 # perfis iniciais — permissões sugeridas; o administrador ajusta na tela

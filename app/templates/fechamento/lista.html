@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Fechamento do mês · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Controladoria</div>
+  <h1>Fechamento do <b>mês</b></h1>
+  <p class="muted">Cada competência tem as suas bases. Suba as planilhas, processe, veja o que mudou e
+    publique bloco a bloco. Mês já publicado não muda sozinho: se mudar, o app trava e pede a justificativa.</p>
+</div>
+
+<form method="post" action="{{ url_for('competencias.nova') }}" class="actions">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Nova competência <input name="codigo" placeholder="2026-08" pattern="\d{4}-\d{2}" required></label>
+  <button class="btn btn-primary btn-sm" type="submit">Criar</button>
+</form>
+
+<table class="tbl mt-lg">
+  <thead><tr><th>Competência</th><th>Situação</th><th>Bases</th><th>Processada</th><th>Disponibilizada</th><th></th></tr></thead>
+  <tbody>
+  {% for c in competencias %}
+    <tr>
+      <td><b>{{ c.codigo }}</b>{% if not c.tem_dados %} <span class="muted">(sem dados)</span>{% endif %}</td>
+      <td>{{ c.status }}</td>
+      <td>{{ c.arquivos }}</td>
+      <td>{{ c.processada_em or '—' }}</td>
+      <td>{{ c.disponibilizada_em or '—' }}</td>
+      <td class="right">
+        {% if c.criada_em %}<a class="btn btn-sm" href="{{ url_for('competencias.ver', codigo=c.codigo) }}">Abrir</a>{% endif %}
+        {% if c.tem_dados %}<a class="btn btn-sm" href="{{ url_for('competencias.mudancas', codigo=c.codigo) }}">O que mudou</a>{% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="muted">Nenhuma competência ainda.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
