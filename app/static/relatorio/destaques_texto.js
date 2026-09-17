@@ -240,6 +240,274 @@ TXT.projecaoDistancia=d=>({
   trigger:`projeção histórica ${pct(Math.abs(d.sh),0)} distante do orçamento (limiar 3%)`,
 });
 
+/* ---------- Análise de Vendas: a líder e a carteira por RFV ---------- */
+const FMT_FATOR={mi:v=>mi(v),nf0:v=>nf(v,0),nf1:v=>nf(v,1),nf2:v=>nf(v,2),money:v=>money(v),pct1:v=>pct(v,1)};
+
+TXT.lider=d=>({
+  verdict:`${esc(trunc(d.nome,26))} vende <b>${nf(d.razao,1)}× a média do time</b>, e a vantagem `
+    +`não está espalhada: está em <b>${esc(d.forte)}</b> (${nf(d.rForte,1)}×).`,
+  texto:`A venda de qualquer vendedor vem de três coisas multiplicadas: quantos clientes atende, `
+    +`quantas vezes cada um compra e quanto vale cada pedido. `
+    +`Se a vantagem fosse igual nos três, cada um seria ${nf(d.esperado,2)}× a média. `
+    +`Não é o caso: ${esc(d.forte)} está em ${nf(d.rForte,1)}× e ${esc(d.fraco)}, em ${nf(d.rFraco,2)}×. `
+    +`É um fator só puxando o resultado — e é nele que está o que ela faz de diferente.`,
+  ev:[['Venda vs média do time',nf(d.razao,1)+'×'],['Maior vantagem',esc(d.forte)+' · '+nf(d.rForte,1)+'×'],
+      ['Menor vantagem',esc(d.fraco)+' · '+nf(d.rFraco,2)+'×'],['Se fosse parelho',nf(d.esperado,2)+'× em cada']],
+  trigger:`líder a ${nf(d.razao,1)}× a média, com os três fatores muito diferentes entre si (limiar 1,3×)`,
+});
+
+TXT.fatoresLider=d=>{
+  const f=x=>(FMT_FATOR[x.fmt]||FMT_FATOR.mi);
+  return {
+    verdict:d.abaixo
+      ? `A líder está <b>${spct(d.rMaior,0)} em ${esc(d.maior.toLowerCase())}</b>, mas `
+        +`<b>${spct(d.abaixo.r,0)} em ${esc(d.abaixo.nome.toLowerCase())}</b>.`
+      : `A líder está acima da média nos três fatores, com <b>${spct(d.rMaior,0)} em ${esc(d.maior.toLowerCase())}</b>.`,
+    texto:d.fatores.map(x=>`${esc(x.nome)}: ${f(x)(x.l)} contra ${f(x)(x.d)} da média (${spct(x.r,0)})`).join('. ')+'. '
+      +(d.abaixo
+        ? `Ou seja: ela não faz tudo melhor que os outros. Onde está atrás, há espaço para melhorar o `
+          +`resultado dela também — e onde está muito à frente é o que vale entender e tentar repetir com o time.`
+        : `A vantagem aparece nos três, o que costuma indicar carteira diferente, não técnica diferente.`),
+    ev:d.fatores.map(x=>[x.nome,f(x)(x.l)+' × '+f(x)(x.d)]),
+    trigger:`maior fator a ${spct(d.rMaior,0)} da média do time`,
+  };
+};
+
+TXT.potencialTicket=d=>({
+  verdict:`Só o tamanho do pedido explica <b>${mi(d.ganho)}</b> de distância — ${pct(d.sh,0)} da venda `
+    +`atual dos demais, com a mesma quantidade de pedidos.`,
+  texto:`A conta mantém o número de pedidos de cada um e troca só o valor médio do pedido pelo de `
+    +`${esc(trunc(d.nome,24))} (${money(d.ticket)}). `
+    +`${pct(d.shTop2,0)} de toda essa diferença está em duas pessoas: `
+    +`${d.top2.map(x=>esc(trunc(x.name,20))+' ('+mi(x.v)+')').join(' e ')}. `
+    +`Não é um problema do time inteiro — está em quem vende pedidos bem menores que a média da casa.`,
+  ev:[['Distância total',mi(d.ganho)],['% da venda dos demais',pct(d.sh,0)],
+      ['Valor médio do pedido dela',money(d.ticket)],['Concentrado em 2 pessoas',pct(d.shTop2,0)]],
+  trigger:`diferença de ticket vale ${pct(d.sh,0)} da venda dos demais`,
+});
+
+TXT.rfvSegmentos=d=>({
+  verdict:`<b>${nf(d.nF)} clientes que voltam</b> (${pct(d.nF/d.N,0)} da carteira) valem ${mi(d.vF)}; `
+    +`<b>${nf(d.nR)} que pararam</b> valem ${mi(d.vR)}.`,
+  texto:`Campeões e fiéis são ${pct(d.nF/d.N,0)} dos clientes e ${pct(d.vF/d.tot,0)} do valor — `
+    +`compram ${nf(d.fMedia,2)} vezes cada, em média. `
+    +`Do outro lado, quem está em risco ou hibernando soma ${pct(d.vR/d.tot,0)} do valor já realizado `
+    +`e está há ${nf(d.rMedia,1)} meses sem comprar. `
+    +`É valor que a casa já provou saber vender, parado.`,
+  ev:[['Campeões + fiéis',nf(d.nF)+' · '+mi(d.vF)],['% do valor',pct(d.vF/d.tot,0)],
+      ['Em risco + hibernando',nf(d.nR)+' · '+mi(d.vR)],['% do valor',pct(d.vR/d.tot,0)]],
+  trigger:`segmentação RFV sobre ${nf(d.N)} clientes da janela`,
+});
+
+const RFV_DEF={
+  'Campeões':'compraram há pouco, várias vezes e entre os que mais gastam',
+  'Fiéis':'voltam com regularidade e continuam comprando',
+  'Em risco':'estão entre os de maior valor, mas pararam de comprar',
+  'Novos / únicos':'chegaram há pouco e ainda só fizeram um ou dois pedidos',
+  'Ocasionais':'compram de vez em quando, sem padrão de retorno',
+  'Hibernando':'já foram frequentes e hoje estão parados',
+  'Perdidos':'sem compra há muito tempo e com valor baixo',
+};
+
+TXT.rfvTabela=d=>({
+  verdict:`<b>${pct(d.shUma,0)} dos clientes compraram uma vez só</b> — e valem ${pct(d.vUma,0)} do total.`,
+  texto:`Quem volta é minoria: ${nf(d.nRepete)} clientes de ${nf(d.n)}. `
+    +`Mas cada um deles vale ${money(d.vMedioRep)} contra ${money(d.vMedioUma)} de quem comprou uma vez — `
+    +`${nf(d.vMedioRep/Math.max(d.vMedioUma,1),1)}× mais. `
+    +`A diferença entre os dois grupos não é o tamanho do primeiro pedido: é o que vem depois dele.`
+    +(d.segs&&d.segs.length?`</p><div class="hl-defs"><b>O que é cada segmento</b>`
+      +d.segs.map(x=>{
+        const faixa=(x.rMax==null||x.rMin==null)?''
+          :(x.rMin===x.rMax?`${nf(x.rMin)} ${plural(x.rMin,'mês','meses')} sem comprar`
+            :`${nf(x.rMin)} a ${nf(x.rMax)} meses sem comprar, ${nf(x.r,1)} em média`);
+        return `<span><i>${esc(x.seg)}</i> — ${esc(RFV_DEF[x.seg]||'')} `
+          +`<em>${nf(x.n)} ${plural(x.n,'cliente','clientes')} · ${mi(x.v)}`
+          +(faixa?` · ${faixa}`:'')+`</em></span>`;
+      }).join('')
+      +`</div><p>`:''),
+  ev:[['Compraram uma vez',nf(d.nUma)+' · '+pct(d.shUma,0)],['Valem',pct(d.vUma,0)+' do total'],
+      ['Valor médio · uma compra',money(d.vMedioUma)],['Valor médio · recompra',money(d.vMedioRep)]],
+  trigger:`${pct(d.shUma,0)} da carteira com uma única compra no período`,
+});
+
+TXT.rfvRisco=d=>({
+  verdict:`Os ${nf(d.n)} maiores clientes parados somam <b>${mi(d.v)}</b> de compra já realizada, `
+    +`com ${nf(d.mesesMed,1)} meses em média sem pedido.`,
+  texto:`São clientes que já compraram antes — não é procurar cliente novo, é reaproximar quem já foi cliente. `
+    +(d.dono?`${esc(trunc(d.dono,24))} responde por ${pct(d.shDono,0)} desse valor `
+      +`(${mi(d.vDono)}), o que torna a conversa de retomada concentrada em poucas mãos. `:'')
+    +`O maior deles sozinho vale ${mi(d.maior)}.`,
+  ev:[['Valor parado',mi(d.v)],['Clientes',nf(d.n)],
+      ['Meses sem comprar',nf(d.mesesMed,1)],['Maior isolado',mi(d.maior)]],
+  trigger:`clientes de alto valor com recência no quintil mais baixo`,
+});
+
+TXT.rfvPorVendedor=d=>({
+  verdict:`Carteiras muito diferentes por baixo: <b>${pct(d.shMelhor,0)} da venda de `
+    +`${esc(trunc(d.melhor,20))} vem de clientes que voltam, contra ${pct(d.shPior,0)} de ${esc(trunc(d.pior,20))}</b>.`,
+  texto:`${esc(trunc(d.melhor,20))} atende ${nf(d.nMelhor)} clientes com ${nf(d.recMelhor,2)} pedidos cada; `
+    +`${esc(trunc(d.pior,20))}, ${nf(d.nPior)} clientes com ${nf(d.recPior,2)}. `
+    +`Quem lidera em venda é ${esc(trunc(d.maiorVenda,20))}, com ${pct(d.shMaiorVenda,0)} vindo de clientes fiéis. `
+    +`Duas pessoas com venda parecida podem ter uma carteira que se sustenta e outra que precisa ser refeita todo mês.`,
+  ev:[[esc(trunc(d.melhor,18)),pct(d.shMelhor,0)+' de fiéis'],[esc(trunc(d.pior,18)),pct(d.shPior,0)+' de fiéis'],
+      ['Pedidos/cliente · melhor',nf(d.recMelhor,2)],['Pedidos/cliente · pior',nf(d.recPior,2)]],
+  trigger:`${nf(d.amp*100,0)} pontos entre a melhor e a pior carteira (limiar 20)`,
+});
+
+/* ---------- Vendedor × Arquiteto ---------- */
+TXT.arqCanal=d=>({
+  verdict:d.uniforme
+    ? `<b>${pct(d.geral,0)} de toda a venda entra por um arquiteto</b>, e isso vale para o time inteiro — `
+      +`de ${pct(d.shBaixo,0)} a ${pct(d.shAlto,0)} entre os maiores vendedores.`
+    : `<b>${esc(trunc(d.alto,24))} faz ${pct(d.shAlto,0)} da venda por arquiteto; `
+      +`${esc(trunc(d.baixo,24))}, ${pct(d.shBaixo,0)}</b> — não são o mesmo trabalho.`,
+  texto:(d.uniforme
+    ? `Não é um vendedor ou outro: praticamente toda venda da casa nasce da indicação de um arquiteto. `
+      +`O que se vende direto ao cliente é o que sobra. `
+      +`Isso muda a pergunta: o resultado do vendedor depende menos de quem atende no showroom e mais `
+      +`de quais arquitetos indicam a marca — e avaliar o time sem olhar isso mede a coisa errada. `
+    : `Entre os maiores vendedores, a dependência do canal vai de ${pct(d.shBaixo,0)} a ${pct(d.shAlto,0)}. `)
+    +(d.razao?`E o canal não muda só o volume: o pedido que vem por arquiteto vale ${money(d.tA)} `
+      +`contra ${money(d.tS)} do que vem direto — ${nf(d.razao,1)}× ${d.razao>1?'maior':'menor'}. `:'')
+    +(d.uniforme?'':`Comparar a venda de quem vive de especificação com a de quem vende no balcão é comparar `
+      +`dois processos diferentes com o mesmo número.`),
+  ev:[[trunc(d.alto,18),pct(d.shAlto,0)+' via arquiteto'],[trunc(d.baixo,18),pct(d.shBaixo,0)],
+      ['Pedido médio com arquiteto',money(d.tA)],['Pedido médio direto',money(d.tS)]],
+  trigger:d.uniforme
+    ? `${pct(d.geral,0)} da venda vem de arquiteto, e a diferença entre os vendedores é de só ${nf(d.dispersao*100,0)} pontos`
+    : `${nf(d.dispersao*100,0)} pontos de diferença entre quem mais e quem menos vende por arquiteto (limiar 20)`,
+});
+
+TXT.arqDependencia=d=>({
+  verdict:`A agenda de <b>${esc(trunc(d.nome,26))} depende de ${d.k50} `
+    +`${plural(d.k50,'arquiteto','arquitetos')}</b> de ${nf(d.nArq)} — `
+    +`bastam ${plural(d.k50,'ele','eles')} para somar metade da venda pelo canal.`,
+  texto:`O maior sozinho responde por ${pct(d.shTop,0)} (${esc(trunc(d.topArq||'—',26))}). `
+    +(d.nExcl?`Além disso, ${nf(d.nExcl)} ${plural(d.nExcl,'arquiteto trabalha','arquitetos trabalham')} `
+      +`exclusivamente com ${esc(trunc(d.nome,22))}, somando ${mi(d.vExcl)} — `
+      +`relação pessoal, que sai junto com quem a construiu. `:'')
+    +`Ter muitos arquitetos cadastrados não é o mesmo que ter a venda distribuída entre eles.`,
+  ev:[['Arquitetos ativos',nf(d.nArq)],['Bastam para 50%',nf(d.k50)],
+      ['Maior deles',pct(d.shTop,0)],['Exclusivos dele',nf(d.nExcl)+' · '+mi(d.vExcl)]],
+  trigger:`${pct(d.conc,0)} dos arquitetos concentram metade da venda do canal (limiar 25%)`,
+});
+
+TXT.arqExclusividade=d=>({
+  verdict:`Entre os arquitetos que fazem 80% do canal, <b>${nf(d.nExcl)} trabalham com um único vendedor</b> — `
+    +`${pct(d.sh,0)} da venda desse grupo.`,
+  texto:`São ${mi(d.vExcl)} presos a uma relação pessoal: se o vendedor sai, o arquiteto não fica com a casa. `
+    +(d.nCompart
+      ? (d.nCompart===1
+          ? `Só um circula entre vendedores, movimentando ${mi(d.vCompart)}`
+          : `Os ${nf(d.nCompart)} que circulam entre vendedores movimentam ${mi(d.vCompart)}`)
+        +(d.tkE&&d.tkC?`, com pedido médio de ${money(d.tkC)} contra ${money(d.tkE)} dos exclusivos`:'')+`. `
+      :'')
+    +`A diferença entre um cadastro de arquitetos e uma carteira de arquitetos está exatamente nisso.`,
+  ev:[['Exclusivos',nf(d.nExcl)+' · '+mi(d.vExcl)],['% do canal',pct(d.sh,0)],
+      ['Circulam entre vendedores',nf(d.nCompart)],['Pedido médio: exclusivo × compartilhado',
+        (d.tkE?money(d.tkE):'—')+' × '+(d.tkC?money(d.tkC):'—')]],
+  trigger:`${pct(d.sh,0)} do canal em arquitetos com 90%+ da venda num único vendedor (limiar 30%)`,
+});
+
+TXT.arqMatriz=d=>({
+  verdict:`De todas as combinações possíveis entre vendedor e arquiteto, <b>só ${pct(d.dens,0)} existem</b> — `
+    +(d.todosPresos
+      ? `<b>todos os ${nf(d.nCol)} maiores arquitetos</b> trabalham com um único vendedor.`
+      : `${nf(d.nPresos)} dos ${nf(d.nCol)} maiores arquitetos trabalham com um único vendedor.`),
+  texto:`O mapa tem muito espaço vazio, e não é acaso: cada arquiteto trabalha com um vendedor só. `
+    +(d.qCircula>1
+      ? `${esc(trunc(d.circula,26))} é a exceção — circula por ${nf(d.qCircula)} vendedores, somando ${mi(d.vCircula)}. `
+      : `Nenhum dos maiores é exceção: não há um único arquiteto atendido por mais de um vendedor no período. `)
+    +`Quando a coluna tem uma célula só, o relacionamento é da pessoa, não da empresa.`,
+  ev:[['Pares que existem',pct(d.dens,0)],['Arquitetos presos a um',nf(d.nPresos)],
+      ['Mais circula',esc(trunc(d.circula,20))],['Com quantos vendedores',nf(d.qCircula)]],
+  trigger:`densidade de ${pct(d.dens,0)} na matriz vendedor × arquiteto (limiar 50%)`,
+});
+
+TXT.arqParados=d=>({
+  verdict:`<b>${nf(d.n)} arquitetos que trouxeram ${mi(d.v)}</b> não mandam pedido há ${nf(d.mesesMed,1)} meses em média.`,
+  texto:`É ${pct(d.sh,0)} de tudo que veio por arquiteto no período, hoje parado. `
+    +`Do outro lado, ${nf(d.ativos)} arquitetos seguem trazendo pedido. `
+    +(d.dono?`A maior parte desse valor parado estava com ${esc(trunc(d.dono,24))} `
+      +`(${mi(d.vDono)}, ${pct(d.shDono,0)} do total). `:'')
+    +`Arquiteto não cancela cadastro: ele apenas para de especificar, e isso não aparece em lugar nenhum `
+    +`até alguém contar os meses.`,
+  ev:[['Arquitetos parados',nf(d.n)],['Valor que traziam',mi(d.v)],
+      ['% do canal',pct(d.sh,0)],['Meses sem trazer',nf(d.mesesMed,1)]],
+  trigger:`arquitetos sem pedido há 6 meses ou mais, somando ${pct(d.sh,0)} do canal`,
+});
+
+const RFV_DEF_ARQ={
+  'Campeões':'trouxeram pedido há pouco, várias vezes e entre os que mais somam',
+  'Fiéis':'especificam com regularidade e seguem trazendo',
+  'Em risco':'estão entre os que mais trouxeram, mas pararam',
+  'Novos / únicos':'chegaram há pouco e trouxeram um ou dois pedidos',
+  'Ocasionais':'aparecem de vez em quando, sem regularidade',
+  'Hibernando':'já foram frequentes e hoje não trazem nada',
+  'Perdidos':'sem pedido há muito tempo e com valor baixo',
+};
+
+TXT.rfvArqSegmentos=d=>({
+  verdict:`<b>${nf(d.nB)} arquitetos ainda trazem pedido</b> (${pct(d.nB/d.N,0)} do cadastro) e valem ${mi(d.vB)}; `
+    +`<b>${nf(d.nM)} já pararam</b>, com ${mi(d.vM)} de histórico.`,
+  texto:`O canal tem duas metades muito diferentes. Quem segue ativo traz `
+    +`${nf(d.fB,1)} pedidos por arquiteto; quem parou está há `
+    +`${nf(d.rM,1)} meses sem especificar nada. `
+    +`A diferença entre um cadastro de arquitetos e uma carteira viva é essa — e ela não aparece `
+    +`em nenhum ranking por faturamento, porque o histórico de quem sumiu continua somando lá.`,
+  ev:[['Ativos (campeões + fiéis)',nf(d.nB)+' · '+mi(d.vB)],['% do valor',pct(d.vB/d.tot,0)],
+      ['Parados',nf(d.nM)+' · '+mi(d.vM)],['Meses sem trazer',nf(d.rM,1)]],
+  trigger:`segmentação RFV sobre ${nf(d.N)} arquitetos da janela`,
+});
+
+TXT.rfvArqTabela=d=>({
+  verdict:`<b>${pct(d.shUma,0)} dos arquitetos trouxeram um pedido só</b> — e respondem por ${pct(d.vUma,0)} do canal.`,
+  texto:`Especificar uma vez é fácil; virar recorrente é outra coisa. `
+    +`Os ${nf(d.nRepete)} que voltaram valem ${money(d.mRep)} cada, contra ${money(d.mUma)} de quem veio uma vez — `
+    +`${nf(d.mRep/Math.max(d.mUma,1),1)}× mais. `
+    +`O tamanho do cadastro não diz nada sobre o tamanho do canal.`
+    +(d.segs&&d.segs.length?`</p><div class="hl-defs"><b>O que é cada segmento</b>`
+      +d.segs.map(x=>{
+        const faixa=x.rMin===x.rMax
+          ?`${nf(x.rMin)} ${plural(x.rMin,'mês','meses')} sem trazer`
+          :`${nf(x.rMin)} a ${nf(x.rMax)} meses sem trazer, ${nf(x.r,1)} em média`;
+        return `<span><i>${esc(x.seg)}</i> — ${esc(RFV_DEF_ARQ[x.seg]||'')} `
+          +`<em>${nf(x.n)} ${plural(x.n,'arquiteto','arquitetos')} · ${mi(x.v)} · ${faixa}</em></span>`;
+      }).join('')+`</div><p>`:''),
+  ev:[['Trouxeram uma vez',nf(d.nUma)+' · '+pct(d.shUma,0)],['Valem',pct(d.vUma,0)+' do canal'],
+      ['Valor médio · uma vez',money(d.mUma)],['Valor médio · recorrente',money(d.mRep)]],
+  trigger:`${pct(d.shUma,0)} do cadastro com um único pedido no período`,
+});
+
+TXT.rfvArqPorVendedor=d=>({
+  verdict:`<b>${pct(d.shBom,0)} da venda de ${esc(trunc(d.bom,22))} vem de arquitetos que continuam trazendo; `
+    +`em ${esc(trunc(d.ruim,22))}, ${pct(d.shRuim,0)}</b>.`,
+  texto:`${esc(trunc(d.ruim,22))} tem ${nf(d.nRuim)} arquitetos, mas ${pct(d.shRuins,0)} da venda dela veio de quem já parou de trazer pedido — `
+    +`o histórico está lá, o movimento não. `
+    +`${esc(trunc(d.bom,22))} trabalha com ${nf(d.nBom)}`
+    +(Math.abs(d.pedBom-d.pedRuim)>=.05
+      ? ` e recebe ${nf(d.pedBom,2)} pedidos de cada um, contra ${nf(d.pedRuim,2)}`
+      : ` e a diferença não está em quantos pedidos cada arquiteto traz — é em quantos deles ainda trazem`)
+    +`. Duas carteiras de tamanho parecido: uma continua rendendo, a outra em boa parte parou.`,
+  ev:[[trunc(d.bom,18),pct(d.shBom,0)+' em ativos'],[trunc(d.ruim,18),pct(d.shRuim,0)],
+      ['Pedidos por arquiteto',nf(d.pedBom,2)+' × '+nf(d.pedRuim,2)],
+      ['Valor parado em '+trunc(d.ruim,14),mi(d.vRuins)]],
+  trigger:`${nf(d.amp*100,0)} pontos entre a melhor e a pior carteira de canal (limiar 20)`,
+});
+
+TXT.rfvArqQualidade=d=>({
+  verdict:`Cada arquiteto rende <b>${nf(d.pedAlto,2)} pedidos com ${esc(trunc(d.alto,22))} e `
+    +`${nf(d.pedBaixo,2)} com ${esc(trunc(d.baixo,22))}</b> — ${nf(d.razao,1)}× de diferença.`,
+  texto:`Não é sobre ter mais arquitetos: ${esc(trunc(d.baixo,22))} tem ${nf(d.nBaixo)} e `
+    +`${esc(trunc(d.alto,22))}, ${nf(d.nAlto)}. `
+    +`A diferença está em quantas vezes cada relação se repete. `
+    +`No aproveitamento de ${esc(trunc(d.alto,20))}, a carteira de ${esc(trunc(d.baixo,20))} `
+    +`teria rendido ${nf(d.pedFalta,0)} pedidos a mais no período.`,
+  ev:[[trunc(d.alto,18),nf(d.pedAlto,2)+' pedidos/arq.'],[trunc(d.baixo,18),nf(d.pedBaixo,2)],
+      ['Arquitetos',nf(d.nAlto)+' × '+nf(d.nBaixo)],['Pedidos de diferença',nf(d.pedFalta,0)]],
+  trigger:`aproveitamento por arquiteto variando ${nf(d.razao,1)}× entre os maiores vendedores (limiar 1,4×)`,
+});
+
 /* ---------- motor automático: uma função por leitura ---------- */
 const AUTO={};
 

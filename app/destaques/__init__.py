@@ -7,7 +7,7 @@ decisão de disparar, o score, a âncora e os números.
 
     destaques.para_secao(C, 'ytd', params, pode_ver) -> {bloco: {slot: destaque}}
 """
-from .secoes import carteira, evolutiva, mensal, performance, periodo, ytd
+from .secoes import arquitetos, carteira, evolutiva, mensal, performance, periodo, vendas, ytd
 
 # seção -> função(C, params) -> [(bloco, blocos_lidos, destaque)]
 REGISTRO = {
@@ -18,6 +18,8 @@ REGISTRO = {
     'performance': performance.montar,
     'carteira': carteira.montar,
     'carteira_dinamica': carteira.montar_dinamica,
+    'vendas': vendas.montar,
+    'arquitetos': arquitetos.montar,
 }
 
 

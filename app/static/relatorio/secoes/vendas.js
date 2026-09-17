@@ -37,12 +37,12 @@ function _avCorpo(P){
       linha('Pedidos por cliente',l[4],d[4],v=>nf(v,2)),
       linha('Venda por cliente',l[5],d[5],v=>money(v)),
       linha('Custo de comissão',l[6],d[6],v=>pct(v,1),false),
-    ],['left','right','right','right'],null,ins('lider'));
+    ],['left','right','right','right'],null,ins('lider','lider-retrato'));
   }
   const D=P['av-diferenca'];
   if(D){
     s+=H3('De onde vem a diferença','clientes × pedidos por cliente × ticket','av-diferenca');
-    s+=fig(hbar(D.barras,{valfmt:v=>spct(v,0),padLeft:200,w:760,color:SER[0]}),ins('fatoresLider'));
+    s+=fig(hbar(D.barras,{valfmt:v=>spct(v,0),padLeft:200,w:760,color:SER[0]}),ins('fatoresLider','lider-fatores'));
     s+=cap('Quanto a líder está acima (ou abaixo) da média dos outros vendedores em cada um dos três fatores. '
       +'A venda de qualquer pessoa do time nasce da multiplicação deles: atender mais clientes, '
       +'fazer cada cliente comprar mais vezes, ou vender pedidos maiores.');
@@ -50,7 +50,7 @@ function _avCorpo(P){
   const M=P['av-mix'];
   if(M){ const md={}; M.linhas.forEach((vn,i)=>{md[vn]={}; M.colunas.forEach((fn,j)=>md[vn][fn]=M.mat[i][j]);});
     s+=H3('O que cada um vende','participação de cada categoria na venda de cada vendedor','av-mix');
-    s+=fig(heatmap(M.linhas,M.colunas,md,{valfmt:v=>v>1000?nf(v/1000,0):'',padLeft:170,w:900}),ins('mixCruzado'));
+    s+=fig(heatmap(M.linhas,M.colunas,md,{valfmt:v=>v>1000?nf(v/1000,0):'',padLeft:170,w:900}),ins('mixCruzado','mix-cruzado-vendas-mix'));
     s+=cap('Valores em R$ mil. Duas pessoas com a mesma venda podem ter chegado lá por categorias '
       +'completamente diferentes — e o caminho de uma nem sempre é replicável pela outra.');
   }
@@ -65,7 +65,7 @@ function _avCorpo(P){
     s+=table(['Vendedor(a)','Venda no período','Valor médio hoje','No valor médio da líder','Diferença'],
       J.linhas.map(x=>[esc(x[0]),money(x[1]),money(x[2]),money(x[3]),
         `<span style="color:${x[4]>0?GOOD:MUT};font-weight:600">${x[4]>0?'+'+money(x[4]):'—'}</span>`]),
-      ['left','right','right','right','right'],null,ins('potencialTicket'));
+      ['left','right','right','right','right'],null,ins('potencialTicket','potencial-ticket'));
     s+=cap('A coluna “No valor médio da líder” mantém a mesma quantidade de pedidos de cada pessoa e só '
       +'troca o valor médio de cada pedido pelo de '+esc(trunc(J.lider,20))+'. Não é meta: é uma forma de '
       +'medir quanto da distância do time vem apenas do tamanho dos pedidos.');
@@ -76,7 +76,7 @@ function _avCorpo(P){
     s+=call('<b>Como ler:</b> cada cliente recebe uma nota de 1 a 5 em recência (há quanto tempo comprou), '
       +'frequência (quantos pedidos fez) e valor (quanto somou). Os segmentos abaixo saem da combinação das três. '
       +'A base registra o mês da venda, não o dia, então a recência é contada em meses.');
-    s+=fig(hbar(R.segs.map(x=>[x[0],x[3]]),{valfmt:v=>mi(v,1),padLeft:170,w:820,color:SER[0]}),ins('rfvSegmentos'));
+    s+=fig(hbar(R.segs.map(x=>[x[0],x[3]]),{valfmt:v=>mi(v,1),padLeft:170,w:820,color:SER[0]}),ins('rfvSegmentos','rfv-segmentos'));
     const alinha=['left','right','right','right','right','right','right'];
     const cab=['Segmento','Clientes','% dos clientes','Valor','% do valor','Pedidos/cliente','Meses sem comprar'];
     s+='<div class="tw"><table class="dt"><thead><tr>'
@@ -92,7 +92,7 @@ function _avCorpo(P){
       +`<td class="right">${nf(R.f_medio,2)}</td>`
       +`<td class="right">${nf(R.r_medio,1)}</td></tr></tfoot></table></div>`;
     s+=cap('Clique num segmento para ver os clientes que estão nele.');
-    s+='<div class="tw-ins"></div>';
+    s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('rfvTabela','rfv-recompra')):'')+'</div>';
     s+='<div id="rfv-detalhe"></div>';
   }
   const PA=P['av-parados'];
@@ -101,7 +101,7 @@ function _avCorpo(P){
     s+=table(['Cliente','Valor no período','Pedidos','Meses sem comprar','Vendedor(a)'],
       PA.linhas.map(x=>[esc(trunc(x[0],34)),money(x[1]),nf(x[2]),
         `<span style="color:${x[3]>=6?BAD:WARN};font-weight:600">${nf(x[3])}</span>`,esc(trunc(x[4]||'—',20))]),
-      ['left','right','right','right','left'],null,ins('rfvRisco'));
+      ['left','right','right','right','left'],null,ins('rfvRisco','rfv-risco'));
     s+=cap('Ordenado por valor, não por tempo parado: o cliente que mais vale entre os que sumiram '
       +'é onde a conversa de retomada rende mais.');
   }
@@ -111,7 +111,7 @@ function _avCorpo(P){
     s+=table(['Vendedor(a)','Clientes','Valor','Campeões + Fiéis','% do valor dele','Em risco / parados','Pedidos por cliente'],
       Q.linhas.map(x=>[esc(trunc(x[0],22)),nf(x[1]),money(x[2]),nf(x[3]),pct(x[4],0),
         `<span style="color:${x[6]>.3?BAD:MUT}">${nf(x[5])}</span>`,nf(x[7],2)]),
-      ['left','right','right','right','right','right','right'],null,ins('rfvPorVendedor'));
+      ['left','right','right','right','right','right','right'],null,ins('rfvPorVendedor','rfv-por-vendedor'));
     s+=cap('Um vendedor pode ter a mesma venda que outro com uma carteira muito diferente por baixo: '
       +'muitos clientes de uma compra só, ou poucos clientes que voltam sempre.');
   }

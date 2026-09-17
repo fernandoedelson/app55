@@ -112,8 +112,11 @@ def rfv_clientes(DATA, ym_max, meses):
             s['rMin'] = x['r']
         if x['r'] > s['rMax']:
             s['rMax'] = x['r']
+    # rMin/rMax: a faixa de recência do segmento — a régua de destaque escreve "pararam há quanto tempo"
     lista = [{'seg': s, 'n': segs[s]['n'], 'v': segs[s]['v'], 'f': segs[s]['f'] / segs[s]['n'],
-              'r': segs[s]['r'] / segs[s]['n']} for s in ORDEM_SEG if segs[s]['n']]
+              'r': segs[s]['r'] / segs[s]['n'],
+              'rMin': 0 if segs[s]['rMin'] == 999 else segs[s]['rMin'], 'rMax': segs[s]['rMax']}
+             for s in ORDEM_SEG if segs[s]['n']]
     return {'cli': cli, 'segs': lista, 'total': soma(x['v'] for x in cli), 'meses': meses}
 
 

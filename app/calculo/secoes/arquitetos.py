@@ -84,6 +84,7 @@ def arq_agg(DATA, ym_min, ym_max):
                      'share': o['vArq'] / o['v'] if o['v'] else 0, 'nArq': len(arq_ord),
                      'k50': _quantos_para([x['v'] for x in arq_ord], .5),
                      'shTop': arq_ord[0]['v'] / o['vArq'] if o['vArq'] and arq_ord else 0,
+                     'topArq': arq_ord[0]['a'] if arq_ord else None,
                      'pedsT': n_pt, 'pedsA': n_pa,
                      'ticketA': o['vArq'] / n_pa if n_pa else 0,
                      'ticketS': (o['v'] - o['vArq']) / (n_pt - n_pa) if (n_pt - n_pa) else 0,
@@ -117,14 +118,21 @@ def segmenta_rfv(itens):
                     'Hibernando' if R <= 2 and F >= 3 else
                     'Novos / únicos' if R >= 4 and F <= 2 else
                     'Perdidos' if R <= 2 else 'Ocasionais')
-    agg = {s: {'n': 0, 'v': 0, 'f': 0, 'r': 0} for s in ORDEM_SEG}
+    agg = {s: {'n': 0, 'v': 0, 'f': 0, 'r': 0, 'rMin': 999, 'rMax': 0} for s in ORDEM_SEG}
     for x in L:
         a = agg[x['seg']]
         a['n'] += 1
         a['v'] += x['v']
         a['f'] += x['f']
         a['r'] += x['r']
-    segs = [{'seg': s, 'n': agg[s]['n'], 'v': agg[s]['v'], 'f': agg[s]['f'] / agg[s]['n'], 'r': agg[s]['r'] / agg[s]['n']}
+        if x['r'] < a['rMin']:
+            a['rMin'] = x['r']
+        if x['r'] > a['rMax']:
+            a['rMax'] = x['r']
+    # rMin/rMax: a faixa de recência do segmento, que a régua de destaque escreve por extenso
+    segs = [{'seg': s, 'n': agg[s]['n'], 'v': agg[s]['v'], 'f': agg[s]['f'] / agg[s]['n'],
+             'r': agg[s]['r'] / agg[s]['n'],
+             'rMin': 0 if agg[s]['rMin'] == 999 else agg[s]['rMin'], 'rMax': agg[s]['rMax']}
             for s in ORDEM_SEG if agg[s]['n']]
     return {'itens': L, 'segs': segs, 'total': soma(x['v'] for x in L)}
 
