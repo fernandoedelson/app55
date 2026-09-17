@@ -10,7 +10,8 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 | 0. Arrumar o Kit (datas, defeitos) | concluída — Kit na tag `gabarito-v1` |
 | 1. Gabarito | concluída — `C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design\_referencia\gabarito\2026-07` |
 | 2. Fundação (login, perfis, permissões, auditoria, ver como, catálogo) | concluída localmente |
-| 3. Cálculo no servidor | próxima |
+| 3. Cálculo no servidor (17 seções, 122 blocos) | concluída — igual ao gabarito bloco a bloco |
+| 4. Destaques | próxima |
 
 ## Rodar localmente
 
@@ -33,12 +34,26 @@ do último administrador, desativação derrubando a sessão e o catálogo contr
 Revisão visual sem digitar senha no navegador: `python ferramentas/telas_para_revisao.py` gera as
 telas internas em `_revisao/` (servir com `python -m http.server 5056 --directory _revisao`).
 
+## Conferência contra o Kit congelado
+
+O critério de pronto da fase 3 é a igualdade com o relatório aprovado, bloco a bloco:
+
+    python ferramentas/conferir_secao.py dre custos ...    # tela inicial x gabarito
+    python ferramentas/conferir_estado.py dre custos ...   # estados filtrados x Kit congelado
+
+O primeiro compara com o retrato do gabarito sem destaques. O segundo roda um roteiro de cliques no
+HTML congelado do Kit e pede ao app a mesma seção com os filtros na URL; os detalhamentos (itens de
+um pedido, composição de um pacote, clientes de um segmento…) são buscados antes pelo cliente de
+teste e servidos à página por um fetch substituto, porque a página é aberta como arquivo.
+
 ## Estrutura
 
     app/catalogo/dados.py     seções e blocos — estrutura do relatório, só muda por commit
     app/catalogo/__init__.py  recursos, bases, validação de permissões, dependências
     app/seguranca/            senha, usuários e permissões, reset, e-mail, proteções por requisição
-    app/rotas/                auth (entrar/sair/senhas), inicio, admin
+    app/rotas/                auth (entrar/sair/senhas), inicio, admin, biblioteca
+    app/calculo/              cálculo por seção (porte do app.js) — devolve números brutos por bloco
+    app/static/relatorio/     kit.js (desenho extraído do Kit) e secoes/<id>.js (uma seção cada)
     app/db.py                 SQLite WAL, schema, perfis iniciais, administrador inicial
     tests/                    pytest
 
