@@ -3,7 +3,6 @@
 window.DESENHO=window.DESENHO||{};
 DESENHO.evolutiva=function(P){
   let s='';
-  const ymLabAno=ym=>MES[(ym%100)-1].toLowerCase()+'/'+Math.floor(ym/100);
   const A=P['evolutiva.abertura'];
   if(A){
     s+=`<div class="sec-head"><div class="kick">Visão histórica</div><h2>Evolutiva histórica de vendas</h2>

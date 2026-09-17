@@ -3,7 +3,6 @@
 window.DESENHO=window.DESENHO||{};
 DESENHO.resumo=function(P){
   let s='';
-  const ymLabAno=ym=>MES[(ym%100)-1].toLowerCase()+'/'+Math.floor(ym/100);
   const ymLabExt=ym=>['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][(ym%100)-1]+'/'+Math.floor(ym/100);
   const base=P['resumo.abertura']||P['rs-hist']||P['rs-ytd']||P['rs-leitura'];
   if(!base) return s;

@@ -28,7 +28,7 @@ NOMES = [
     '_cellNum', 'setupTableTools', 'addCsvChips', 'exportCsv', 'setupChartZoom', 'setupTableZoom', 'decorateTables',
     # helpers de montagem de HTML
     'kpi', 'call', 'H3', 'fig', 'cap', 'B', 'ymList', 'ymLab', 'ymShift', 'ymAddMonths', 'custosMesLab',
-    'MES_LONGO', 'mesLongo',
+    'MES_LONGO', 'mesLongo', 'ymLabAno', 'ytdLab',
     # marcação de blocos (data-blk-of)
     'marcarEm',
 ]

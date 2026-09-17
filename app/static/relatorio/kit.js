@@ -294,6 +294,12 @@ const ymLab=ym=>MES[(ym%100)-1]+'/'+String(Math.floor(ym/100)).slice(2);
 
 function ymShift(ym,delta){ let y=Math.floor(ym/100),m=(ym%100)+delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y*100+m; }
 
+/* "jul/2020" (mês abreviado minúsculo) e "julho/2020" (por extenso) */
+const ymLabAno=ym=>MES[(ym%100)-1].toLowerCase()+'/'+Math.floor(ym/100);
+
+/* "Jan–Jul": rótulo do acumulado do ano até o mês do ym */
+const ytdLab=ym=>'Jan–'+MES[(ym%100)-1];
+
 /* ---- Junho 2026 (fixed) ---- */
 /* ---- Análise mensal (dinâmica, com seletor de mês) ---- */
 const MES_LONGO=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
