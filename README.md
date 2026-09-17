@@ -14,7 +14,7 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 | 4. Destaques (50 regras, 114 destaques) | concluída — igual ao gabarito completo |
 | 5. Fechamento e importação pela tela | concluída — a app reproduz as 14 bases da competência publicada |
 | 6. Comentários das áreas | concluída — escrever, consolidar, curar e publicar o texto |
-| 7. Reunião e apresentação | próxima |
+| 7. Reunião e apresentação | em curso — roteiro em atos e encaminhamentos prontos |
 
 ## Rodar localmente
 
@@ -55,6 +55,7 @@ O critério de pronto da fase 3 é a igualdade com o relatório aprovado, bloco 
 
     python ferramentas/conferir_destaques.py               # slots do desenho x destaques x textos
     python ferramentas/conferir_importacao.py              # importar pela app x competência publicada
+    python ferramentas/conferir_apresentacao.py            # a reunião em atos x gabarito, bloco a bloco
 
 O primeiro compara com o retrato do gabarito (`--com-destaques` usa o retrato completo). O segundo roda um roteiro de cliques no
 HTML congelado do Kit e pede ao app a mesma seção com os filtros na URL; os detalhamentos (itens de
@@ -75,6 +76,21 @@ O responsável da área é um usuário como os outros: some um perfil "Responsá
 Até ser aprovado, o comentário só existe para a própria área. Aprovado, aparece ao pé da página da
 seção para todo mundo que enxerga aquele bloco.
 
+## A reunião
+
+`/apresentacao/<competência>` monta o mês em seis atos (o mesmo roteiro do `atos.js` do Kit, agora em
+`app/apresentacao/atos.py`). A página desenha as seções num palco escondido e **move** os blocos para
+os atos — mover preserva os listeners, então detalhamento, ordenação, zoom e destaques continuam
+funcionando. Bloco negado não chega ao palco; o ato que fica sem nada diz "conteúdo restrito" em vez
+de sumir, para a reunião ter os mesmos seis atos para todo mundo.
+
+Os comentários que a Controladoria marcou para a apresentação entram abaixo do bloco a que se referem.
+Os encaminhamentos ficam ao pé: o responsável marca feito (só ele), a Controladoria confirma, e o que
+não foi confirmado reaparece como **retomada** na reunião seguinte.
+
+Pendência conhecida: `aq-esforco` e `aq-recorrencia` só existem na versão em Atos do Kit (nascem no
+`atos_ajustes.js`) e ainda não foram portados — os dois slots do Ato 4 ficam vazios.
+
 ## Estrutura
 
     app/catalogo/dados.py     seções e blocos — estrutura do relatório, só muda por commit
@@ -84,6 +100,7 @@ seção para todo mundo que enxerga aquele bloco.
     app/calculo/              cálculo por seção (porte do app.js) — devolve números brutos por bloco
     app/destaques/            regras de 2º grau: o que merece régua no gráfico e linha no digest
     app/importacao/           kit_parser.py (leitura das planilhas), motor, comparar e serviço do ciclo
+    app/apresentacao/         o roteiro em atos e os encaminhamentos da reunião
     app/comentarios.py        comentário da área: escrever, enviar, curar, histórico e painel
     app/static/relatorio/     kit.js (desenho extraído do Kit) e secoes/<id>.js (uma seção cada)
     app/db.py                 SQLite WAL, schema, perfis iniciais, administrador inicial

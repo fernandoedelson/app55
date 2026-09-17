@@ -1,0 +1,41 @@
+/* A reunião em atos — só posicionamento e o modo Apresentar. O desenho dos blocos continua
+   sendo o do style2.css (o mesmo do Kit): aqui nada muda de cor, fonte ou gráfico. */
+
+.reuniao-topo { max-width: 1180px; margin: 0 auto; padding: 18px 20px 0; }
+.reuniao-topo h1 { margin: 0 0 4px; font-size: 1.5rem; }
+.reuniao-topo .sub { opacity: .7; font-size: .9rem; }
+.reuniao-barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0 0; }
+
+section.ato { max-width: 1180px; margin: 36px auto; padding: 0 20px; scroll-margin-top: 20px; }
+section.ato > .ato-head { border-top: 2px solid currentColor; padding-top: 10px; margin-bottom: 14px; opacity: .95; }
+.ato-head .ato-n { font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; opacity: .6; }
+.ato-head h2 { margin: 2px 0 2px; font-size: 1.35rem; }
+.ato-head .ato-q { font-size: 1rem; opacity: .75; }
+.ato-head .ato-min { font-size: .78rem; opacity: .55; }
+.ato-sub { margin: 26px 0 8px; font-size: 1rem; font-weight: 600; opacity: .8; }
+.ato-slot.vazio { display: none; }
+.ato-restrito { padding: 18px; border: 1px dashed currentColor; border-radius: 8px; opacity: .6; font-size: .9rem; }
+
+.ato-notas { margin: 10px 0 0; padding: 10px 14px; border-left: 3px solid currentColor; font-size: .9rem; opacity: .85; }
+.ato-notas b { font-weight: 600; }
+
+#palco { display: none; }            /* o palco só existe para o desenho: o conteúdo é movido daqui */
+
+/* modo Apresentar: um ato por vez, sem o resto da página */
+body.modo-apresentar .reuniao-topo,
+body.modo-apresentar .ato-encaminhamentos,
+body.modo-apresentar .app55-barra { display: none; }
+body.modo-apresentar section.ato { display: none; margin: 0; padding: 24px 40px; }
+body.modo-apresentar section.ato.ato-ativo { display: block; animation: ato-entra .32s ease-out; }
+@keyframes ato-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+body.modo-apresentar .ato-passo { position: fixed; right: 18px; bottom: 14px; font-size: .8rem; opacity: .5; }
+
+.ato-encaminhamentos { max-width: 1180px; margin: 40px auto; padding: 0 20px; font-size: .92rem; }
+.ato-encaminhamentos table { width: 100%; border-collapse: collapse; }
+.ato-encaminhamentos th, .ato-encaminhamentos td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(128,128,128,.25); vertical-align: top; }
+.ato-encaminhamentos .st { font-size: .8rem; opacity: .7; }
+
+@media print {
+  .reuniao-barra, .ato-encaminhamentos form, .app55-barra { display: none; }
+  section.ato { break-inside: avoid; }
+}

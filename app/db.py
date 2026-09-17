@@ -95,6 +95,22 @@ CREATE TABLE IF NOT EXISTS competencia_arquivos (
     enviado_em TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_comp_arq ON competencia_arquivos(competencia, base);
+CREATE TABLE IF NOT EXISTS encaminhamentos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    competencia TEXT NOT NULL REFERENCES competencias(codigo) ON DELETE CASCADE,
+    ato INTEGER NOT NULL DEFAULT 0,               -- em que ato da reunião nasceu (0 = fora dos atos)
+    bloco TEXT NOT NULL DEFAULT '',               -- o bloco que estava na tela, quando havia um
+    texto TEXT NOT NULL,
+    responsavel TEXT NOT NULL DEFAULT '',         -- login de quem ficou de fazer
+    prazo TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'aberto',        -- aberto | feito | confirmado | cancelado
+    resposta TEXT NOT NULL DEFAULT '',            -- o que o responsável escreveu ao marcar feito
+    criado_por TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL,
+    feito_em TEXT,
+    confirmado_por TEXT, confirmado_em TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_encam ON encaminhamentos(competencia, status);
 CREATE TABLE IF NOT EXISTS comentarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     competencia TEXT NOT NULL REFERENCES competencias(codigo) ON DELETE CASCADE,

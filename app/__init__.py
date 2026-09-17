@@ -31,6 +31,7 @@ def criar_app(config=None):
     from .rotas.inicio import bp as bp_inicio
     from .rotas.admin import bp as bp_admin
     from .rotas.biblioteca import bp as bp_biblioteca
+    from .rotas.apresentacao import bp as bp_apresentacao
     from .rotas.comentarios import bp as bp_comentarios
     from .rotas.competencias import bp as bp_competencias
     app.register_blueprint(bp_auth)
@@ -39,6 +40,7 @@ def criar_app(config=None):
     app.register_blueprint(bp_admin, url_prefix='/admin')
     app.register_blueprint(bp_competencias)
     app.register_blueprint(bp_comentarios)
+    app.register_blueprint(bp_apresentacao)
 
     @app.context_processor
     def _globais():

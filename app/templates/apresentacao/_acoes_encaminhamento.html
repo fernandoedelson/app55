@@ -1,0 +1,16 @@
+{# ações de um encaminhamento: o responsável marca feito; a Controladoria confirma ou reabre #}
+{% if e.status in ('aberto','feito') and usuario and e.responsavel|lower == usuario.login|lower and e.status == 'aberto' %}
+  <form method="post" action="{{ url_for('apresentacao.feito', eid=e.id) }}" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="resposta" placeholder="o que foi feito" size="18">
+    <button class="btn btn-sm" type="submit">Feito</button>
+  </form>
+{% endif %}
+{% if cura and e.status in ('aberto','feito') %}
+  <form method="post" action="{{ url_for('apresentacao.confirmar', eid=e.id) }}" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if e.status == 'feito' %}<button class="btn btn-sm" type="submit" name="acao" value="confirmar">Confirmar</button>
+    <button class="btn btn-sm" type="submit" name="acao" value="reabrir">Reabrir</button>{% endif %}
+    <button class="btn btn-sm" type="submit" name="acao" value="cancelar">Cancelar</button>
+  </form>
+{% endif %}

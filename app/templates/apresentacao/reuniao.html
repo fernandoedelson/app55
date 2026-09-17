@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reunião {{ comp }} · +55 Design</title>
+<link rel="icon" href="{{ url_for('static', filename='logo-chip.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='relatorio/style2.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='relatorio/atos.css') }}">
+</head>
+<body>
+<div class="app55-barra" style="display:flex;gap:16px;align-items:center;padding:10px 20px;font-size:.85rem">
+  <a href="{{ url_for('inicio.index') }}">&larr; Início</a>
+  <span>Reunião · competência {{ comp }}</span>
+</div>
+
+<div class="reuniao-topo">
+  <h1>A reunião de <b>{{ comp }}</b></h1>
+  <div class="sub">Seis atos, na ordem em que o mês é contado. O que você não pode ver não aparece —
+    e o ato que fica sem conteúdo diz isso em vez de sumir.</div>
+  <div class="reuniao-barra">
+    {% if pode_apresentar %}<button class="btn" type="button" id="btn-apresentar">Apresentar</button>{% endif %}
+    {% if pode_exportar %}<button class="btn" type="button" onclick="window.print()">Baixar (imprimir em PDF)</button>{% endif %}
+    <a href="{{ url_for('inicio.index') }}">Ver o relatório completo</a>
+  </div>
+</div>
+
+{# tudo vive dentro de #main: as ferramentas do Kit (ordenar, CSV, zoom) só enxergam o que está
+   sob esse id. O palco é onde as seções são desenhadas; os blocos são MOVIDOS dali para os atos. #}
+<main id="main">
+<div id="palco">
+  {% for sid in secoes %}<section id="{{ sid }}"></section>{% endfor %}
+</div>
+
+{% for ato in roteiro %}
+<section class="ato" id="ato{{ ato.n }}" {% if ato.restrito %}data-restrito="1"{% endif %}>
+  <div class="ato-head">
+    <div class="ato-n">Ato {{ ato.n }}</div>
+    <h2>{{ ato.t }}</h2>
+    <div class="ato-q">{{ ato.q }}</div>
+    <div class="ato-min">{{ ato.min }}</div>
+  </div>
+  {% if ato.restrito %}
+    <div class="ato-restrito">Conteúdo restrito: este ato usa blocos que o seu perfil não enxerga.</div>
+  {% endif %}
+  {% for it in ato.itens %}
+    {% if it.sub %}
+      <div class="ato-sub">{{ it.sub }}</div>
+    {% else %}
+      <div class="ato-slot" data-slot="1" data-sec="{{ it.sec }}"
+           {% if it.blk %}data-blk="{{ it.blk }}"{% endif %}
+           {% if it.abre %}data-abre="1"{% endif %}
+           {% if it.semHead %}data-sem-head="1"{% endif %}
+           {% if it.semFiltro %}data-sem-filtro="1"{% endif %}
+           {% if it.filtro %}data-filtro="1"{% endif %}
+           {% if it.filtroSel %}data-filtro-sel="{{ it.filtroSel }}"{% endif %}></div>
+      {% if it.blk and notas.get(it.blk) %}
+        <div class="ato-notas">
+          {% for c in notas[it.blk] %}<div><b>{{ c.area }}:</b> {{ c.texto }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+</section>
+{% endfor %}
+
+</main>
+
+<section class="ato-encaminhamentos">
+  <h2>Encaminhamentos</h2>
+  {% if retomada %}
+    <h3>Retomada — o que ficou dos meses anteriores</h3>
+    <table>
+      <thead><tr><th>Competência</th><th>O quê</th><th>Responsável</th><th>Prazo</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+      {% for e in retomada %}
+        <tr><td>{{ e.competencia }}</td><td>{{ e.texto }}</td><td>{{ e.responsavel }}</td><td>{{ e.prazo }}</td>
+            <td class="st">{{ e.status }}</td>
+            <td>{% include 'apresentacao/_acoes_encaminhamento.html' %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <h3>Desta reunião</h3>
+  <table>
+    <thead><tr><th>Ato</th><th>O quê</th><th>Responsável</th><th>Prazo</th><th>Situação</th><th></th></tr></thead>
+    <tbody>
+    {% for e in encaminhamentos %}
+      <tr><td>{{ e.ato or '—' }}</td><td>{{ e.texto }}{% if e.resposta %}<br><span class="st">resposta: {{ e.resposta }}</span>{% endif %}</td>
+          <td>{{ e.responsavel }}</td><td>{{ e.prazo }}</td><td class="st">{{ e.status }}</td>
+          <td>{% include 'apresentacao/_acoes_encaminhamento.html' %}</td></tr>
+    {% else %}
+      <tr><td colspan="6" class="st">Nada combinado ainda.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if cura %}
+  <form method="post" action="{{ url_for('apresentacao.criar_encaminhamento', codigo=comp) }}" class="reuniao-barra">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="texto" placeholder="o que ficou combinado" size="46" required>
+    <input name="responsavel" placeholder="login do responsável" required>
+    <input name="prazo" placeholder="prazo (ex.: 30/09/2026)">
+    <input name="ato" placeholder="ato" size="3">
+    <button class="btn" type="submit">Registrar</button>
+  </form>
+  {% endif %}
+</section>
+
+<div class="ato-passo" id="ato-passo"></div>
+
+<script type="application/json" id="payload">{{ payload|safe }}</script>
+<script src="{{ url_for('static', filename='relatorio/kit.js') }}"></script>
+<script src="{{ url_for('static', filename='relatorio/destaques.js') }}"></script>
+<script src="{{ url_for('static', filename='relatorio/destaques_texto.js') }}"></script>
+{% for sid in secoes %}<script src="{{ url_for('static', filename='relatorio/secoes/' + sid + '.js') }}"></script>{% endfor %}
+<script src="{{ url_for('static', filename='relatorio/atos.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const COMP='{{ comp }}', RECURSOS={{ recursos|safe }}, SECOES={{ secoes|tojson }};
+  const TUDO=JSON.parse(document.getElementById('payload').textContent);
+  const url=(caminho,params)=>{ const q=new URLSearchParams(Object.assign({comp:COMP},params||{})); return caminho+'?'+q.toString(); };
+  const carregarDestaques=p=>{ window.__DESTAQUES=Object.assign(window.__DESTAQUES||{},
+      window.DESTAQUES_TEXTO?DESTAQUES_TEXTO.carregar(p):{}); };
+  SECOES.forEach(sid=>{
+    const P=TUDO[sid]; const sec=document.getElementById(sid);
+    if(!P||!sec||!window.DESENHO||!DESENHO[sid]) return;
+    carregarDestaques(P);
+    const desenhar=()=>{
+      /* redesenhar a seção recria os blocos no palco: depois de cada passada eles voltam ao ato */
+      if(window.INSRT) INSRT.mount(sec);
+      marcarEm(sec,{k:'__abre'});
+      ATOS.distribuir();
+    };
+    const ctx={
+      payload:P,
+      pode:r=>RECURSOS.indexOf(r)>=0,
+      buscar:async params=>{ const r=await fetch(url('/api/biblioteca/'+sid,params),{credentials:'same-origin'}); if(!r.ok) throw new Error(r.status);
+        const p=await r.json(); carregarDestaques(p); return p; },
+      detalhe:async (nome,params)=>{ const r=await fetch(url('/api/biblioteca/'+sid+'/detalhe/'+nome,params),{credentials:'same-origin'}); if(!r.ok) throw new Error(r.status); return r.json(); },
+      remarcar:()=>setTimeout(desenhar,20),
+      marcar:()=>setTimeout(()=>marcarEm(sec,{k:'__abre'}),20),
+    };
+    sec.innerHTML=DESENHO[sid](P,ctx);
+    if(window.DESENHO_POS&&DESENHO_POS[sid]) sec._pos=()=>DESENHO_POS[sid](sec,ctx);
+  });
+  setupTableTools(); setupChartZoom(); setupTableZoom();
+  SECOES.forEach(sid=>{ const sec=document.getElementById(sid); if(!sec) return;
+    if(window.INSRT) INSRT.mount(sec);
+    marcarEm(sec,{k:'__abre'}); });
+  ATOS.distribuir();
+  SECOES.forEach(sid=>{ const sec=document.getElementById(sid); if(sec&&sec._pos) sec._pos(); });
+  const b=document.getElementById('btn-apresentar');
+  if(b) b.addEventListener('click',()=>ATOS.apresentar(!document.body.classList.contains('modo-apresentar')));
+});
+</script>
+</body>
+</html>
