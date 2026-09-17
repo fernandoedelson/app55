@@ -134,3 +134,32 @@ def test_dre_filtro_invalido_cai_no_ytd(admin):
     assert (A['ent'], A['a'], A['b']) == ('CONSOLIDADO', A['ano'] * 100 + 1, A['maxym'])
     assert 'dre-fabloja' in p
     assert 'dre-fabloja' not in admin.get('/api/biblioteca/dre', query_string={'comp': '2026-07', 'ent': 'FABRICA'}).get_json()
+
+
+def test_destaque_some_quando_o_bloco_nao_e_visivel(app, admin):
+    """A régua de destaque nasce de um bloco: quem não vê o bloco não recebe o texto nem os números."""
+    p = admin.get('/api/biblioteca/ytd?comp=2026-07').get_json()
+    assert p['ytd-linha']['_ins']['serie-oscilacao-ytd']['d']['max'] > 0
+    codigo = _perfil_com(app, admin, 'YTD sem a curva', ['bloco:ytd-vendedor'])
+    prov = criar_usuario(app, admin, 'semcurva', [codigo])
+    c = app.test_client()
+    entrar(c, 'semcurva', prov)
+    post(c, '/trocar-senha', new_password='SemCurva2026ab', confirm_password='SemCurva2026ab')
+    r = c.get('/biblioteca/ytd?comp=2026-07')
+    corpo = r.get_data(as_text=True)
+    assert 'serie-oscilacao-ytd' not in corpo
+    p2 = _payload(corpo)
+    assert set(p2) == {'ytd-vendedor'} and 'rotatividade-vendedor-ytd' in p2['ytd-vendedor']['_ins']
+
+
+def test_destaque_oculto_no_config_nao_aparece(app, admin, monkeypatch):
+    """DESTAQUES_MANUAIS: o que a Controladoria esconde no config não sai do servidor."""
+    from app.calculo import competencia as comp_mod
+    dados = comp_mod.carregar(app.config, '2026-07')
+    original = dict(dados._blobs)
+    dados._blobs['DESTAQUES_MANUAIS'] = {'serie-oscilacao-ytd': {'oculto': True}}
+    try:
+        p = admin.get('/api/biblioteca/ytd?comp=2026-07').get_json()
+        assert '_ins' not in p['ytd-linha'] or 'serie-oscilacao-ytd' not in p['ytd-linha']['_ins']
+    finally:
+        dados._blobs = original

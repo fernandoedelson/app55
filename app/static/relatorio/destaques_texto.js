@@ -729,6 +729,79 @@ TXT.fabLojaLinhas=d=>({
   trigger:`margem da Fábrica sobre a ROL passa de ${pct(d.margAntiga,1)} para ${pct(d.margNova,1)} (limiar 5 p.p.)`,
 });
 
+/* ---------- Custos ---------- */
+TXT.cpvAbsorcao=d=>({
+  verdict:`<b>${pct(d.shG,0)} do custo da peça é estrutura da fábrica</b>, não material — matéria-prima é só ${pct(d.shMp,0)}.`,
+  texto:`Cada peça custa ${money(d.unit)}, dos quais ${money(d.unitVar)} são material e mão de obra. `
+    +`O resto é a fábrica dividida pelo que foi produzido. `
+    +`Por isso, quando a produção cai, o custo por peça sobe sozinho — nada ficou mais caro. `
+    +`Com 10% mais peças, a mesma estrutura se dividiria melhor e o custo seria ${money(d.unit10)}.`,
+  ev:[['Custo por peça',money(d.unit)],['Material e mão de obra',money(d.unitVar)],
+      ['Estrutura da fábrica',pct(d.shG,1)],['Com 10% mais volume',money(d.unit10)]],
+  trigger:`gastos gerais de fabricação em ${pct(d.shG,0)} do CPV (limiar 45%)`,
+});
+
+TXT.cpvMix=d=>({
+  verdict:`<b>${esc(d.nome)} foi de ${pct(d.shA,0)} para ${pct(d.shB,0)} do custo da peça</b> entre os dois períodos.`,
+  texto:`Por peça, ${esc(d.nome).toLowerCase()} passou de ${money(d.unitA)} para ${money(d.unitB)}, `
+    +`enquanto o custo total por peça foi de ${money(d.uA)} para ${money(d.uB)}. `
+    +`A conta fechada quase não mudou; o que mudou foi de onde vem o custo. `
+    +`A diferença de ${money(Math.abs(d.unitB-d.unitA))} por peça vale ${mi(d.vale)} no período.`,
+  ev:[[d.nome+' por peça',money(d.unitA)+' → '+money(d.unitB)],['Participação',pct(d.shA,1)+' → '+pct(d.shB,1)],
+      ['Custo total por peça',money(d.uA)+' → '+money(d.uB)],['Peças no período',nf(Math.round(d.q))]],
+  trigger:`participação de ${esc(d.nome)} variou ${nf(d.d*100,1)} p.p. (limiar 3 p.p.)`,
+});
+
+TXT.custoUnitarioVolume=d=>({
+  verdict:`Nos meses de menor produção, a peça custa <b>${money(d.uBaixo)}</b>; nos de maior, `
+    +`<b>${money(d.uAlto)}</b> — ${pct(d.d,0)} de diferença sem nada ter mudado de preço.`,
+  texto:`Os meses com mais peças ${d.rotulo} fizeram em média ${nf(d.qAlto,0)} unidades, e cada uma custou ${money(d.uAlto)}. `
+    +`Os meses de menor movimento fizeram ${nf(d.qBaixo,0)} e cada peça custou ${money(d.uBaixo)}. `
+    +`A fábrica tem um custo que existe mesmo quando ela produz pouco — quando o volume cai, essa conta `
+    +`se divide entre menos peças e cada uma fica mais cara. `
+    +`Por isso um gráfico de custo por peça subindo nem sempre quer dizer que algo ficou mais caro.`,
+  ev:[['Meses de maior volume',nf(d.qAlto,0)+' peças'],['Custo por peça',money(d.uAlto)],
+      ['Meses de menor volume',nf(d.qBaixo,0)+' peças'],['Custo por peça',money(d.uBaixo)]],
+  trigger:`custo por peça ${pct(d.d,0)} maior na metade dos meses de menor volume (limiar 8%)`,
+});
+
+TXT.custoEvitavel=d=>({
+  verdict:`Refazer peça e atender defeito custou <b>${mi(d.tot)}</b> no período — ${pct(d.sh,1)} de todo o custo de produção.`,
+  texto:`São ${mi(d.ret)} de retrabalho e ${mi(d.ass)} de assistência técnica. `
+    +(d.k?`O retrabalho não está espalhado: ${d.k} ${plural(d.k,'centro de custo concentra','centros de custo concentram')} 80% dele. `:'')
+    +(d.maiorProd?`Na assistência, o produto que mais consome é ${esc(trunc(d.maiorProd,34))}, com ${mi(d.maiorV)}. `:'')
+    +`É dinheiro gasto duas vezes na mesma peça: uma para fazer e outra para consertar.`,
+  ev:[['Retrabalho',mi(d.ret)],['Assistência técnica',mi(d.ass)],
+      ['Somados',mi(d.tot)],['% do custo de produção',pct(d.sh,1)]],
+  trigger:`retrabalho e assistência somam ${pct(d.sh,1)} do custo de produção (limiar 0,5%)`,
+});
+
+TXT.taxaHoraCC=d=>({
+  verdict:`A hora de trabalho custa <b>${money(d.taxaCaro)} em ${esc(trunc(d.caro,26))} e ${money(d.taxaBarato)} `
+    +`em ${esc(trunc(d.barato,26))}</b> — ${nf(d.razao,1)}× de diferença.`,
+  texto:`Entre os centros de custo que concentram a maior parte das horas apontadas, o valor da hora varia bastante. `
+    +`${esc(trunc(d.caro,26))} apontou ${nf(d.horasCaro,0)} horas e ${esc(trunc(d.barato,26))}, ${nf(d.horasBarato,0)}. `
+    +`Na média desses centros, a hora sai por ${money(d.media)}. `
+    +`Máquina, gente e estrutura diferentes fazem a hora valer coisas diferentes — o que importa é saber `
+    +`quais peças passam mais tempo nos centros mais caros.`,
+  ev:[[trunc(d.caro,20),money(d.taxaCaro)+'/h'],[trunc(d.barato,20),money(d.taxaBarato)+'/h'],
+      ['Média do grupo',money(d.media)+'/h'],['Horas apontadas',nf(d.horas,0)]],
+  trigger:`valor da hora variando ${nf(d.razao,1)}× entre os centros de custo que fazem 80% das horas (limiar 1,4×)`,
+});
+
+TXT.comparaAnos=d=>({
+  verdict:`Fazer esta peça custa <b>${money(d.mB,2)} em ${d.B}</b>, contra ${money(d.mA,2)} em ${d.A} — `
+    +`${spct(d.d,0)}.`,
+  texto:`A média do ano passou de ${money(d.mA,2)} para ${money(d.mB,2)}. `
+    +(d.comparaveis?`Comparando mês a mês, ${d.B} ficou mais caro em ${d.acima} dos ${d.comparaveis} meses `
+      +`que dá para comparar. `:'')
+    +(d.maiorMes!=null?`A maior diferença foi em ${d.maiorMes} (${spct(d.maiorD,0)}). `:'')
+    +`Como é o custo de uma peça só, ele não se dilui com volume: o que muda aqui é material e processo.`,
+  ev:[['Média '+d.A,money(d.mA,2)],['Média '+d.B,money(d.mB,2)],
+      ['Variação',spct(d.d,1)],['Meses mais caros',d.comparaveis?d.acima+' de '+d.comparaveis:'—']],
+  trigger:`custo médio por unidade ${spct(d.d,0)} entre ${d.A} e ${d.B} (limiar 3%)`,
+});
+
 /* ---------- motor automático: uma função por leitura ---------- */
 const AUTO={};
 

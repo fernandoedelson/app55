@@ -167,13 +167,14 @@ def main():
     ap.add_argument('secoes', nargs='+')
     ap.add_argument('--comp', default='2026-07')
     a = ap.parse_args()
-    kit_html = io.open(os.path.join(CS.KIT, '_referencia', 'gabarito', a.comp, 'relatorio_sem_destaques.html'),
+    # desde a fase 4 o app desenha as réguas de destaque: a régua é o relatório aprovado inteiro
+    kit_html = io.open(os.path.join(CS.KIT, '_referencia', 'gabarito', a.comp, 'relatorio.html'),
                        encoding='utf-8').read()
     os.makedirs(CS.REVISAO, exist_ok=True)
     shutil.rmtree(os.path.join(CS.REVISAO, 'static'), ignore_errors=True)
     shutil.copytree(os.path.join(CS.RAIZ, 'app', 'static'), os.path.join(CS.REVISAO, 'static'))
     c = CS.cliente_admin()
-    gab = json.load(io.open(os.path.join(CS.KIT, '_referencia', 'gabarito', a.comp, 'retrato_sem_destaques.json'),
+    gab = json.load(io.open(os.path.join(CS.KIT, '_referencia', 'gabarito', a.comp, 'retrato.json'),
                             encoding='utf-8'))
     tudo_ok = True
     for secao in a.secoes:
