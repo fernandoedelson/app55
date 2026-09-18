@@ -310,3 +310,63 @@ def test_ver_como_testa_o_ciclo_da_area(app, admin):
     html = admin.get('/biblioteca/custosx').get_data(as_text=True)
     cfg = json.loads(re.search(r'id="cmt-config"[^>]*>(.*?)</script>', html, re.S).group(1))
     assert cfg['blocos']['cx-grp']['aprovados'][0]['texto'] == 'Teste do admin como Fábrica.'
+
+
+def test_area_edita_ate_a_aprovacao(app, admin):
+    cod = competencia_disponivel(app)
+    bloco = bloco_da_area(app, 'loja')
+    from app import comentarios as M
+    with app.app_context():
+        M.escrever(cod, bloco, 'loja', 'Primeira versão.', 'admin')
+        M.enviar(cod, bloco, 'loja', 'admin')
+        M.escrever(cod, bloco, 'loja', 'Versão corrigida depois de enviar.', 'admin')   # ainda não aprovado
+        c = M.obter(cod, bloco, 'loja')
+        assert c['status'] == 'enviado' and c['texto'] == 'Versão corrigida depois de enviar.'
+        assert [h['acao'] for h in M.historico(c['id'])][-1] == 'editar'
+        M.decidir(cod, bloco, 'loja', 'aprovar', 'admin')
+        with pytest.raises(ValueError):                                                # aprovado não muda
+            M.escrever(cod, bloco, 'loja', 'Tarde demais.', 'admin')
+
+
+def test_solicitar_informacao_a_uma_area(app, admin):
+    cod = competencia_disponivel(app)
+    bloco = bloco_da_area(app, 'loja')
+    r = post(admin, '/comentarios/%s/curadoria/pedir' % cod, area='loja', bloco=bloco,
+             observacao='Por que o ticket caiu em julho?')
+    assert r.status_code == 302
+    html = admin.get('/comentarios/?comp=%s' % cod).get_data(as_text=True)
+    assert 'Solicitar informação' in html and 'Por que o ticket caiu em julho?' in html
+    assert 'Aguardando a área' in html
+    loja = usuario(app, admin, 'lojasol', ['loja'])
+    assert 'Pediram informação à sua área' in loja.get('/comentarios/?comp=%s' % cod).get_data(as_text=True)
+    from app import comentarios as M
+    with app.app_context():
+        M.escrever(cod, bloco, 'loja', 'Promoção de junho antecipou vendas.', 'lojasol')
+        M.enviar(cod, bloco, 'loja', 'lojasol')
+    assert 'Respondida' in admin.get('/comentarios/?comp=%s' % cod).get_data(as_text=True)
+    post(admin, '/comentarios/%s/curadoria/pedir/cancelar' % cod, area='loja', bloco=bloco)
+    with app.app_context():
+        assert M.pedidos(cod) == []
+
+
+def test_area_solicita_informacao_a_outra_area(app, admin):
+    """Qualquer área pergunta à Controladoria ou a outra área, direto no gráfico."""
+    cod = competencia_disponivel(app)
+    comum = next(b['id'] for b in __import__('app').catalogo.BLOCOS
+                 if b['id'] == 'mn-evol')                       # a Loja e a Gestão Comercial enxergam
+    loja = usuario(app, admin, 'lojapergunta', ['loja'])
+    d = loja.get('/comentarios/api/%s/%s' % (cod, comum)).get_json()
+    destinos = [a['codigo'] for a in d['areas_para_pedir']]
+    assert 'controladoria' in destinos and 'loja' not in destinos       # a si mesma não se pede
+    r = _api(loja, cod, comum, acao='pedir', area='gestao_comercial', observacao='A meta de julho mudou?')
+    assert r.status_code == 200
+    assert _api(loja, cod, comum, acao='pedir', area='controladoria', observacao='').status_code == 400
+    com = usuario(app, admin, 'comercialresp', ['gestao_comercial'])
+    html = com.get('/comentarios/?comp=%s' % cod).get_data(as_text=True)
+    assert 'Pediram informação à sua área' in html and 'Loja pergunta:' in html
+    # a Loja acompanha o que pediu na tela dela e pode cancelar
+    assert 'A meta de julho mudou?' in loja.get('/comentarios/?comp=%s' % cod).get_data(as_text=True)
+    assert post(loja, '/comentarios/%s/curadoria/pedir/cancelar' % cod, area='gestao_comercial', bloco=comum).status_code == 302
+    from app import comentarios as M
+    with app.app_context():
+        assert M.pedidos(cod) == []

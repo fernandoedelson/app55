@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS comentario_pedidos (
     observacao TEXT NOT NULL DEFAULT '',
     pedido_por TEXT NOT NULL DEFAULT '',
     pedido_em TEXT NOT NULL,
+    origem TEXT NOT NULL DEFAULT '',              -- quem pediu: a área de quem solicitou, ou "Controladoria"
     PRIMARY KEY (competencia, bloco, area)
 );
 CREATE TABLE IF NOT EXISTS competencia_blocos (
@@ -223,6 +224,10 @@ def init_db(app):
                                 [(cur.lastrowid, r) for r in sorted(set(sugeridas[codigo]))])
             con.execute('PRAGMA user_version=%d' % len(MIGRACOES))   # banco novo já nasce com tudo
         _migrar(con)
+        # coluna nova em tabela que já existia (CREATE TABLE IF NOT EXISTS não acrescenta coluna)
+        colunas = {r[1] for r in con.execute('PRAGMA table_info(comentario_pedidos)')}
+        if 'origem' not in colunas:
+            con.execute("ALTER TABLE comentario_pedidos ADD COLUMN origem TEXT NOT NULL DEFAULT ''")
         _garantir_admin(con)
         con.commit()
     finally:

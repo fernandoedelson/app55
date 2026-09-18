@@ -96,7 +96,9 @@ def historico(cid):
 
 
 def escrever(codigo, bloco, area, texto, login):
-    """Cria ou atualiza o rascunho da área. Recusado volta a rascunho — é o reenvio."""
+    """Cria ou atualiza o comentário da área. Até a Controladoria aprovar, a área pode editar:
+    rascunho continua rascunho, recusado volta a rascunho (é o reenvio) e enviado continua enviado —
+    a Controladoria passa a ver o texto novo, e a troca fica no histórico."""
     aberto, motivo = prazo_aberto(codigo)
     if not aberto:
         raise ValueError(motivo)
@@ -111,8 +113,14 @@ def escrever(codigo, bloco, area, texto, login):
         raise ValueError('o comentário passa de 4.000 caracteres.')
     con = get_db()
     atual = obter(codigo, bloco, area)
-    if atual and atual['status'] in ('enviado', 'aprovado'):
-        raise ValueError('este comentário já foi %s: peça à Controladoria para devolvê-lo.' % atual['status'])
+    if atual and atual['status'] == 'aprovado':
+        raise ValueError('este comentário já foi aprovado: para mudar, peça à Controladoria para devolvê-lo.')
+    if atual and atual['status'] == 'enviado':
+        if texto != atual['texto']:
+            con.execute('UPDATE comentarios SET texto=?, atualizado_em=? WHERE id=?', (texto, agora(), atual['id']))
+            _registrar(atual['id'], 'editar', texto, 'alterado depois de enviado, antes da aprovação')
+            con.commit()
+        return atual['id']
     if atual:
         con.execute("UPDATE comentarios SET texto=?, status='rascunho', motivo='', atualizado_em=? WHERE id=?",
                     (texto, agora(), atual['id']))
@@ -206,15 +214,60 @@ def _avisar_autor(codigo, bloco, area, atual):
              'Entre na aplicação para ver como ficou.' % (area, C.BLOCO[bloco]['titulo'], codigo))
 
 
-def pedir(codigo, bloco, area, login, observacao=''):
-    """Controladoria pede comentário num bloco: vira pendência no painel da área."""
+def origem_do_pedido(ctx, alvo=None):
+    """Quem está pedindo, como a área que recebe vai ler: a área de quem pede ou a Controladoria."""
+    minhas = [a for a in areas_do_usuario(ctx) if a['codigo'] != alvo]
+    return minhas[0]['nome'] if minhas else 'Controladoria'
+
+
+def pedir(codigo, bloco, area, login, observacao='', origem=''):
+    """Uma área (ou a Controladoria) pede informação a outra sobre um gráfico: vira pendência dela."""
     if bloco not in C.BLOCO:
         raise ValueError('bloco inexistente.')
     if not any(b['id'] == bloco for b in blocos_da_area(area)):
         raise ValueError('a área não enxerga este bloco.')
     con = get_db()
+    if not (observacao or '').strip():
+        raise ValueError('escreva o que você quer saber.')
     con.execute('INSERT OR REPLACE INTO comentario_pedidos (competencia, bloco, area, observacao, pedido_por, '
-                'pedido_em) VALUES (?,?,?,?,?,?)', (codigo, bloco, area, (observacao or '').strip(), login, agora()))
+                'pedido_em, origem) VALUES (?,?,?,?,?,?,?)',
+                (codigo, bloco, area, (observacao or '').strip(), login, agora(), origem or 'Controladoria'))
+    con.commit()
+    _avisar_pedido(codigo, bloco, area, observacao)
+
+
+def _avisar_pedido(codigo, bloco, area, observacao):
+    """A área fica sabendo por e-mail (se houver SMTP), além da pendência na tela."""
+    from .seguranca import email as E
+    if not E.configurado():
+        return
+    pessoas = get_db().execute(
+        'SELECT DISTINCT u.email FROM usuarios u JOIN usuario_perfis up ON up.usuario_id=u.id '
+        'JOIN perfis p ON p.id=up.perfil_id WHERE u.ativo=1 AND p.codigo=?', (area,)).fetchall()
+    for p in pessoas:
+        E.enviar(p['email'], 'Pediram informação sobre %s' % titulo_legivel(bloco),
+                 'Competência %s · %s\n\n%s\n\nResponda pelo botão Comentar do gráfico na aplicação.'
+                 % (codigo, titulo_legivel(bloco), (observacao or '').strip()))
+
+
+def solicitacoes(codigo):
+    """As solicitações de informação do mês, com a situação de cada uma para quem cura."""
+    nomes = _nomes_das_areas()
+    saida = []
+    for p in pedidos(codigo):
+        c = obter(codigo, p['bloco'], p['area'])
+        situacao = ('Respondida' if c and c['status'] in ('enviado', 'aprovado')
+                    else 'Em resposta (rascunho)' if c else 'Aguardando a área')
+        b = C.BLOCO.get(p['bloco'])
+        saida.append(dict(p, nome=nomes.get(p['area'], p['area']), situacao=situacao,
+                          titulo=titulo_legivel(p['bloco']) if b else p['bloco'],
+                          secao_titulo=C.SECAO[b['secao']]['titulo'] if b else ''))
+    return sorted(saida, key=lambda x: x['pedido_em'], reverse=True)
+
+
+def cancelar_pedido(codigo, bloco, area):
+    con = get_db()
+    con.execute('DELETE FROM comentario_pedidos WHERE competencia=? AND bloco=? AND area=?', (codigo, bloco, area))
     con.commit()
 
 
@@ -394,9 +447,14 @@ def detalhe(codigo, bloco, ctx):
     return {'comp': codigo, 'bloco': bloco, 'titulo': titulo_legivel(bloco),
             'secao': C.SECAO[C.BLOCO[bloco]['secao']]['titulo'], 'aberto': aberto, 'motivo': motivo,
             'minhas': minhas, 'curar': curar, 'aprovados': aprovados,
+            # quem pode pedir: quem cura e qualquer área — a si mesma não se pede
             'areas_para_pedir': [{'codigo': k, 'nome': v} for k, v in nomes.items()
-                                 if any(b['id'] == bloco for b in blocos_da_area(k))]
-            if U.pode(ctx, 'recurso:curar_comentarios') else []}
+                                 if k not in {a['codigo'] for a in areas_do_usuario(ctx)}
+                                 and any(b['id'] == bloco for b in blocos_da_area(k))]
+            if (U.pode(ctx, 'recurso:curar_comentarios') or areas_do_usuario(ctx)) else [],
+            'pedidos_feitos': [dict(p, nome=nomes.get(p['area'], p['area'])) for p in pedidos(codigo)
+                               if p['bloco'] == bloco and (p['pedido_por'] == ctx['login']
+                                                           or U.pode(ctx, 'recurso:curar_comentarios'))]}
 
 
 def aprovados_do_bloco(codigo, bloco):

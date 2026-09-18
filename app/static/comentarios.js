@@ -32,7 +32,7 @@
       !(b.minhas[p.area] && ['enviado', 'aprovado'].indexOf(b.minhas[p.area].status) >= 0));
     if (CFG.cura && b.curar) return { rotulo: b.curar + (b.curar > 1 ? ' para curar' : ' para curar'), tom: 'acao' };
     if (estados.indexOf('recusado') >= 0) return { rotulo: 'Devolvido', tom: 'alerta' };
-    if (pedido) return { rotulo: 'Pedido da Controladoria', tom: 'acao' };
+    if (pedido) return { rotulo: 'Pediram informação', tom: 'acao' };
     if (estados.length) {
       const s = ['rascunho', 'enviado', 'aprovado'].find(x => estados.indexOf(x) >= 0);
       return { rotulo: ROTULO_STATUS[s], tom: s === 'rascunho' ? 'rascunho' : 'ok' };
@@ -209,11 +209,12 @@
 
     D.minhas.forEach(m => {
       const c = m.comentario, st = c ? c.status : null;
-      const editavel = D.aberto && (!c || st === 'rascunho' || st === 'recusado');
+      // até a Controladoria aprovar, a área edita — inclusive o que já enviou
+      const editavel = D.aberto && (!c || st === 'rascunho' || st === 'recusado' || st === 'enviado');
       h += '<section class="cmt-bloco" data-area="' + esc(m.area) + '">';
       h += '<div class="cmt-linha"><h3>Comentário da ' + esc(m.nome) + '</h3>' + (st ? chip(st) : '') + '</div>';
-      if (m.pedido && editavel) h += '<p class="cmt-pedido"><b>A Controladoria pediu comentário aqui.</b>' +
-        (m.pedido.observacao ? ' “' + esc(m.pedido.observacao) + '”' : '') + '</p>';
+      if (m.pedido && editavel) h += '<p class="cmt-pedido"><b>' + esc(m.pedido.origem || 'Controladoria') +
+        ' pediu informação:</b>' + (m.pedido.observacao ? ' “' + esc(m.pedido.observacao) + '”' : '') + '</p>';
       if (st === 'recusado') h += '<p class="cmt-recusa"><b>Devolvido:</b> ' + esc(c.motivo) + '</p>';
       if (editavel) {
         const id = 'cmt-txt-' + m.area;
@@ -221,7 +222,10 @@
           '<textarea id="' + id + '" rows="6" maxlength="4000" data-area="' + esc(m.area) + '">' + esc(c ? c.texto : '') + '</textarea>' +
           '<div class="cmt-ajuda"><span>Só a sua área vê até a Controladoria aprovar.</span><span class="cmt-conta">' +
           (c ? c.texto.length : 0) + '/4000</span></div><div class="cmt-acoes">';
-        if (CFG.pode_enviar) {
+        if (st === 'enviado') {
+          h += '<button type="button" class="cmt-bt cmt-bt-primario" data-acao="escrever" data-area="' + esc(m.area) + '">Salvar alteração</button>' +
+               '<span class="cmt-dica">Já está com a Controladoria desde ' + quando(c.enviado_em) + '. Até ela aprovar, o que você salvar substitui o texto enviado.</span>';
+        } else if (CFG.pode_enviar) {
           h += '<button type="button" class="cmt-bt cmt-bt-primario" data-acao="enviar" data-area="' + esc(m.area) + '">Enviar à Controladoria</button>' +
                '<button type="button" class="cmt-bt" data-acao="escrever" data-area="' + esc(m.area) + '">Salvar rascunho</button>';
         } else {
@@ -231,7 +235,7 @@
         h += '</div>';
       } else if (c) {
         h += '<blockquote class="cmt-texto">' + esc(c.texto) + '</blockquote>';
-        if (st === 'enviado') h += '<p class="cmt-dica">Com a Controladoria desde ' + quando(c.enviado_em) + '.</p>';
+
         if (st === 'aprovado' && c.texto_area) h += '<p class="cmt-dica">A Controladoria ajustou o texto. O que a área enviou: “' + esc(c.texto_area) + '”</p>';
       } else if (!D.aberto) {
         h += '<p class="cmt-dica">Nada escrito por esta área.</p>';
@@ -244,7 +248,7 @@
       h += '</section>';
     });
 
-    if (D.curar.length || D.areas_para_pedir.length) {
+    if (D.curar.length || CFG.cura) {
       h += '<section class="cmt-bloco cmt-cura"><h3>Curadoria</h3>';
       if (!D.curar.length) h += '<p class="cmt-dica">Nenhuma área enviou comentário neste gráfico.</p>';
       D.curar.forEach(c => {
@@ -261,12 +265,19 @@
           '<input id="' + id + '-m" type="text" maxlength="400" data-campo="motivo">' +
           '<button type="button" class="cmt-bt cmt-bt-perigo" data-acao="recusar" data-area="' + esc(c.area) + '">Recusar</button></details></div>';
       });
-      if (D.aberto && D.areas_para_pedir.length) {
-        h += '<details class="cmt-pedir"><summary>Pedir comentário a uma área</summary>' +
-          '<label class="cmt-rotulo" for="cmt-pedir-area">Área</label><select id="cmt-pedir-area">' +
-          D.areas_para_pedir.map(a => '<option value="' + esc(a.codigo) + '">' + esc(a.nome) + '</option>').join('') + '</select>' +
-          '<label class="cmt-rotulo" for="cmt-pedir-obs">O que você quer entender</label><input id="cmt-pedir-obs" type="text" maxlength="300">' +
-          '<button type="button" class="cmt-bt" data-acao="pedir">Pedir</button></details>';
+      h += '</section>';
+    }
+
+    /* solicitar informação: qualquer área (e quem cura) pergunta à Controladoria ou a outra área */
+    if (D.aberto && D.areas_para_pedir.length) {
+      h += '<section class="cmt-bloco cmt-solicitar"><h3>Solicitar informação</h3>' +
+        '<label class="cmt-rotulo" for="cmt-pedir-area">Para quem</label><select id="cmt-pedir-area">' +
+        D.areas_para_pedir.map(a => '<option value="' + esc(a.codigo) + '">' + esc(a.nome) + '</option>').join('') + '</select>' +
+        '<label class="cmt-rotulo" for="cmt-pedir-obs">O que você quer saber</label><textarea id="cmt-pedir-obs" rows="3" maxlength="600"></textarea>' +
+        '<div class="cmt-acoes"><button type="button" class="cmt-bt" data-acao="pedir">Solicitar</button></div>';
+      if (D.pedidos_feitos && D.pedidos_feitos.length) {
+        h += '<ul class="cmt-pedidos">' + D.pedidos_feitos.map(p => '<li><b>' + esc(p.nome) + '</b> — “' +
+          esc(p.observacao) + '” <span>(' + esc(p.origem || 'Controladoria') + ', ' + quando(p.pedido_em) + ')</span></li>').join('') + '</ul>';
       }
       h += '</section>';
     }
@@ -275,7 +286,7 @@
       h += '<section class="cmt-bloco"><h3>Aprovados</h3>' + D.aprovados.map(a =>
         '<blockquote class="cmt-texto"><span class="cmt-area">' + esc(a.area) + '</span>' + esc(a.texto) + '</blockquote>').join('') + '</section>';
     }
-    if (!D.minhas.length && (D.curar.length || D.areas_para_pedir.length)) {
+    if (!D.minhas.length && CFG.cura) {
       // o administrador e a Controladoria curam; quem escreve é a área — dizer isso evita a caça ao campo de texto
       h = '<p class="cmt-nota">Você cura os comentários, mas não escreve por nenhuma área. Quem escreve são os ' +
           'usuários dos perfis das áreas (Gestão Comercial, Fábrica, Loja). Aqui você pode pedir comentário a uma ' +
@@ -311,7 +322,12 @@
       corpo.motivo = (caixa.querySelector('[data-campo="motivo"]') || {}).value || '';
       if (!corpo.motivo.trim()) { avisar('Diga o motivo: a área precisa saber o que corrigir.', true); return; }
     }
-    if (acao === 'pedir') { corpo.area = painel.querySelector('#cmt-pedir-area').value; corpo.observacao = painel.querySelector('#cmt-pedir-obs').value; }
+    if (acao === 'pedir') {
+      corpo.area = painel.querySelector('#cmt-pedir-area').value;
+      corpo.observacao = painel.querySelector('#cmt-pedir-obs').value;
+      delete corpo.texto;
+      if (!corpo.observacao.trim()) { avisar('Escreva o que você quer saber.', true); return; }
+    }
     if ((acao === 'escrever' || acao === 'enviar') && !(corpo.texto || '').trim()) { avisar('Escreva o comentário antes.', true); if (txt) txt.focus(); return; }
     if (acao === 'enviar' && !confirm('Enviar à Controladoria? Depois de enviado, só volta para edição se ela devolver.')) return;
     const original = botao.textContent;
@@ -330,7 +346,9 @@
       sujo = false;
       atualizarResumo(D);
       desenhar(D);
-      avisar(D.mensagem || 'Feito.');
+      const m0 = D.minhas.find(x => x.area === corpo.area);
+      avisar(acao === 'escrever' && m0 && m0.comentario && m0.comentario.status === 'enviado'
+        ? 'Alteração salva — a Controladoria já vê o texto novo.' : (D.mensagem || 'Feito.'));
     } catch (e) {
       avisar('Sem conexão com o servidor. O texto continua na tela — tente de novo.', true);
       botao.disabled = false; botao.textContent = original;

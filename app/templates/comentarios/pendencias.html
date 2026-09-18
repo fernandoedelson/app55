@@ -6,7 +6,7 @@
   <span class="pend-ir">{{ acao }} no gráfico &rarr;</span>
   <span class="pend-titulo">{{ c.titulo }}</span>
   {% if c.motivo %}<span class="pend-texto"><b>Motivo:</b> {{ c.motivo }}</span>
-  {% elif c.observacao %}<span class="pend-texto">“{{ c.observacao }}”</span>
+  {% elif c.observacao %}<span class="pend-texto"><b>{{ c.origem or 'Controladoria' }} pergunta:</b> “{{ c.observacao }}”</span>
   {% elif c.texto %}<span class="pend-texto">{{ c.texto[:180] }}{% if c.texto|length > 180 %}…{% endif %}</span>{% endif %}
 </a>
 {%- endmacro %}
@@ -37,8 +37,8 @@
     <div class="pend-lista">{% for c in p.devolvidos %}{{ item(c, 'Reescrever') }}{% endfor %}</div></section>
   {% endif %}
   {% if p.pedidos %}
-  <section class="pend-grupo"><h2>A Controladoria pediu comentário <span class="n">{{ p.pedidos|length }}</span></h2>
-    <div class="pend-lista">{% for c in p.pedidos %}{{ item(c, 'Comentar') }}{% endfor %}</div></section>
+  <section class="pend-grupo"><h2>Pediram informação à sua área <span class="n">{{ p.pedidos|length }}</span></h2>
+    <div class="pend-lista">{% for c in p.pedidos %}{{ item(c, 'Responder') }}{% endfor %}</div></section>
   {% endif %}
   {% if p.rascunhos %}
   <section class="pend-grupo"><h2>Rascunhos para enviar <span class="n">{{ p.rascunhos|length }}</span></h2>
@@ -60,6 +60,49 @@
     </div></section>
   {% endif %}
 
+  {% if pode_pedir %}
+  <section class="pend-grupo" id="solicitar"><h2>Solicitar informação</h2>
+    <p class="muted">Pergunte à Controladoria ou a outra área sobre um gráfico ou tabela. Quem recebe vê a pendência
+      na tela dela e o botão do gráfico em destaque até responder. Também dá para pedir direto no painel do gráfico.</p>
+    <form method="post" action="{{ url_for('comentarios.pedir', codigo=codigo) }}" class="card" style="max-width:820px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="actions" style="align-items:flex-end;flex-wrap:wrap">
+        <label class="campo">Para quem
+          <select name="area" required>{% for a in areas %}<option value="{{ a.codigo }}">{{ a.nome }}</option>{% endfor %}</select></label>
+        <label class="campo" style="flex:1;min-width:280px">Gráfico ou tabela
+          <select name="bloco" required>
+            {% for secao, blocos in grupos_blocos %}<optgroup label="{{ secao }}">
+              {% for bid, t in blocos %}<option value="{{ bid }}">{{ t }}</option>{% endfor %}</optgroup>{% endfor %}
+          </select></label>
+      </div>
+      <div class="field mt"><label for="sol-obs">O que você quer saber</label>
+        <textarea id="sol-obs" name="observacao" rows="3" maxlength="600" required style="width:100%"></textarea></div>
+      <button class="btn btn-primary btn-sm" type="submit">Solicitar</button>
+    </form>
+
+    {% if solicitacoes %}
+    <table class="tbl mt">
+      <thead><tr><th>Para</th><th>Gráfico ou tabela</th><th>O que foi pedido</th><th>Quem pediu</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+      {% for s in solicitacoes %}
+        <tr><td>{{ s.nome }}</td>
+          <td><a href="{{ no_grafico(codigo, s.bloco) }}">{{ s.titulo }}</a><br><span class="muted">{{ s.secao_titulo }}</span></td>
+          <td>{{ s.observacao or '—' }}</td><td>{{ s.origem or 'Controladoria' }}<br><span class="muted">{{ s.pedido_por }} · {{ s.pedido_em|data_br }}</span></td>
+          <td>{{ s.situacao }}</td>
+          <td class="right">
+            <form method="post" action="{{ url_for('comentarios.cancelar_pedido', codigo=codigo) }}" class="inline-form"
+                  onsubmit="return confirm('Cancelar esta solicitação?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="area" value="{{ s.area }}"><input type="hidden" name="bloco" value="{{ s.bloco }}">
+              <button class="btn btn-sm" type="submit">Cancelar</button>
+            </form></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+  {% endif %}
+
   {% if painel %}
   <section class="pend-grupo"><h2>Quem já enviou</h2>
     <table class="tbl">
@@ -73,7 +116,7 @@
       {% endfor %}
       </tbody>
     </table>
-    <p class="muted mt">Para pedir comentário a uma área, abra o gráfico e use <b>Pedir comentário a uma área</b> no painel.</p>
+
   </section>
   {% endif %}
 

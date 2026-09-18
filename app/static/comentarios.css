@@ -100,3 +100,5 @@ h3[data-blk],.sec-head{scroll-margin-top:104px}
 @media (max-width:640px){.cmt-mini{height:40px;min-width:40px;padding:0 12px}.cmt-mini-rot{display:none}
   .cmt-mini[data-tom="acao"] .cmt-mini-rot,.cmt-mini[data-tom="alerta"] .cmt-mini-rot{display:inline}}
 @media print{.cmt-mini{display:none}}
+.cmt-pedidos{margin:12px 0 0;padding-left:18px;font-size:13px;color:var(--ink2);line-height:1.55}
+.cmt-pedidos span{color:var(--muted)}

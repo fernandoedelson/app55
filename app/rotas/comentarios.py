@@ -23,6 +23,11 @@ def _cura():
     return U.pode(g.usuario, 'recurso:curar_comentarios')
 
 
+def _pode_pedir():
+    """Solicitar informação: quem cura e qualquer pessoa de área."""
+    return _cura() or U.pode(g.usuario, 'recurso:comentar') or _admin_testando()
+
+
 def _pode_enviar():
     return U.pode(g.usuario, 'recurso:consolidar') or _admin_testando()
 
@@ -66,7 +71,23 @@ def index():
     return render_template('comentarios/pendencias.html', codigo=codigo, p=M.pendencias(codigo, g.usuario),
                            aberto=aberto, motivo=motivo, prazo=comp.get('prazo_comentarios'), cura=_cura(),
                            painel=M.painel(codigo) if _cura() else None, titulo=C.BLOCO,
-                           tem_area=bool(M.areas_do_usuario(g.usuario)), no_grafico=no_grafico)
+                           tem_area=bool(M.areas_do_usuario(g.usuario)), no_grafico=no_grafico,
+                           pode_pedir=_pode_pedir(),
+                           solicitacoes=[s for s in M.solicitacoes(codigo)
+                                         if _cura() or s['pedido_por'] == g.usuario['login']],
+                           areas=[a for a in M.areas_que_comentam()
+                                  if a['codigo'] not in {x['codigo'] for x in M.areas_do_usuario(g.usuario)}],
+                           grupos_blocos=_blocos_por_secao() if _pode_pedir() else [])
+
+
+def _blocos_por_secao():
+    """Os blocos para o seletor da solicitação, agrupados pela seção, com o nome que a área reconhece."""
+    saida = []
+    for s in C.SECOES:
+        bl = [(b['id'], M.titulo_legivel(b['id'])) for b in C.blocos_da_secao(s['id']) if not b.get('so_apresentacao')]
+        if bl:
+            saida.append((s['titulo'], bl))
+    return saida
 
 
 @bp.route('/<codigo>/<area>/<bloco>', methods=['GET', 'POST'])
@@ -144,17 +165,30 @@ def apresentacao(codigo):
 
 @bp.route('/<codigo>/curadoria/pedir', methods=['POST'])
 def pedir(codigo):
-    if not _cura():
+    if not _pode_pedir():
         abort(403)
     area, bloco = request.form.get('area', ''), request.form.get('bloco', '')
     try:
-        M.pedir(codigo, bloco, area, g.usuario['login'], request.form.get('observacao', ''))
+        M.pedir(codigo, bloco, area, g.usuario['login'], request.form.get('observacao', ''),
+                M.origem_do_pedido(g.usuario, area))
     except ValueError as e:
         flash(str(e), 'erro')
-        return redirect(url_for('comentarios.curadoria', codigo=codigo))
+        return redirect(url_for('comentarios.index', comp=codigo) + '#solicitar')
     auditoria.registrar('comentario.pedir', '%s · %s · %s' % (codigo, area, bloco))
-    flash('Pedido registrado: a área vê a pendência na tela dela.', 'ok')
-    return redirect(url_for('comentarios.curadoria', codigo=codigo))
+    flash('Solicitação enviada: a área vê a pendência na tela dela e o botão no gráfico.', 'ok')
+    return redirect(url_for('comentarios.index', comp=codigo) + '#solicitar')
+
+
+@bp.route('/<codigo>/curadoria/pedir/cancelar', methods=['POST'])
+def cancelar_pedido(codigo):
+    area, bloco = request.form.get('area', ''), request.form.get('bloco', '')
+    meu = any(p['pedido_por'] == g.usuario['login'] for p in M.pedidos(codigo, area) if p['bloco'] == bloco)
+    if not (_cura() or meu):
+        abort(403)
+    M.cancelar_pedido(codigo, bloco, area)
+    auditoria.registrar('comentario.pedido_cancelado', '%s · %s · %s' % (codigo, area, bloco))
+    flash('Solicitação cancelada.', 'ok')
+    return redirect(url_for('comentarios.index', comp=codigo) + '#solicitar')
 
 
 # ------------------------------------------------------------------ painel lateral (em cima do gráfico)
@@ -193,13 +227,15 @@ def api_acao(codigo, bloco):
                     if not atual or atual['texto'] != f.get('texto', '').strip():
                         M.escrever(codigo, bloco, area, f.get('texto'), login)
                 M.enviar(codigo, bloco, area, login)
-        elif acao in ('aprovar', 'recusar', 'devolver', 'apresentacao', 'pedir'):
+        elif acao == 'pedir':
+            if not _pode_pedir():
+                abort(403)
+            M.pedir(codigo, bloco, area, login, f.get('observacao', ''), M.origem_do_pedido(g.usuario, area))
+        elif acao in ('aprovar', 'recusar', 'devolver', 'apresentacao'):
             if not _cura():
                 abort(403)
             if acao == 'apresentacao':
                 M.marcar_apresentacao(codigo, bloco, area, bool(f.get('entra')))
-            elif acao == 'pedir':
-                M.pedir(codigo, bloco, area, login, f.get('observacao', ''))
             else:
                 entra = f.get('na_apresentacao')
                 M.decidir(codigo, bloco, area, acao, login, texto=f.get('texto'), motivo=f.get('motivo', ''),
