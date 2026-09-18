@@ -59,6 +59,21 @@ def criar_app(config=None):
             return '%s/%s/%s' % (v[8:10], v[5:7], v[:4])
         return v
 
+    @app.template_filter('situacao')
+    def _situacao(v):
+        """O estado da competência como quem usa o chama."""
+        return {'rascunho': 'Rascunho — só a Controladoria vê', 'disponibilizada': 'Aberto às áreas',
+                'fechada': 'Fechado'}.get(v, v)
+
+    @app.template_filter('num_br')
+    def _num_br(v, casas=2):
+        """1234567.891 -> 1.234.567,89 — as telas de conferência falam a língua de quem confere."""
+        try:
+            s = ('{:,.%df}' % casas).format(float(v))
+        except (TypeError, ValueError):
+            return v
+        return s.replace(',', '#').replace('.', ',').replace('#', '.')
+
     @app.template_filter('data_iso')
     def _data_iso(v):
         """30/09/2026 -> 2026-09-30, para preencher um <input type=date> com o valor já gravado."""

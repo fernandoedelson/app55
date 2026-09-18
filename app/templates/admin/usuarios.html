@@ -1,11 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Usuários · +55 Design{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('filtro-usuarios').addEventListener('input',function(){
+  var q=this.value.trim().toLowerCase();
+  document.querySelectorAll('.tabela tbody tr').forEach(function(tr){
+    tr.style.display = !q || tr.textContent.toLowerCase().indexOf(q)>=0 ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}
 {% block content %}
 <div class="page-head">
   <div class="crumb"><a href="{{ url_for('admin.painel') }}">Administração</a></div>
   <h1><b>Usuários</b></h1>
 </div>
-<div class="actions" style="margin-bottom:16px"><a class="btn btn-primary btn-sm" href="{{ url_for('admin.usuario_novo') }}">Novo usuário</a></div>
+<div class="actions" style="margin-bottom:16px;align-items:flex-end">
+  <a class="btn btn-primary btn-sm" href="{{ url_for('admin.usuario_novo') }}">Novo usuário</a>
+  <label class="campo" style="margin-left:auto;min-width:260px">Procurar
+    <input id="filtro-usuarios" type="search" placeholder="nome, login, e-mail ou perfil" autocomplete="off"></label>
+</div>
 <div class="tablewrap">
 <table class="tabela">
   <thead><tr><th>Login</th><th>Nome</th><th>E-mail</th><th>Perfis</th><th>Situação</th><th>Último acesso</th></tr></thead>

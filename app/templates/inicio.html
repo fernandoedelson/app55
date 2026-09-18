@@ -41,7 +41,8 @@
     {% for s, n, tot in secoes %}
     <a class="card secao-link" href="{{ url_for('biblioteca.secao', secao=s.id) }}">
       <h3>{{ s.titulo }}</h3>
-      <p class="muted">{% if n < tot %}{{ n }} de {{ tot }} blocos liberados ao seu perfil{% else %}{{ tot }} blocos{% endif %}</p>
+      <p class="muted">{{ pergunta.get(s.id, '') }}</p>
+      {% if n < tot %}<p class="secao-parcial">Seu perfil vê {{ n }} de {{ tot }} partes desta seção.</p>{% endif %}
     </a>
     {% endfor %}
   </div>

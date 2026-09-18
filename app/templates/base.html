@@ -8,7 +8,9 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='app55.css') }}">
 <script>
-  (function(){ try{ var t=localStorage.getItem('app55-tema'); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){} })();
+  /* o relatório é claro: a aplicação abre clara também, para não alternar escuro e creme a cada clique.
+     Quem preferir o escuro escolhe no botão, e a escolha fica guardada neste navegador. */
+  (function(){ var t='light'; try{ t=localStorage.getItem('app55-tema')||'light'; }catch(e){} document.documentElement.setAttribute('data-theme',t); })();
 </script>
 </head>
 <body>
@@ -45,7 +47,7 @@
       <span class="who">{{ (usuario_real or usuario).nome }}
         {% for p in usuario.perfis %}<span class="pill">{{ p.nome }}</span>{% endfor %}</span>
       {% if not usuario_real %}<a class="btn btn-secondary btn-sm" href="{{ url_for('auth.trocar_senha') }}">Trocar senha</a>{% endif %}
-      <button class="btn btn-secondary btn-sm" id="botao-tema" type="button" title="Alternar tema claro e escuro">Tema</button>
+      <button class="btn btn-secondary btn-sm" id="botao-tema" type="button" aria-label="Alternar entre tema claro e escuro">Tema</button>
       <form method="post" action="{{ url_for('auth.logout') }}" class="inline-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-secondary btn-sm" type="submit">Sair</button>
@@ -72,7 +74,7 @@
   var bt=document.getElementById('botao-tema');
   if(bt) bt.addEventListener('click',function(){
     var cur=document.documentElement.getAttribute('data-theme');
-    var prox = cur==='dark' ? 'light' : (cur==='light' ? 'dark' : (matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'));
+    var prox = cur==='dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme',prox);
     try{ localStorage.setItem('app55-tema',prox); }catch(e){}
   });

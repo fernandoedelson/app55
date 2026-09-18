@@ -43,7 +43,7 @@ def test_perfil_ve_so_os_blocos_liberados(app, admin):
     html = c.get('/').get_data(as_text=True)
     # a página inicial leva só à seção do bloco liberado, e diz que o acesso é parcial
     total = len([b for b in C.blocos_da_secao('mensal') if not b.get('so_apresentacao')])
-    assert '1 de %d blocos liberados' % total in html
+    assert 'vê 1 de %d partes desta seção' % total in html
     assert '/biblioteca/mensal"' in html
     assert not any('/biblioteca/%s"' % s['id'] in html for s in C.SECOES if s['id'] != 'mensal')
     assert c.get('/biblioteca/dre').status_code == 403

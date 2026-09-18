@@ -82,3 +82,10 @@ a.pend:hover{border-color:var(--taupe);background:var(--surface-warm)}
 .etapas li.atual .etapa-n{background:var(--taupe);border-color:var(--taupe);color:#fff}
 @media (max-width:760px){.etapas{grid-template-columns:1fr 1fr}}
 .situacao .actions{align-items:flex-end;flex-wrap:wrap}
+.secao-parcial{margin:8px 0 0;font-size:.78rem;color:var(--taupe)}
+
+/* revisão: o nome da seção é o que o leitor procura — tem de ser o texto mais visível do cartão */
+.secao-link h3,.atalho h3{font-family:var(--serif);font-size:1.18rem;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink);margin:2px 0 6px}
+.secao-link p.muted{font-size:.9rem;line-height:1.5}
+/* rótulos pequenos em caixa alta: no claro, a tinta mais escura da marca para passar de 4,5:1 */
+:root[data-theme="light"] .eyebrow,:root[data-theme="light"] .page-head .eyebrow{color:var(--taupe-deep)}

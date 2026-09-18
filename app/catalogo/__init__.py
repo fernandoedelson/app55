@@ -21,13 +21,21 @@ RECURSOS = [
     ('exportar', 'Exportar', 'Baixar a apresentação e tabelas'),
     ('filtro_livre', 'Filtro livre de período', 'Escolher qualquer intervalo de meses'),
     ('apresentar', 'Modo Apresentar', 'Tela cheia com navegação por atos'),
-    ('nomes_pf', 'Ver nomes de pessoa física', 'Sem este recurso os nomes aparecem mascarados'),
+    # o mascaramento ainda não existe: a descrição diz isso, para ninguém liberar/negar achando que protege
+    ('nomes_pf', 'Ver nomes de pessoa física', 'Ainda não aplicado: hoje todo perfil que vê o bloco vê os nomes'),
     ('fechamento', 'Fechar o mês', 'Subir as bases, processar, ver o que mudou e publicar'),
     ('comentar', 'Comentar pela área', 'Escrever o comentário da área nos blocos que ela enxerga'),
     ('consolidar', 'Enviar o comentário da área', 'Responsável: consolida o texto e envia à Controladoria'),
     ('curar_comentarios', 'Curar os comentários', 'Pedir, aprovar, ajustar ou recusar e escolher o que vai à apresentação'),
 ]
 RECURSO = {r[0]: r for r in RECURSOS}
+
+# como a tela de perfil apresenta os recursos: pelo que eles liberam, não em lista corrida
+GRUPOS_RECURSO = [
+    ('Leitura do relatório', ['destaques', 'detalhar', 'filtro_livre', 'nomes_pf', 'exportar', 'apresentar']),
+    ('Comentário da área', ['comentar', 'consolidar', 'curar_comentarios']),
+    ('Fechamento do mês', ['fechamento']),
+]
 
 # bases que podem ser enviadas — os ids são os mesmos de app/importacao/motor.py (quem lê as planilhas)
 BASES_UPLOAD = [
@@ -44,6 +52,27 @@ BASES_UPLOAD = [
 BASE_UPLOAD = dict(BASES_UPLOAD)
 
 PERMISSAO_ADMIN = 'admin'
+
+# o que cada seção responde — é o que o leitor precisa saber para escolher onde clicar
+PERGUNTA_SECAO = {
+    'resumo': 'O mês numa página: o histórico, o ano até agora e a leitura executiva.',
+    'evolutiva': 'Quanto se vendeu e quanto se faturou, ano a ano, desde o início da série.',
+    'ytd': 'O ano até o último mês fechado contra o mesmo período do ano passado.',
+    'mensal': 'O mês escolhido: os 12 meses até ele, as vendedoras, as categorias e os maiores clientes.',
+    'periodo': 'Qualquer intervalo de meses: carteira, vendedores, categorias, clientes, designers e arquitetos.',
+    'performance': 'A venda realizada contra o orçamento, no acumulado e mês a mês.',
+    'vendas': 'O time de vendas: quem lidera, de onde vem a diferença e a carteira de clientes.',
+    'arquitetos': 'O canal de arquitetos: quanto cada vendedor depende dele e quem trabalha com quem.',
+    'carteira': 'O que já foi vendido e ainda não foi entregue, por status, vendedor e pedido.',
+    'carteira_dinamica': 'A carteira em movimento: evolução, pedidos adiados e previsão de faturamento.',
+    'dre': 'O resultado de Consolidado, Fábrica e Loja: margens, ponte do resultado e ponto de equilíbrio.',
+    'custofixo': 'O custo fixo dos últimos 12 meses, por categoria e por entidade.',
+    'custofixo_mensal': 'O custo fixo do mês, aberto em pacotes, terceiros e contas.',
+    'divida': 'A dívida com o acionista: saldo, juros e o endividamento gerado mês a mês.',
+    'custosx': 'O custo dos produtos vendidos: onde se concentra, o que o move e o que pesa na matéria-prima.',
+    'custos': 'O custo de produção da fábrica, linha a linha: produtos, volumes e custos operacionais.',
+    'estudos': 'Estudos fora do fechamento recorrente, como o resultado por unidade.',
+}
 
 
 def blocos_da_secao(sid):

@@ -241,8 +241,11 @@ def perfil_editar(pid):
         grupos[-1][1].append((s, bl))
     usuarios = db.execute('SELECT u.login, u.nome FROM usuarios u JOIN usuario_perfis up ON up.usuario_id=u.id '
                           'WHERE up.perfil_id=? ORDER BY u.login', (pid,)).fetchall()
+    grupos_recurso = [(nome, [C.RECURSO[r] for r in ids if r in C.RECURSO]) for nome, ids in C.GRUPOS_RECURSO]
+    n_blocos = len([a for a in atuais if a.startswith('bloco:')])
     return render_template('admin/perfil_form.html', perfil=perfil, atuais=atuais, grupos=grupos,
-                           recursos=C.RECURSOS, bases=C.BASES_UPLOAD, confirmar=confirmar, usuarios=usuarios)
+                           grupos_recurso=grupos_recurso, bases=C.BASES_UPLOAD, confirmar=confirmar,
+                           usuarios=usuarios, n_blocos=n_blocos, total_blocos=len(C.BLOCOS))
 
 
 @bp.route('/perfis/<int:pid>/excluir', methods=['POST'])

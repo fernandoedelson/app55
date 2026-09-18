@@ -30,7 +30,7 @@ def index():
         grupos[-1][1].append((s, len(meus), total))
     comps = comp_mod.disponiveis(current_app.config)
     pode = lambda r: U.pode(g.usuario, 'recurso:' + r)
-    return render_template('inicio.html', grupos=grupos, comp=comps[-1] if comps else None,
+    return render_template('inicio.html', grupos=grupos, comp=comps[-1] if comps else None, pergunta=C.PERGUNTA_SECAO,
                            aberta=M.competencia_aberta(),
                            pode_fechamento=pode('fechamento'),
                            pode_comentar=pode('comentar') or pode('curar_comentarios'))

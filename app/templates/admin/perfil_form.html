@@ -5,8 +5,16 @@
   <div class="crumb"><a href="{{ url_for('admin.painel') }}">Administração</a> / <a href="{{ url_for('admin.perfis') }}">Perfis</a></div>
   <h1>Perfil <b>{{ perfil.nome }}</b></h1>
   <p>{% if usuarios %}Usado por: {{ usuarios|map(attribute='login')|join(', ') }}.{% else %}Nenhum usuário tem este perfil ainda.{% endif %}
-     Blocos criados depois nascem bloqueados para todos os perfis.</p>
+     Hoje libera <b>{{ 'todos' if 'admin' in atuais else n_blocos }}</b> de {{ total_blocos }} blocos. Blocos criados
+     depois nascem bloqueados para todos os perfis.</p>
 </div>
+{# conferir o resultado sem sair daqui: ver a aplicação exatamente como este perfil a enxerga #}
+<form method="post" action="{{ url_for('admin.ver_como') }}" class="actions" style="margin-bottom:20px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="perfil_id" value="{{ perfil.id }}">
+  <button class="btn btn-secondary btn-sm" type="submit">Ver a aplicação como este perfil</button>
+  <span class="muted">Salve antes: o modo mostra as permissões gravadas.</span>
+</form>
 
 <form method="post" id="form-perfil">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -31,13 +39,15 @@
       Administrador — vê tudo e acessa esta área</label>
   </div>
 
-  <div class="grupo-perm">Recursos</div>
+  {% for nome, recs in grupos_recurso %}
+  <div class="grupo-perm">{{ nome }}</div>
   <div class="secao-perm"><div class="blocos" style="padding-top:14px">
-    {% for r in recursos %}
+    {% for r in recs %}
     <label><input type="checkbox" name="perm" value="recurso:{{ r[0] }}" {{ 'checked' if ('recurso:' ~ r[0]) in atuais }}>
       <span><b>{{ r[1] }}</b><br><span class="muted">{{ r[2] }}</span></span></label>
     {% endfor %}
   </div></div>
+  {% endfor %}
 
   <div class="grupo-perm">Envio de bases</div>
   <div class="secao-perm"><div class="blocos" style="padding-top:14px">
@@ -58,7 +68,7 @@
     <div class="blocos">
       {% for b in blocos %}
       <label><input type="checkbox" name="perm" value="bloco:{{ b.id }}" {{ 'checked' if ('bloco:' ~ b.id) in atuais }}>
-        <span>{{ b.titulo }}{% if b.nomes_pf %}<span class="marca-pf">nomes</span>{% endif %}<br><code>{{ b.id }}</code></span></label>
+        <span>{{ b.titulo }}{% if b.nomes_pf %}<span class="marca-pf" title="Mostra nomes de pessoa física">nomes</span>{% endif %}{% if b.so_apresentacao %}<span class="marca-pf" title="Aparece só na Reunião">só na reunião</span>{% endif %}<br><code>{{ b.id }}</code></span></label>
       {% endfor %}
     </div>
   </details>

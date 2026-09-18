@@ -21,7 +21,7 @@
 {% if not codigo %}
   <div class="estado-vazio"><b>Nenhum mês aberto para comentários.</b>
     {% if pode('recurso:fechamento') %}Para abrir: <a href="{{ url_for('competencias.index') }}">Fechamento</a> → abra o mês →
-      em Situação escolha <b>disponibilizada</b> e defina o prazo.
+      etapa <b>Abrir às áreas</b>, com o prazo.
     {% else %}A Controladoria avisa quando o fechamento estiver disponível.{% endif %}</div>
 {% else %}
   {% if not aberto %}<div class="aviso">{{ motivo|capitalize }} Dá para ler, não para escrever.</div>

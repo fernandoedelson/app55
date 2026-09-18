@@ -61,6 +61,8 @@
       let btn = alvo.querySelector(':scope > .cmt-btn');
       if (!r) { if (btn) btn.remove(); return; }
       if (!btn) {
+        // o botão mora dentro do título; sem isto o leitor de tela anunciaria "Top vendedoras Comentar"
+        if (!alvo.hasAttribute('aria-label')) alvo.setAttribute('aria-label', alvo.textContent.trim());
         btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'cmt-btn';

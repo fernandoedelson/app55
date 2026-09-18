@@ -10,20 +10,20 @@
 
 <form method="post" action="{{ url_for('competencias.nova') }}" class="actions">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <label>Nova competência <input name="codigo" placeholder="2026-08" pattern="\d{4}-\d{2}" required></label>
-  <button class="btn btn-primary btn-sm" type="submit">Criar</button>
+  <label class="campo">Mês da nova competência <input name="codigo" type="month" required></label>
+  <button class="btn btn-primary btn-sm" type="submit">Criar competência</button>
 </form>
 
 <table class="tbl mt-lg">
-  <thead><tr><th>Competência</th><th>Situação</th><th>Bases</th><th>Processada</th><th>Disponibilizada</th><th></th></tr></thead>
+  <thead><tr><th>Competência</th><th>Situação</th><th class="right">Planilhas</th><th>Processada em</th><th>Aberta às áreas em</th><th></th></tr></thead>
   <tbody>
   {% for c in competencias %}
     <tr>
       <td><b>{{ c.codigo }}</b>{% if not c.tem_dados %} <span class="muted">(sem dados)</span>{% endif %}</td>
-      <td>{{ c.status }}</td>
-      <td>{{ c.arquivos }}</td>
-      <td>{{ c.processada_em or '—' }}</td>
-      <td>{{ c.disponibilizada_em or '—' }}</td>
+      <td>{{ c.status|situacao }}</td>
+      <td class="right">{{ c.arquivos if c.criada_por != 'importação inicial' else '—' }}</td>
+      <td>{{ c.processada_em|data_br or '—' }}</td>
+      <td>{{ c.disponibilizada_em|data_br or '—' }}</td>
       <td class="right">
         <a class="btn btn-sm" href="{{ url_for('competencias.ver', codigo=c.codigo) }}">Abrir</a>
         {% if c.tem_dados %}<a class="btn btn-sm" href="{{ url_for('competencias.mudancas', codigo=c.codigo) }}">O que mudou</a>{% endif %}

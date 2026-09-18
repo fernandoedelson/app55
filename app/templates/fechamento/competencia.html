@@ -45,9 +45,9 @@
       <tbody>
       {% for d in passado[:20] %}
         <tr><td>{{ d.base }}</td><td>{{ d.ym }}</td>
-            <td class="right">{{ '%.2f'|format(d.antes) }}</td>
-            <td class="right">{{ '%.2f'|format(d.depois) }}</td>
-            <td class="right">{{ '%.2f'|format(d.dif) }}</td></tr>
+            <td class="right">{{ d.antes|num_br }}</td>
+            <td class="right">{{ d.depois|num_br }}</td>
+            <td class="right">{{ d.dif|num_br }}</td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -64,8 +64,8 @@
     <tr>
       <td>{{ b.titulo }}{% if b.obrigatoria %} <span class="muted">(obrigatória)</span>{% endif %}</td>
       <td>{% for a in envios %}{{ a.arquivo }}<br>{% else %}<span class="muted">—</span>{% endfor %}</td>
-      <td>{% for a in envios %}{{ a.data_posicao }}<br>{% endfor %}</td>
-      <td>{% for a in envios %}<span class="muted">{{ a.enviado_por }} · {{ a.enviado_em }}</span><br>{% endfor %}</td>
+      <td>{% for a in envios %}{{ a.data_posicao|data_br }}<br>{% endfor %}</td>
+      <td>{% for a in envios %}<span class="muted">{{ a.enviado_por }} · {{ a.enviado_em|data_br }}</span><br>{% endfor %}</td>
       <td class="right">
         {% if pode_upload.get(bid) and comp.status != 'fechada' %}
         <form method="post" action="{{ url_for('competencias.upload', codigo=comp.codigo) }}"
@@ -88,7 +88,7 @@
 <form method="post" action="{{ url_for('competencias.processar', codigo=comp.codigo) }}" class="actions">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button class="btn btn-primary" type="submit" {% if faltando %}disabled{% endif %}>Processar as bases</button>
-  {% if comp.processada_em %}<span class="muted">última vez: {{ comp.processada_em }}</span>{% endif %}
+  {% if comp.processada_em %}<span class="muted">última vez: {{ comp.processada_em|data_br }}</span>{% endif %}
 </form>
 
 {% endif %}
