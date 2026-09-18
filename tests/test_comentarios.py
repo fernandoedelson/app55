@@ -261,3 +261,24 @@ def test_painel_do_grafico_escreve_envia_e_cura(app, admin):
     # e a pendência some da caixa de quem escreveu, e o aprovado passa a "já enviados"
     html = vend.get('/comentarios/').get_data(as_text=True)
     assert 'Já enviados' in html and 'Rascunhos para enviar' not in html
+
+
+def test_ver_como_nao_oferece_escrever(app, admin):
+    """No "ver como perfil" (só leitura) a tela não pode oferecer Comentar — antes oferecia, e o
+    salvar dava erro, porque as rotas perguntavam por g.ver_como e ninguém o definia."""
+    import json
+    import re
+    cod = competencia_disponivel(app)
+    from app.db import get_db
+    with app.app_context():
+        pid = get_db().execute("SELECT id FROM perfis WHERE codigo='gestao_comercial'").fetchone()['id']
+    post(admin, '/admin/ver-como', perfil_id=str(pid))
+    from app.rotas import biblioteca  # noqa: F401  (garante a rota)
+    html = admin.get('/biblioteca/mensal?comp=%s' % cod).get_data(as_text=True)
+    m = re.search(r'id="cmt-config"[^>]*>(.*?)</script>', html, re.S)
+    if m:
+        assert json.loads(m.group(1))['areas'] == []
+    r = _api(admin, cod, 'mn-evol', acao='escrever', area='gestao_comercial', texto='não pode gravar')
+    assert r.status_code == 403
+    with app.app_context():
+        assert get_db().execute('SELECT COUNT(*) FROM comentarios').fetchone()[0] == 0

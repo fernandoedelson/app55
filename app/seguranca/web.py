@@ -75,6 +75,7 @@ def antes():
     c = current_app.config
     g.usuario = None
     g.usuario_real = None
+    g.ver_como = False          # as rotas perguntam por este nome para esconder/barrar o que grava
 
     if c['FORCE_HTTPS'] and not request.is_secure and request.endpoint != 'inicio.saude':
         return redirect(request.url.replace('http://', 'https://', 1), code=301)
@@ -110,6 +111,7 @@ def antes():
                 g.usuario = real
             else:
                 g.usuario_real = real
+                g.ver_como = True
                 g.usuario = U.contexto(u, perfil)
                 g.usuario['trocar_senha'] = False
                 if request.method in METODOS_ESCRITA and request.endpoint not in ESCRITA_EM_VER_COMO:

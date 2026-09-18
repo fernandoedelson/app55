@@ -236,6 +236,12 @@
       h += '<section class="cmt-bloco"><h3>Aprovados</h3>' + D.aprovados.map(a =>
         '<blockquote class="cmt-texto"><span class="cmt-area">' + esc(a.area) + '</span>' + esc(a.texto) + '</blockquote>').join('') + '</section>';
     }
+    if (!D.minhas.length && (D.curar.length || D.areas_para_pedir.length)) {
+      // o administrador e a Controladoria curam; quem escreve é a área — dizer isso evita a caça ao campo de texto
+      h = '<p class="cmt-nota">Você cura os comentários, mas não escreve por nenhuma área. Quem escreve são os ' +
+          'usuários dos perfis das áreas (Gestão Comercial, Fábrica, Loja). Aqui você pode pedir comentário a uma ' +
+          'área e aprovar o que elas enviarem.</p>' + h;
+    }
     if (!h) h = '<p class="cmt-dica">Nada para mostrar aqui.</p>';
     const corpo = painel.querySelector('#cmt-corpo');
     corpo.innerHTML = h;
@@ -271,7 +277,12 @@
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF }, body: JSON.stringify(corpo) });
       const D = await r.json().catch(() => ({}));
-      if (!r.ok) { avisar(D.erro ? cap(D.erro) : 'Não consegui salvar (' + r.status + ').', true); botao.disabled = false; botao.textContent = original; return; }
+      if (!r.ok) {
+        const msg = D.erro ? cap(D.erro) : (r.status === 403
+          ? 'Sem permissão para gravar aqui (no modo "ver como perfil" nada é gravado).'
+          : 'Não consegui salvar (erro ' + r.status + '). O texto continua na tela.');
+        avisar(msg, true); botao.disabled = false; botao.textContent = original; return;
+      }
       sujo = false;
       atualizarResumo(D);
       desenhar(D);
