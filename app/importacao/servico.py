@@ -55,6 +55,21 @@ def obter(codigo):
     return dict(r) if r else None
 
 
+IMPORTACAO_INICIAL = 'importação inicial'
+
+
+def registrar_importada(codigo):
+    """Competência que chegou pela importação inicial (o gabarito) e nunca passou pela tela: ganha
+    registro na primeira vez que alguém a abre, para poder ser disponibilizada às áreas."""
+    if obter(codigo) or codigo not in comp_mod.disponiveis(current_app.config):
+        return obter(codigo)
+    con = get_db()
+    con.execute('INSERT INTO competencias (codigo, status, criada_em, criada_por, processada_em) '
+                "VALUES (?, 'fechada', ?, ?, ?)", (codigo, agora(), IMPORTACAO_INICIAL, agora()))
+    con.commit()
+    return obter(codigo)
+
+
 def criar(codigo, login):
     if not RE_COMP.match(codigo or ''):
         raise ValueError('competência tem de ser AAAA-MM (ex.: 2026-08).')
@@ -225,6 +240,9 @@ def apagar_rascunho(codigo):
     comp = obter(codigo)
     if not comp or comp['status'] != 'rascunho':
         raise ValueError('só é possível descartar uma competência em rascunho.')
+    if comp['criada_por'] == IMPORTACAO_INICIAL:
+        # descartar apagaria os dados do mês publicado, que não têm planilhas na app para refazer
+        raise ValueError('esta competência veio da importação inicial e não pode ser descartada.')
     shutil.rmtree(pasta_fontes(codigo), ignore_errors=True)
     shutil.rmtree(pasta_dados(codigo), ignore_errors=True)
     con = get_db()

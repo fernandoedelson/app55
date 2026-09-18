@@ -153,3 +153,58 @@ def test_aprovado_aparece_para_quem_enxerga_o_bloco(app, admin):
         ctx_vazio = {'admin': False, 'permissoes': set(), 'perfis': []}
         assert M.por_bloco(cod, ctx_vazio) == {}
         assert U.pode(ctx_vazio, 'bloco:' + bloco) is False
+
+
+def test_banco_antigo_ganha_as_permissoes_de_comentario_uma_vez(app, tmp_path):
+    """Banco criado antes da fase 6: a migração concede o comentário às áreas, uma única vez."""
+    import sqlite3
+    from app import criar_app
+    from app.db import MIGRACOES
+    db = str(tmp_path / 't.db')
+    con = sqlite3.connect(db)
+    con.execute("DELETE FROM perfil_permissoes WHERE recurso IN ('recurso:comentar','recurso:consolidar',"
+                "'recurso:curar_comentarios')")
+    con.execute('PRAGMA user_version=0')
+    con.commit()
+    con.close()
+    criar_app({'TESTING': True, 'DATA_DIR': str(tmp_path), 'DB_PATH': db, 'SECRET_KEY': 't'})
+    con = sqlite3.connect(db)
+    q = ("SELECT p.codigo FROM perfis p JOIN perfil_permissoes pp ON pp.perfil_id=p.id "
+         "WHERE pp.recurso='recurso:comentar' ORDER BY p.codigo")
+    assert [r[0] for r in con.execute(q)] == ['controladoria', 'fabrica', 'gestao_comercial', 'loja']
+    assert con.execute('PRAGMA user_version').fetchone()[0] == len(MIGRACOES)
+    # o administrador tira a permissão da Loja: reiniciar não devolve
+    con.execute("DELETE FROM perfil_permissoes WHERE recurso='recurso:comentar' AND perfil_id="
+                "(SELECT id FROM perfis WHERE codigo='loja')")
+    con.commit()
+    con.close()
+    criar_app({'TESTING': True, 'DATA_DIR': str(tmp_path), 'DB_PATH': db, 'SECRET_KEY': 't'})
+    con = sqlite3.connect(db)
+    assert 'loja' not in [r[0] for r in con.execute(q)]
+    con.close()
+
+
+def test_mes_da_importacao_inicial_pode_ser_aberto_e_disponibilizado(app, admin):
+    import os
+    import shutil
+    real = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'competencias', '2026-07')
+    if not os.path.isdir(real):
+        pytest.skip('sem a competência 2026-07 nesta máquina')
+    # uma cópia: descartar por engano, aqui, nunca alcançaria os dados de verdade
+    shutil.copytree(real, os.path.join(app.config['COMPETENCIAS_DIR'], '2026-07'))
+    cod = '2026-07'
+    r = admin.get('/fechamento/%s' % cod)
+    assert r.status_code == 200 and 'importação inicial' in r.get_data(as_text=True)
+    post(admin, '/fechamento/%s/situacao' % cod, status='disponibilizada', prazo_comentarios='31/12/2099')
+    from app import comentarios as M
+    with app.app_context():
+        assert M.competencia_aberta() == cod
+    # a área encontra o "Comentar" ao pé da seção do relatório, só nos blocos que enxerga
+    loja = usuario(app, admin, 'lojaabre', ['loja'])
+    html = loja.get('/biblioteca/mensal').get_data(as_text=True)
+    assert 'aberto para comentários' in html and '/comentarios/%s/loja/mn-evol' % cod in html
+    assert 'Comentar' not in admin.get('/biblioteca/mensal').get_data(as_text=True).split('</main>')[1]
+    # descartar nunca apaga os dados do mês importado
+    post(admin, '/fechamento/%s/situacao' % cod, status='rascunho')
+    r = admin.post('/fechamento/%s/descartar' % cod, data={'csrf_token': csrf(admin)}, follow_redirects=True)
+    assert 'não pode ser descartada' in r.get_data(as_text=True)

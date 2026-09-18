@@ -9,7 +9,12 @@
 </div>
 
 {% if not codigo %}
-  <p class="muted">Nenhuma competência disponibilizada às áreas no momento.</p>
+  <p class="muted">Nenhum mês está aberto para comentários agora.</p>
+  {% if pode('recurso:fechamento') %}
+  <div class="aviso">Para abrir: <a href="{{ url_for('competencias.index') }}">Fechamento</a> → abra o mês →
+    em <b>Situação</b>, escolha <b>disponibilizada</b>, defina o prazo e salve. As áreas passam a ver o
+    botão <b>Comentar</b> ao pé de cada seção do relatório e nesta tela.</div>
+  {% endif %}
 {% else %}
   {% if not aberto %}<div class="aviso">{{ motivo|capitalize }} Você pode ler, mas não escrever.</div>{% endif %}
 
@@ -57,7 +62,13 @@
       </tbody>
     </table>
   {% else %}
-    {% if not cura %}<p class="muted">Nenhum dos seus perfis responde por uma área que comenta.</p>{% endif %}
+    {% if cura %}
+      <p class="muted mt-lg">Você cura os comentários, mas não escreve por nenhuma área: quem escreve são os
+        usuários dos perfis com o recurso "Comentar pela área" (hoje: Gestão Comercial, Fábrica e Loja).
+        Para testar, crie em Administração um usuário num desses perfis e entre com ele.</p>
+    {% else %}
+      <p class="muted">Nenhum dos seus perfis responde por uma área que comenta.</p>
+    {% endif %}
   {% endfor %}
 {% endif %}
 {% endblock %}

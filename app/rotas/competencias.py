@@ -48,7 +48,7 @@ def nova():
 
 @bp.route('/<codigo>')
 def ver(codigo):
-    comp = servico.obter(codigo)
+    comp = servico.obter(codigo) or servico.registrar_importada(codigo)
     if not comp:
         abort(404)
     publicadas = servico.blocos_publicados(codigo)

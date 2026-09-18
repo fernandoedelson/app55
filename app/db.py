@@ -221,10 +221,33 @@ def init_db(app):
                                   (codigo, nome, desc, sistema, agora()))
                 con.executemany('INSERT INTO perfil_permissoes (perfil_id, recurso) VALUES (?,?)',
                                 [(cur.lastrowid, r) for r in sorted(set(sugeridas[codigo]))])
+            con.execute('PRAGMA user_version=%d' % len(MIGRACOES))   # banco novo já nasce com tudo
+        _migrar(con)
         _garantir_admin(con)
         con.commit()
     finally:
         con.close()
+
+
+# Recursos que passaram a existir depois que um banco já tinha perfis. As permissões sugeridas
+# só valem para banco novo; num banco em uso, cada migração roda uma vez (PRAGMA user_version)
+# e só ACRESCENTA — o que o administrador tirou de propósito depois não volta sozinho.
+MIGRACOES = [
+    # fase 6: comentário da área — as áreas escrevem, a Controladoria envia e cura
+    {'gestao_comercial': ['recurso:comentar'], 'fabrica': ['recurso:comentar'], 'loja': ['recurso:comentar'],
+     'controladoria': ['recurso:comentar', 'recurso:consolidar', 'recurso:curar_comentarios']},
+]
+
+
+def _migrar(con):
+    feita = con.execute('PRAGMA user_version').fetchone()[0]
+    for n, concessoes in enumerate(MIGRACOES[feita:], start=feita + 1):
+        for codigo, recursos in concessoes.items():
+            p = con.execute('SELECT id FROM perfis WHERE codigo=?', (codigo,)).fetchone()
+            if p:
+                con.executemany('INSERT OR IGNORE INTO perfil_permissoes (perfil_id, recurso) VALUES (?,?)',
+                                [(p['id'], r) for r in recursos])
+        con.execute('PRAGMA user_version=%d' % n)
 
 
 def _garantir_admin(con):

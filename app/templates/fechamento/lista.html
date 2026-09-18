@@ -25,7 +25,7 @@
       <td>{{ c.processada_em or '—' }}</td>
       <td>{{ c.disponibilizada_em or '—' }}</td>
       <td class="right">
-        {% if c.criada_em %}<a class="btn btn-sm" href="{{ url_for('competencias.ver', codigo=c.codigo) }}">Abrir</a>{% endif %}
+        <a class="btn btn-sm" href="{{ url_for('competencias.ver', codigo=c.codigo) }}">Abrir</a>
         {% if c.tem_dados %}<a class="btn btn-sm" href="{{ url_for('competencias.mudancas', codigo=c.codigo) }}">O que mudou</a>{% endif %}
       </td>
     </tr>

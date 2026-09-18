@@ -57,8 +57,23 @@ def secao(secao):
     # o JSON vai dentro de <script type="application/json">: fechar a tag cedo é o único risco
     corpo = json.dumps(payloads, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     recursos = [r[0] for r in C.RECURSOS if U.pode(g.usuario, 'recurso:' + r[0])]
+    # comentários das áreas já aprovados: vão ao pé da página, fora do desenho do Kit
+    da_secao = {b['id'] for b in C.blocos_da_secao(secao)}
+    notas = [dict(c, titulo=C.BLOCO[c['bloco']]['titulo'])
+             for b, cs in M.por_bloco(comp, g.usuario).items() if b in da_secao for c in cs]
+    # onde a área escreve: com o mês aberto aos comentários, cada bloco que a área enxerga nesta
+    # seção ganha o seu "Comentar" (ou mostra em que pé está o comentário já escrito)
+    comentar = []
+    if M.competencia_aberta() == comp and not g.get('ver_como'):
+        for area in M.areas_do_usuario(g.usuario):
+            blocos_area = {b['id'] for b in M.blocos_da_area(area['codigo'])}
+            meus = {c['bloco']: c for c in M.da_area(comp, area['codigo'])}
+            itens = [{'bloco': b, 'comentario': meus.get(b['id'])}
+                     for b in C.blocos_da_secao(secao) if b['id'] in blocos_area and not b.get('so_apresentacao')]
+            if itens:
+                comentar.append({'area': area, 'itens': itens})
     return render_template('biblioteca.html', secao=C.SECAO[secao], comp=comp, payload=corpo,
-                           recursos=json.dumps(recursos))
+                           recursos=json.dumps(recursos), comentarios=notas, comentar=comentar)
 
 
 @bp.route('/api/biblioteca/<secao>')

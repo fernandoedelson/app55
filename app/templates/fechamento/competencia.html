@@ -6,7 +6,11 @@
   <h1>Competência <b>{{ comp.codigo }}</b> <span class="muted">· {{ comp.status }}</span></h1>
 </div>
 
-{% if faltando %}
+{% if comp.criada_por == 'importação inicial' %}
+  <div class="aviso">Este mês veio da importação inicial (o relatório aprovado): os dados já estão
+    publicados e não há planilhas aqui. Use a <b>Situação</b>, no fim da página, para disponibilizá-lo
+    às áreas e abrir os comentários.</div>
+{% elif faltando %}
   <div class="aviso">Faltam bases obrigatórias:
     {% for b in faltando %}<b>{{ bases[b].titulo }}</b>{% if not loop.last %}, {% endif %}{% endfor %}.</div>
 {% endif %}
@@ -29,6 +33,7 @@
   </div>
 {% endif %}
 
+{% if comp.criada_por != 'importação inicial' %}
 <h2>Bases do mês</h2>
 <table class="tbl">
   <thead><tr><th>Base</th><th>Arquivo</th><th>Posição</th><th>Enviado</th><th></th></tr></thead>
@@ -65,7 +70,9 @@
   {% if comp.processada_em %}<span class="muted">última vez: {{ comp.processada_em }}</span>{% endif %}
 </form>
 
-{% if comp.processada_em %}
+{% endif %}
+
+{% if comp.processada_em and comp.criada_por != 'importação inicial' %}
 <h2 class="mt-lg">Publicar</h2>
 <p class="muted">Publicação é por bloco: o que você marcar passa a ler esta competência. Um bloco nunca mistura meses.</p>
 <form method="post" action="{{ url_for('competencias.publicar', codigo=comp.codigo) }}">
@@ -102,7 +109,7 @@
   <button class="btn btn-sm" type="submit">Salvar</button>
 </form>
 
-{% if comp.status == 'rascunho' %}
+{% if comp.status == 'rascunho' and comp.criada_por != 'importação inicial' %}
 <form method="post" action="{{ url_for('competencias.descartar', codigo=comp.codigo) }}" class="actions mt"
       onsubmit="return confirm('Descartar o rascunho {{ comp.codigo }} e apagar as bases enviadas?')">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
