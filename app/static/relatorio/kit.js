@@ -359,6 +359,22 @@ function marcarEm(raiz,st){
   }
 }
 
+/* ponteiro laser (estilo PowerPoint): automático no modo apresentação, ligável a qualquer
+   momento pela tecla L ou pelo botão da camada de zoom (para apontar células de tabela) */
+function setupLaser(){
+  const dot=document.createElement('div'); dot.id='laserdot'; document.body.appendChild(dot);
+  document.addEventListener('mousemove',e=>{ dot.style.left=e.clientX+'px'; dot.style.top=e.clientY+'px'; });
+  window.setLaser=on=>{ document.body.classList.toggle('laser-on',!!on);
+    const b=document.getElementById('chartzoom-laser'); if(b) b.classList.toggle('on',!!on); };
+  window.toggleLaser=()=>window.setLaser(!document.body.classList.contains('laser-on'));
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='l'&&e.key!=='L') return;
+    if(e.ctrlKey||e.metaKey||e.altKey) return;
+    const t=e.target; if(t&&/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) return;
+    e.preventDefault(); window.toggleLaser();
+  });
+}
+
 /* último <h3> antes do bloco, dentro da mesma seção — é o título que acompanha aquele gráfico/tabela */
 function nearestFigTitle(el0){
   const section=el0.closest('section'); if(!section) return null;

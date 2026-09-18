@@ -13,17 +13,27 @@ from ..seguranca import usuarios as U
 bp = Blueprint('comentarios', __name__, url_prefix='/comentarios')
 
 
+def _admin_testando():
+    """O administrador no "ver como" de uma área: escreve como a área e pode fazer o resto do ciclo."""
+    return bool(g.get('ver_como')) and bool((g.get('usuario_real') or {}).get('admin'))
+
+
 def _cura():
+    # no "ver como" vale o perfil que se está vendo: como Fábrica não se cura; como Controladoria, sim
     return U.pode(g.usuario, 'recurso:curar_comentarios')
+
+
+def _pode_enviar():
+    return U.pode(g.usuario, 'recurso:consolidar') or _admin_testando()
 
 
 @bp.before_request
 def _exigir():
     if request.endpoint == 'comentarios.api_detalhe':
         return      # ler o que foi aprovado é de quem vê o gráfico — a rota confere o bloco
-    if not (U.pode(g.usuario, 'recurso:comentar') or _cura()):
+    if not (U.pode(g.usuario, 'recurso:comentar') or _cura() or _admin_testando()):
         abort(403)
-    if g.get('ver_como') and request.method == 'POST':
+    if g.get('ver_como') and request.method == 'POST' and request.endpoint != 'comentarios.api_acao':
         abort(403)
 
 
@@ -175,7 +185,7 @@ def api_acao(codigo, bloco):
             if acao == 'escrever':
                 M.escrever(codigo, bloco, area, f.get('texto'), login)
             else:
-                if not U.pode(g.usuario, 'recurso:consolidar'):
+                if not _pode_enviar():
                     abort(403)
                 if f.get('texto'):
                     # "enviar" com o texto da tela: guarda antes, para não mandar uma versão velha

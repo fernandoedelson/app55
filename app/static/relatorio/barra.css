@@ -21,3 +21,10 @@
 .rb-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (max-width:720px){.rb-caminho span,.rb-caminho a{display:none}.rb-dir{gap:12px}.rb-trocar{order:5;width:100%}.rb-trocar select{width:100%}}
 @media print{.rb{display:none}}
+
+.rb-vercomo{display:flex;align-items:center;justify-content:center;gap:16px;padding:8px 20px;background:var(--warn);
+  color:#1a140f;font:500 13px var(--sans)}
+.rb-vercomo form{margin:0}
+.rb-vercomo button{min-height:30px;padding:0 12px;border:1px solid #1a140f;border-radius:6px;background:transparent;color:#1a140f;
+  font:600 12px var(--sans);cursor:pointer}
+@media print{.rb-vercomo{display:none}}

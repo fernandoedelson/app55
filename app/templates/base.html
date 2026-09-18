@@ -17,7 +17,7 @@
 {% if usuario %}
 {% if usuario_real %}
 <div class="faixa-ver-como" role="status">
-  <span>Você está vendo a aplicação como o perfil <b>{{ usuario.perfis[0].nome }}</b> — só leitura.</span>
+  <span>Você está vendo a aplicação como o perfil <b>{{ usuario.perfis[0].nome }}</b> — só leitura, exceto os comentários, que gravam como essa área.</span>
   <form method="post" action="{{ url_for('admin.ver_como_sair') }}" class="inline-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-sm btn-secondary" type="submit">Sair do modo</button>

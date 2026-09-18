@@ -26,7 +26,7 @@ NOMES = [
     'deltaHtml', 'deltaCost', 'spark', 'waterfall', 'stackedCols', 'evolCombo', 'stackedArea', 'boxLabel',
     'areaCum', 'comboMeta',
     # ferramentas de tabela (ordenar, CSV) e zoom
-    '_cellNum', 'setupTableTools', 'addCsvChips', 'exportCsv', 'setupChartZoom', 'setupTableZoom', 'decorateTables',
+    '_cellNum', 'setupTableTools', 'addCsvChips', 'exportCsv', 'setupChartZoom', 'setupLaser', 'setupTableZoom', 'decorateTables',
     # helpers de montagem de HTML
     'kpi', 'call', 'H3', 'fig', 'cap', 'B', 'ymList', 'ymLab', 'ymShift', 'ymAddMonths', 'custosMesLab',
     'MES_LONGO', 'mesLongo', 'ymLabAno', 'ytdLab', 'acentuaDre',

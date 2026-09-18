@@ -1,5 +1,15 @@
 {# Barra das páginas de relatório (seção e reunião): a mesma identidade do resto da aplicação,
    com o caminho, a troca de seção e o contador de pendências. #}
+{% if usuario_real %}
+{# o modo "ver como" tem de estar à vista também no relatório — é onde o administrador testa a área #}
+<div class="rb-vercomo" role="status">
+  <span>Vendo como <b>{{ usuario.perfis[0].nome }}</b> — comentários gravam como essa área; o resto é só leitura.</span>
+  <form method="post" action="{{ url_for('admin.ver_como_sair') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">Sair do modo</button>
+  </form>
+</div>
+{% endif %}
 <header class="rb">
   <div class="rb-in">
     <a class="rb-marca" href="{{ url_for('inicio.index') }}" aria-label="+55 Design — início">

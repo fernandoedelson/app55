@@ -263,22 +263,50 @@ def test_painel_do_grafico_escreve_envia_e_cura(app, admin):
     assert 'Já enviados' in html and 'Rascunhos para enviar' not in html
 
 
-def test_ver_como_nao_oferece_escrever(app, admin):
-    """No "ver como perfil" (só leitura) a tela não pode oferecer Comentar — antes oferecia, e o
-    salvar dava erro, porque as rotas perguntavam por g.ver_como e ninguém o definia."""
+def test_ver_como_testa_o_ciclo_da_area(app, admin):
+    """No "ver como perfil" o administrador vê a tela exatamente como a área (é assim que ele testa),
+    mas nada é gravado: o painel avisa e o servidor recusa."""
     import json
+    import os
     import re
-    cod = competencia_disponivel(app)
+    import shutil
+    real = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'competencias', '2026-07')
+    if not os.path.isdir(real):
+        pytest.skip('sem a competência 2026-07 nesta máquina')
+    shutil.copytree(real, os.path.join(app.config['COMPETENCIAS_DIR'], '2026-07'))
+    admin.get('/fechamento/2026-07')
+    post(admin, '/fechamento/2026-07/situacao', status='disponibilizada', prazo_comentarios='2099-12-31')
     from app.db import get_db
     with app.app_context():
-        pid = get_db().execute("SELECT id FROM perfis WHERE codigo='gestao_comercial'").fetchone()['id']
+        pid = get_db().execute("SELECT id FROM perfis WHERE codigo='fabrica'").fetchone()['id']
     post(admin, '/admin/ver-como', perfil_id=str(pid))
-    from app.rotas import biblioteca  # noqa: F401  (garante a rota)
-    html = admin.get('/biblioteca/mensal?comp=%s' % cod).get_data(as_text=True)
-    m = re.search(r'id="cmt-config"[^>]*>(.*?)</script>', html, re.S)
-    if m:
-        assert json.loads(m.group(1))['areas'] == []
-    r = _api(admin, cod, 'mn-evol', acao='escrever', area='gestao_comercial', texto='não pode gravar')
-    assert r.status_code == 403
+    html = admin.get('/biblioteca/custosx').get_data(as_text=True)
+    cfg = json.loads(re.search(r'id="cmt-config"[^>]*>(.*?)</script>', html, re.S).group(1))
+    assert cfg['ver_como'] is True and [a['codigo'] for a in cfg['areas']] == ['fabrica']
+    assert 'Vendo como <b>Fábrica</b>' in html and 'Sair do modo' in html     # o modo à vista no relatório
+    assert 'setupLaser()' in html                                              # o laser da ampliação
+    assert 'cx-grp' in cfg['areas'][0]['blocos']                      # o botão aparece como para a Fábrica
+    # 1) como a Fábrica: escreve e envia (como área não se aprova)
+    r = _api(admin, '2026-07', 'cx-grp', acao='escrever', area='fabrica', texto='Teste do admin como Fábrica.')
+    assert r.status_code == 200, r.get_data(as_text=True)[:200]
+    assert _api(admin, '2026-07', 'cx-grp', acao='enviar', area='fabrica').status_code == 200
+    assert _api(admin, '2026-07', 'cx-grp', acao='aprovar', area='fabrica').status_code == 403
+    assert post(admin, '/fechamento/2026-07/situacao', status='fechada').status_code == 403   # o resto é só leitura
     with app.app_context():
-        assert get_db().execute('SELECT COUNT(*) FROM comentarios').fetchone()[0] == 0
+        aud = get_db().execute("SELECT como_perfil FROM auditoria WHERE acao='comentario.escrever'").fetchone()
+        assert aud['como_perfil']                     # a auditoria diz que foi no modo "ver como"
+    # 2) como Controladoria: vê o que curar e aprova
+    post(admin, '/admin/ver-como/sair')
+    with app.app_context():
+        pid_c = get_db().execute("SELECT id FROM perfis WHERE codigo='controladoria'").fetchone()['id']
+        pid_d = get_db().execute("SELECT id FROM perfis WHERE codigo='gestao55'").fetchone()['id']
+    post(admin, '/admin/ver-como', perfil_id=str(pid_c))
+    d = admin.get('/comentarios/api/2026-07/cx-grp').get_json()
+    assert [c['area'] for c in d['curar']] == ['fabrica']
+    assert _api(admin, '2026-07', 'cx-grp', acao='aprovar', area='fabrica').status_code == 200
+    # 3) como a Diretoria: o aprovado aparece no gráfico
+    post(admin, '/admin/ver-como/sair')
+    post(admin, '/admin/ver-como', perfil_id=str(pid_d))
+    html = admin.get('/biblioteca/custosx').get_data(as_text=True)
+    cfg = json.loads(re.search(r'id="cmt-config"[^>]*>(.*?)</script>', html, re.S).group(1))
+    assert cfg['blocos']['cx-grp']['aprovados'][0]['texto'] == 'Teste do admin como Fábrica.'

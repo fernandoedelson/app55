@@ -61,7 +61,8 @@ def secao(secao):
     # o comentário da área mora em cima do dado: cada gráfico ou tabela da seção traz o seu estado
     # (ou o botão para escrever). Sem mês aberto e sem nada aprovado, a camada não existe.
     blocos = [b['id'] for b in C.blocos_da_secao(secao) if not b.get('so_apresentacao')]
-    cmt = M.camada(comp, g.usuario, blocos, so_leitura=bool(g.get('ver_como')))
+    # no "ver como perfil" a tela é a da área (é assim que o administrador testa); gravar é que não pode
+    cmt = M.camada(comp, g.usuario, blocos, ver_como=bool(g.get('ver_como')))
     return render_template('biblioteca.html', secao=C.SECAO[secao], comp=comp, payload=corpo,
                            recursos=json.dumps(recursos), cmt=cmt, nav=navegacao.barra(g.usuario, secao))
 

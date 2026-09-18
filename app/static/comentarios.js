@@ -282,6 +282,11 @@
           'área e aprovar o que elas enviarem.</p>' + h;
     }
     if (!h) h = '<p class="cmt-dica">Nada para mostrar aqui.</p>';
+    if (CFG.ver_como) {
+      // o administrador testando pela área: grava de verdade, e a auditoria registra quem e como quem
+      h = '<p class="cmt-nota"><b>Você está simulando este perfil.</b> O que gravar fica como se fosse dele ' +
+          '(e a auditoria registra que foi você). Para aprovar, saia do modo ou veja como Controladoria.</p>' + h;
+    }
     const corpo = painel.querySelector('#cmt-corpo');
     corpo.innerHTML = h;
     corpo.querySelectorAll('textarea').forEach(t => t.addEventListener('input', () => {

@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded',function(){
     marcar:()=>setTimeout(()=>marcarEm(sec,{k:'__abre'}),20),
   };
   sec.innerHTML=DESENHO[SID](P,ctx);
-  setupTableTools(); setupChartZoom(); setupTableZoom();
+  setupTableTools(); setupChartZoom(); setupLaser(); setupTableZoom();
   /* a marcação de blocos vem por último: o zoom de tabela embrulha cada tabela numa caixa nova,
      que precisa herdar o bloco (no Kit isso é feito por um observador que remarca a seção) */
   if(window.INSRT) INSRT.mount(sec);

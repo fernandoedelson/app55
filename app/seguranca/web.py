@@ -18,7 +18,9 @@ PUBLICAS = {'auth.login', 'auth.esqueci_senha', 'auth.redefinir_senha', 'static'
 # rotas permitidas com troca de senha pendente
 DURANTE_TROCA = {'auth.trocar_senha', 'auth.logout', 'static'}
 # únicas escritas permitidas em "ver como perfil"
-ESCRITA_EM_VER_COMO = {'admin.ver_como_sair', 'auth.logout'}
+# o comentário da área é a única escrita liberada no "ver como": é assim que o administrador testa o
+# ciclo da área de ponta a ponta. Cada gravação vai à auditoria com o perfil que ele estava vendo.
+ESCRITA_EM_VER_COMO = {'admin.ver_como_sair', 'auth.logout', 'comentarios.api_acao'}
 METODOS_ESCRITA = {'POST', 'PUT', 'PATCH', 'DELETE'}
 
 

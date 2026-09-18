@@ -321,7 +321,7 @@ def _nomes_das_areas():
     return {a['codigo']: a['nome'] for a in areas_que_comentam()}
 
 
-def camada(codigo, ctx, blocos, so_leitura=False, so_apresentacao=False, escrever=True):
+def camada(codigo, ctx, blocos, so_leitura=False, so_apresentacao=False, escrever=True, ver_como=False):
     """O que a página precisa para pôr o comentário em cada gráfico ou tabela que o leitor enxerga.
 
     O comentário nasce em cima do dado: quem abre a seção vê, ao lado do título de cada bloco, o
@@ -333,6 +333,7 @@ def camada(codigo, ctx, blocos, so_leitura=False, so_apresentacao=False, escreve
     visiveis = {b['id'] for b in U.blocos_visiveis(ctx)}
     blocos = [b for b in blocos if b in visiveis]
     aberto, motivo = prazo_aberto(codigo)
+    # no "ver como" vale o perfil visto: a área escreve e envia; curar é de quem cura
     cura = U.pode(ctx, 'recurso:curar_comentarios') and not so_leitura
     # na reunião ninguém escreve: o gráfico só mostra o que foi aprovado e, a quem cura, o que falta
     areas = [] if (so_leitura or not escrever) else areas_do_usuario(ctx)
@@ -361,8 +362,10 @@ def camada(codigo, ctx, blocos, so_leitura=False, so_apresentacao=False, escreve
     tem_algo = any(v['aprovados'] or v['minhas'] or v['curar'] for v in por_bloco.values())
     if not (escreve or (cura and aberto) or tem_algo):
         return None
+    # ver_como: o administrador vê a tela exatamente como a área vê (botões e painel), mas nada grava
     return {'comp': codigo, 'aberto': aberto, 'motivo': motivo, 'cura': cura, 'so_ler': not escrever,
-            'pode_enviar': U.pode(ctx, 'recurso:consolidar') and not so_leitura,
+            'ver_como': bool(ver_como),
+            'pode_enviar': (U.pode(ctx, 'recurso:consolidar') or bool(ver_como)) and not so_leitura,
             'areas': [{'codigo': a['codigo'], 'nome': a['nome'], 'blocos': a['blocos']} for a in areas],
             'todas_areas': [{'codigo': k, 'nome': v} for k, v in nomes.items()] if cura else [],
             'blocos': por_bloco}

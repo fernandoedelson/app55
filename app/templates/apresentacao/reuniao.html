@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded',function(){
     sec.innerHTML=DESENHO[sid](P,ctx);
     if(window.DESENHO_POS&&DESENHO_POS[sid]) sec._pos=()=>DESENHO_POS[sid](sec,ctx);
   });
-  setupTableTools(); setupChartZoom(); setupTableZoom();
+  setupTableTools(); setupChartZoom(); setupLaser(); setupTableZoom();
   SECOES.forEach(sid=>{ const sec=document.getElementById(sid); if(!sec) return;
     if(window.INSRT) INSRT.mount(sec);
     marcarEm(sec,{k:'__abre'}); });
