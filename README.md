@@ -86,26 +86,24 @@ nesse processo de revisão.
 
 ## A reunião
 
-`/apresentacao/<competência>` monta o mês em seis atos (o mesmo roteiro do `atos.js` do Kit, agora em
-`app/apresentacao/atos.py`). A página desenha as seções num palco escondido e **move** os blocos para
-os atos — mover preserva os listeners, então detalhamento, ordenação, zoom e destaques continuam
-funcionando. Bloco negado não chega ao palco; o ato que fica sem nada diz "conteúdo restrito" em vez
-de sumir, para a reunião ter os mesmos seis atos para todo mundo.
+`/apresentacao/<competência>` entrega a **versão em Atos do Kit, idêntica byte a byte ao HTML
+aprovado**: menu lateral que recolhe, fotos, capítulos, modo Apresentar, zoom com laser e tudo o mais.
+Não há reconstrução: `app/apresentacao/kit_atos.py` serializa os dados da competência como o
+`montar_html` do Kit e passa pelo `montar_doc` e pelo `gerar_html_atos.py` do próprio Kit, copiados
+literalmente da tag `gabarito-v1` para `app/kit_congelado/` (`ferramentas/extrair_kit_atos.py`, com
+MANIFESTO.json de hashes conferido antes de cada geração). O teste
+`tests/test_apresentacao_kit.py` compara a resposta da rota com `relatorio_atos.html` do gabarito.
 
-Os comentários que a Controladoria marcou para a apresentação entram abaixo do bloco a que se referem.
-Os encaminhamentos ficam ao pé: o responsável marca feito (só ele), a Controladoria confirma, e o que
-não foi confirmado reaparece como **retomada** na reunião seguinte.
+O documento do Kit carrega os dados do mês inteiros (o cálculo roda no navegador). Por isso só vai para
+quem enxerga **todos** os blocos; perfil com acesso parcial recebe o roteiro filtrado
+(`reuniao.html`, só com os blocos dele) e nunca o `window.DATA`. Baixar o HTML exige também
+`recurso:exportar`. A apresentação gerada fica em `data/apresentacoes/` e é refeita quando a
+competência muda.
 
-`aq-esforco` e `aq-recorrencia` (o esforço comercial e a recorrência do canal) só existem na reunião:
-nasceram no `atos_ajustes.js` do Kit e foram portados para `app/calculo/secoes/arquitetos.py`
-(`pares_canal`) e para o desenho da seção. O servidor só os calcula quando a reunião pede, então a
-Biblioteca continua idêntica ao relatório aprovado. Como todo bloco novo, nascem negados.
-
-O que ficou de fora do `atos_ajustes.js`: a camada de acabamento exclusiva da versão em Atos —
-rótulos de ponta nas linhas, corte da cascata no EBIT, recálculo de `av-jogo` com corte de
-materialidade, totalizador nas tabelas de segmento do RFV e a supressão de alguns KPIs. A reunião
-mostra hoje os números do relatório aprovado. `conferir_apresentacao.py --atos` compara com o
-retrato da versão em Atos e lista exatamente esses blocos.
+Os encaminhamentos têm página própria (`/apresentacao/<competência>/encaminhamentos`): o responsável
+marca feito, a Controladoria confirma, e o que não foi confirmado volta como retomada no mês seguinte.
+Como o documento é o aprovado sem acréscimos, os comentários das áreas não aparecem dentro dele — ficam
+no relatório, em cima de cada gráfico.
 
 ## Estrutura
 

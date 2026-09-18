@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Encaminhamentos {{ comp }} · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Reunião · {{ comp }}</div>
+  <h1>Encaminhamentos</h1>
+  <p class="muted">O que ficou combinado na reunião. O responsável marca feito; a Controladoria confirma.
+    O que não for confirmado volta como retomada no mês seguinte.</p>
+  <p class="actions"><a class="btn btn-sm" href="{{ url_for('apresentacao.ver', codigo=comp) }}" target="_blank" rel="noopener">Abrir a apresentação</a></p>
+</div>
+
+{% if retomada %}
+<h2>Retomada — o que ficou dos meses anteriores</h2>
+<table class="tbl">
+  <thead><tr><th>Competência</th><th>O quê</th><th>Responsável</th><th>Prazo</th><th>Situação</th><th></th></tr></thead>
+  <tbody>
+  {% for e in retomada %}
+    <tr><td>{{ e.competencia }}</td><td>{{ e.texto }}</td><td>{{ nomes.get(e.responsavel, e.responsavel) }}</td>
+        <td>{{ e.prazo|data_br }}</td><td>{{ situacao.get(e.status, e.status) }}</td>
+        <td class="right">{% include 'apresentacao/_acoes_encaminhamento.html' %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2 class="mt-lg">Desta reunião</h2>
+<table class="tbl">
+  <thead><tr><th>Ato</th><th>O quê</th><th>Responsável</th><th>Prazo</th><th>Situação</th><th></th></tr></thead>
+  <tbody>
+  {% for e in encaminhamentos %}
+    <tr><td>{{ atos.get(e.ato, '—') }}</td>
+        <td>{{ e.texto }}{% if e.resposta %}<br><span class="muted">Resposta: {{ e.resposta }}</span>{% endif %}</td>
+        <td>{{ nomes.get(e.responsavel, e.responsavel) }}</td><td>{{ e.prazo|data_br }}</td>
+        <td>{{ situacao.get(e.status, e.status) }}</td>
+        <td class="right">{% include 'apresentacao/_acoes_encaminhamento.html' %}</td></tr>
+  {% else %}
+    <tr><td colspan="6" class="muted">Nada combinado ainda.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if cura %}
+<h2 class="mt-lg">Registrar um encaminhamento</h2>
+<form method="post" action="{{ url_for('apresentacao.criar_encaminhamento', codigo=comp) }}" class="card" style="max-width:760px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="field"><label for="enc-texto">O que ficou combinado</label>
+    <input id="enc-texto" name="texto" required maxlength="2000"></div>
+  <div class="actions" style="align-items:flex-end;flex-wrap:wrap">
+    <label class="campo">Responsável
+      <select name="responsavel" required>
+        <option value="">Escolha…</option>
+        {% for u in pessoas %}<option value="{{ u.login }}">{{ u.nome or u.login }}</option>{% endfor %}
+      </select></label>
+    <label class="campo">Prazo <input name="prazo" type="date"></label>
+    <label class="campo">Ato
+      <select name="ato"><option value="0">—</option>
+        {% for n, t in atos.items() %}{% if n %}<option value="{{ n }}">{{ t }}</option>{% endif %}{% endfor %}</select></label>
+    <button class="btn btn-primary" type="submit">Registrar</button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

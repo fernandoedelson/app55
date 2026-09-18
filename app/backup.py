@@ -34,7 +34,8 @@ def _copia_do_banco():
 
 
 def _arquivos_de_dados(data_dir):
-    for raiz, _dirs, arqs in os.walk(data_dir):
+    for raiz, dirs, arqs in os.walk(data_dir):
+        dirs[:] = [d for d in dirs if d != 'apresentacoes']     # regerada a partir das competências
         for nome in arqs:
             if nome in EXCLUIDOS or nome.endswith(TEMPORARIOS) or nome.endswith('.db'):
                 continue

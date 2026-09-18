@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 """A apresentação do mês: a reunião em seis atos, com os encaminhamentos.
 
-    /apresentacao/                 a competência aberta (ou a última publicada)
-    /apresentacao/<comp>           o roteiro montado com o que o perfil enxerga
-    /apresentacao/<comp>/encaminhamentos   o combinado: criar, marcar feito, confirmar
+    /apresentacao/<comp>                  a versão em Atos IDÊNTICA ao HTML aprovado (quem vê tudo)
+                                          ou o roteiro filtrado pelo perfil (quem vê parte)
+    /apresentacao/<comp>/baixar           o mesmo HTML para levar (recurso exportar)
+    /apresentacao/<comp>/encaminhamentos  o combinado: criar, marcar feito, confirmar
 
 O roteiro é igual para todos (está no código, como o catálogo). O que muda é o conteúdo: o
 servidor manda só os blocos permitidos e o ato que ficou sem nenhum diz "conteúdo restrito"."""
 import json
 
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template, request,
-                   url_for)
+                   send_file, url_for)
 
 from .. import auditoria
 from .. import calculo
@@ -19,6 +20,7 @@ from .. import comentarios as M
 from .. import destaques as D
 from ..apresentacao import atos as A
 from ..apresentacao import encaminhamentos as E
+from ..apresentacao import kit_atos
 from ..calculo import competencia as comp_mod
 from ..db import get_db
 from ..seguranca import usuarios as U
@@ -40,6 +42,29 @@ def _competencia(codigo):
 @bp.route('/<codigo>')
 def ver(codigo=None):
     comp = _competencia(codigo)
+    if kit_atos.pode_ver_inteiro(g.usuario):
+        # quem enxerga tudo recebe o documento do Kit, idêntico ao aprovado (mesmo código, mesmos dados)
+        auditoria.registrar('apresentacao.abrir', comp)
+        resp = send_file(kit_atos.obter(comp), mimetype='text/html', max_age=0)
+        resp.headers['Cache-Control'] = 'private, no-store'
+        return resp
+    return _filtrada(comp)
+
+
+@bp.route('/<codigo>/baixar')
+def baixar(codigo):
+    """O HTML para levar: só com o recurso exportar, e só para quem pode ver os dados inteiros."""
+    comp = _competencia(codigo)
+    if not (U.pode(g.usuario, 'recurso:exportar') and kit_atos.pode_ver_inteiro(g.usuario)):
+        abort(403)
+    auditoria.registrar('apresentacao.baixar', comp)
+    return send_file(kit_atos.obter(comp), mimetype='text/html', as_attachment=True,
+                     download_name='Analise_Vendas_e_DRE_55Design_Atos_%s.html' % comp, max_age=0)
+
+
+def _filtrada(comp):
+    """Perfil que vê só parte do relatório: o roteiro montado apenas com os blocos dele. O
+    documento do Kit não serve aqui — ele carrega os dados do mês inteiros."""
     pode = lambda bid: U.pode(g.usuario, 'bloco:' + bid)
     roteiro = A.roteiro(pode)
     dados = comp_mod.carregar(current_app.config, comp)
@@ -76,6 +101,20 @@ def ver(codigo=None):
                            cura=U.pode(g.usuario, 'recurso:curar_comentarios'))
 
 
+@bp.route('/<codigo>/encaminhamentos')
+def encaminhamentos(codigo):
+    """O combinado da reunião tem página própria: a apresentação é o documento aprovado, sem acréscimos."""
+    comp = _competencia(codigo)
+    cura = U.pode(g.usuario, 'recurso:curar_comentarios')
+    pessoas = [dict(r) for r in get_db().execute('SELECT login, nome FROM usuarios WHERE ativo=1 ORDER BY nome')]
+    return render_template('apresentacao/encaminhamentos.html', comp=comp, cura=cura,
+                           encaminhamentos=E.da_competencia(comp), retomada=E.retomada(comp),
+                           pessoas=pessoas if cura else [], nomes={p['login']: p['nome'] or p['login'] for p in pessoas},
+                           atos=dict([(0, '—')] + [(a['n'], '%d · %s' % (a['n'], a['t'])) for a in A.ATOS]),
+                           situacao={'aberto': 'Em aberto', 'feito': 'Feito — falta confirmar',
+                                     'confirmado': 'Confirmado', 'cancelado': 'Cancelado'})
+
+
 @bp.route('/<codigo>/encaminhamentos', methods=['POST'])
 def criar_encaminhamento(codigo):
     if not U.pode(g.usuario, 'recurso:curar_comentarios'):
@@ -88,10 +127,10 @@ def criar_encaminhamento(codigo):
                 bloco=request.form.get('bloco') or '')
     except ValueError as e:
         flash(str(e), 'erro')
-        return redirect(url_for('apresentacao.ver', codigo=codigo))
+        return redirect(url_for('apresentacao.encaminhamentos', codigo=codigo))
     auditoria.registrar('encaminhamento.criar', '%s · %s' % (codigo, request.form.get('responsavel') or ''))
     flash('Encaminhamento registrado.', 'ok')
-    return redirect(url_for('apresentacao.ver', codigo=codigo))
+    return redirect(url_for('apresentacao.encaminhamentos', codigo=codigo))
 
 
 @bp.route('/encaminhamentos/<int:eid>/feito', methods=['POST'])
@@ -103,10 +142,10 @@ def feito(eid):
         E.marcar_feito(eid, g.usuario['login'], request.form.get('resposta', ''))
     except ValueError as erro:
         flash(str(erro), 'erro')
-        return redirect(url_for('apresentacao.ver', codigo=e['competencia']))
+        return redirect(url_for('apresentacao.encaminhamentos', codigo=e['competencia']))
     auditoria.registrar('encaminhamento.feito', str(eid))
     flash('Marcado como feito. A Controladoria confirma.', 'ok')
-    return redirect(url_for('apresentacao.ver', codigo=e['competencia']))
+    return redirect(url_for('apresentacao.encaminhamentos', codigo=e['competencia']))
 
 
 @bp.route('/encaminhamentos/<int:eid>/confirmar', methods=['POST'])
@@ -124,6 +163,6 @@ def confirmar(eid):
             E.confirmar(eid, g.usuario['login'], confirma=acao == 'confirmar')
     except ValueError as erro:
         flash(str(erro), 'erro')
-        return redirect(url_for('apresentacao.ver', codigo=e['competencia']))
+        return redirect(url_for('apresentacao.encaminhamentos', codigo=e['competencia']))
     auditoria.registrar('encaminhamento.' + acao, str(eid))
-    return redirect(url_for('apresentacao.ver', codigo=e['competencia']))
+    return redirect(url_for('apresentacao.encaminhamentos', codigo=e['competencia']))

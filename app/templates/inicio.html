@@ -9,11 +9,13 @@
 
 {% if comp and grupos %}
 <div class="atalhos">
-  <a class="card atalho atalho-principal" href="{{ url_for('apresentacao.ver') }}">
+  <div class="card atalho atalho-principal">
     <div class="eyebrow">Reunião do mês</div>
-    <h3>O mês em seis atos</h3>
-    <p class="muted">A leitura na ordem da reunião, com os comentários das áreas e os encaminhamentos.</p>
-  </a>
+    <h3><a href="{{ url_for('apresentacao.ver') }}" target="_blank" rel="noopener">O mês em seis atos</a></h3>
+    <p class="muted">A apresentação da reunião, com menu, fotos e o modo Apresentar. Abre em outra aba.</p>
+    <p class="actions mt-sm"><a class="btn btn-primary btn-sm" href="{{ url_for('apresentacao.ver') }}" target="_blank" rel="noopener">Abrir a apresentação</a>
+      <a class="btn btn-sm" href="{{ url_for('apresentacao.encaminhamentos', codigo=comp) }}">Encaminhamentos</a></p>
+  </div>
   {% if pode_comentar %}
   {% set n_pend = pendencias_n() %}
   <a class="card atalho" href="{{ url_for('comentarios.index') }}">
