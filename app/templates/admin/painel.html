@@ -12,6 +12,18 @@
   <a class="card" href="{{ url_for('admin.auditoria') }}"><div class="stat">&rarr;</div><div class="stat-l">Auditoria</div></a>
 </div>
 
+<h2 class="mt-lg">Backup</h2>
+<p class="muted">O banco (dump SQL) e os dados das competências num .zip. A chave de sessão não vai
+  junto — restaurar com outra chave só derruba as sessões abertas. Guarde fora do git.</p>
+<form method="post" action="{{ url_for('admin.backup') }}" class="actions">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <select name="competencia">
+    <option value="">tudo (banco + competências + fontes)</option>
+    {% for c in competencias %}<option value="{{ c }}">só a competência {{ c }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Baixar backup</button>
+</form>
+
 <h2 class="mt-lg">Ver a aplicação como um perfil</h2>
 <p class="muted">Mostra exatamente o que o perfil enxerga. É só leitura e fica registrado na auditoria.</p>
 <form method="post" action="{{ url_for('admin.ver_como') }}" class="actions">

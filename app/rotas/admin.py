@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 """Administração: usuários, perfis e permissões, ver como perfil e auditoria."""
+import io
 import re
 import unicodedata
 
-from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
+from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template, request,
+                   send_file, session, url_for)
 
+from .. import backup as B
 from .. import catalogo as C
 from ..auditoria import registrar
+from ..calculo import competencia as comp_mod
 from ..db import agora, get_db
 from ..seguranca import email as E
 from ..seguranca import senha as S
@@ -59,7 +63,8 @@ def painel():
     n = {'usuarios': db.execute('SELECT COUNT(*) FROM usuarios WHERE ativo=1').fetchone()[0],
          'perfis': db.execute('SELECT COUNT(*) FROM perfis').fetchone()[0],
          'blocos': len(C.BLOCOS), 'secoes': len(C.SECOES)}
-    return render_template('admin/painel.html', n=n, perfis=_perfis())
+    comps = comp_mod.disponiveis(current_app.config)
+    return render_template('admin/painel.html', n=n, perfis=_perfis(), competencias=list(reversed(comps)))
 
 
 # ------------------------------------------------------------------ usuários
@@ -279,6 +284,17 @@ def ver_como_sair():
 
 
 # ------------------------------------------------------------------ auditoria
+@bp.route('/backup', methods=['POST'])
+def backup():
+    """Baixa o banco e os dados num .zip. Sem competência, leva tudo; com ela, só aquele mês."""
+    if g.get('ver_como'):
+        abort(403)
+    competencia = (request.form.get('competencia') or '').strip() or None
+    nome, dados = B.gerar(competencia)
+    registrar('backup', '%s · %d bytes' % (competencia or 'completo', len(dados)))
+    return send_file(io.BytesIO(dados), mimetype='application/zip', as_attachment=True, download_name=nome)
+
+
 @bp.route('/auditoria')
 def auditoria():
     login = (request.args.get('login') or '').strip()[:64]

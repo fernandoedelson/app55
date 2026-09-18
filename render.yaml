@@ -3,6 +3,7 @@ services:
     name: app55
     runtime: docker
     plan: starter
+    autoDeploy: false          # deploy manual: fora do expediente, nunca em dia de reunião
     healthCheckPath: /saude
     envVars:
       - key: APP55_SECRET_KEY

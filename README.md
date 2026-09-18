@@ -15,7 +15,7 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 | 5. Fechamento e importação pela tela | concluída — a app reproduz as 14 bases da competência publicada |
 | 6. Comentários das áreas | concluída — escrever, consolidar, curar e publicar o texto |
 | 7. Reunião e apresentação | concluída — atos, canal, comentários e encaminhamentos |
-| 8. Entrada no ar | próxima |
+| 8. Entrada no ar | pronta do lado do código — falta criar o serviço no Render |
 
 ## Rodar localmente
 
@@ -118,9 +118,37 @@ retrato da versão em Atos e lista exatamente esses blocos.
 Permissões são textos explícitos: `bloco:<id>`, `recurso:<id>`, `base:upload:<id>`, `admin`.
 "Liberar a seção inteira" grava um `bloco:` por bloco existente — bloco criado depois nasce negado.
 
-## Render (Starter)
+## Entrada no ar (Render Starter)
 
-`render.yaml` + `Dockerfile`: 1 worker, disco em `/app/data`, TLS no proxy (`APP55_TRUST_PROXY`,
-`APP55_FORCE_HTTPS`, `APP55_COOKIE_SEGURO`), `APP55_SECRET_KEY` gerada pelo Render. Credenciais de
-e-mail e do administrador inicial ficam fora do git (`sync: false`). Atualizações do site: manuais,
-fora do expediente, nunca em dia de reunião.
+`render.yaml` + `Dockerfile`: 1 worker com 4 threads, disco persistente em `/app/data` (banco,
+competências e planilhas enviadas), TLS no proxy do Render (`APP55_TRUST_PROXY`, `APP55_FORCE_HTTPS`,
+`APP55_COOKIE_SEGURO`), `APP55_SECRET_KEY` gerada pelo Render e estável entre deploys. Fuso de Brasília
+na imagem. Checagem de saúde em `/saude`.
+
+**Antes de cada subida**
+
+    python ferramentas/pre_deploy.py
+
+Roda a app como em produção e confere cabeçalhos, HSTS, cookie `__Host-` seguro, redirecionamento
+para HTTPS, CSRF, login obrigatório, nada de dado ou chave no git e nenhuma permissão fora do
+catálogo. **Só essas checagens barram o deploy**; pytest, `/saude` e seções portadas viram aviso.
+
+**Primeira subida (feita por quem tem a conta do Render)**
+
+1. New → Blueprint → repositório `fernandoedelson/app55` (o `render.yaml` cria serviço e disco).
+2. Preencher no painel as variáveis marcadas `sync: false`: `APP55_ADMIN_LOGIN`, `APP55_ADMIN_SENHA`
+   (troca obrigatória no 1º acesso), `SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM` (Gmail da Controladoria,
+   com senha de app) e `APP_BASE_URL` (o endereço `…onrender.com`).
+3. Levar os dados: no primeiro acesso não há competência publicada. Suba as bases de 2026-07 pela
+   tela de Fechamento (é o mesmo leitor do Kit — `conferir_importacao.py` prova 14/14 bases) ou
+   copie `data/competencias/2026-07` para o disco pelo Shell do Render.
+4. Alerta de queda: um monitor externo (UptimeRobot ou similar, gratuito) batendo em `/saude`
+   a cada 5 min, avisando o e-mail da Controladoria.
+
+**Rotina**
+
+- Deploy manual, fora do expediente e nunca em dia de reunião (Manual Deploy no painel; o
+  `autoDeploy` fica desligado).
+- Backup: Administração → Backup. "Tudo" leva o banco (dump SQL) + competências + planilhas; por
+  competência leva só aquele mês. A chave de sessão nunca entra no pacote. Guardar fora do git.
+- Restaurar: `sqlite3 data/app55.db < app55.sql` e copiar `competencias/` e `fontes/` de volta.
