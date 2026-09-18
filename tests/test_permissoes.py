@@ -41,12 +41,12 @@ def test_perfil_ve_so_os_blocos_liberados(app, admin):
     prov = criar_usuario(app, admin, 'restrito', ['so_um_bloco'])
     c = _logar_trocando(app, 'restrito', prov)
     html = c.get('/').get_data(as_text=True)
-    assert '1 de %d blocos' % len(C.BLOCOS) in html
-    assert C.BLOCO['mn-evol']['titulo'] in html
-    # nenhum outro título exclusivo de outro bloco aparece
-    for b in C.BLOCOS:
-        if b['id'] != 'mn-evol' and b['titulo'] != C.BLOCO['mn-evol']['titulo'] and b['titulo'] not in C.BLOCO['mn-evol']['titulo']:
-            assert b['titulo'] not in html, b['id']
+    # a página inicial leva só à seção do bloco liberado, e diz que o acesso é parcial
+    total = len([b for b in C.blocos_da_secao('mensal') if not b.get('so_apresentacao')])
+    assert '1 de %d blocos liberados' % total in html
+    assert '/biblioteca/mensal"' in html
+    assert not any('/biblioteca/%s"' % s['id'] in html for s in C.SECOES if s['id'] != 'mensal')
+    assert c.get('/biblioteca/dre').status_code == 403
 
 
 def test_permissao_inventada_nao_e_gravada(app, admin):
@@ -77,8 +77,9 @@ def test_ver_como_perfil_e_so_leitura(app, admin):
     assert r.status_code == 302
     home = admin.get('/').get_data(as_text=True)
     assert 'só leitura' in home
-    esperado = len([b for b in C.BLOCOS if b['secao'] in ('custosx', 'custos')])
-    assert '%d de %d blocos' % (esperado, len(C.BLOCOS)) in home
+    # como Fábrica: só as duas seções de custo aparecem como link
+    assert '/biblioteca/custosx"' in home and '/biblioteca/custos"' in home
+    assert '/biblioteca/dre"' not in home and '/biblioteca/vendas"' not in home
     assert admin.get('/admin/usuarios').status_code == 403               # sem poderes de admin
     assert post(admin, '/trocar-senha', current_password=SENHA_NOVA, new_password='Xx12345678901',
                 confirm_password='Xx12345678901').status_code == 403     # escrita bloqueada

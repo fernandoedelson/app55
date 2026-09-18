@@ -2,26 +2,48 @@
 {% block title %}Início · +55 Design{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div class="eyebrow">Sala de resultados</div>
+  <div class="eyebrow">Sala de resultados{% if comp %} · competência {{ comp }}{% endif %}</div>
   <h1>Olá, <b>{{ usuario.nome }}</b></h1>
-  <p>O relatório com os gráficos chega na próxima fase. Por enquanto, esta página mostra o que o seu acesso libera:
-     {{ n_visiveis }} de {{ total }} blocos.</p>
+  {% if not comp %}<p class="muted">Ainda não há mês publicado.</p>{% endif %}
 </div>
 
-{% if recursos %}
-<p class="muted">Recursos liberados: {% for r in recursos %}<span class="tag">{{ r[1] }}</span> {% endfor %}</p>
+{% if comp and grupos %}
+<div class="atalhos">
+  <a class="card atalho atalho-principal" href="{{ url_for('apresentacao.ver') }}">
+    <div class="eyebrow">Reunião do mês</div>
+    <h3>O mês em seis atos</h3>
+    <p class="muted">A leitura na ordem da reunião, com os comentários das áreas e os encaminhamentos.</p>
+  </a>
+  {% if pode_comentar %}
+  <a class="card atalho" href="{{ url_for('comentarios.index') }}">
+    <div class="eyebrow">Comentários</div>
+    <h3>{% if aberta %}{{ aberta }} aberto para comentários{% else %}Comentário da área{% endif %}</h3>
+    <p class="muted">Escrever, enviar e acompanhar o que a sua área tem a dizer sobre o mês.</p>
+  </a>
+  {% endif %}
+  {% if pode_fechamento %}
+  <a class="card atalho" href="{{ url_for('competencias.index') }}">
+    <div class="eyebrow">Fechamento</div>
+    <h3>Subir as bases do mês</h3>
+    <p class="muted">Planilhas, processamento, o que mudou e a publicação bloco a bloco.</p>
+  </a>
+  {% endif %}
+</div>
 {% endif %}
 
-{% if secoes %}
-<div class="lista-secoes">
-  {% for s, blocos in secoes %}
-  <div class="card">
-    <div class="eyebrow">{{ s.grupo }}</div>
-    <h3>{{ s.titulo }}</h3>
-    <ul>{% for b in blocos %}<li>{{ b.titulo }}</li>{% endfor %}</ul>
+<h2 class="mt-lg">O relatório</h2>
+{% if grupos %}
+  {% for grupo, secoes in grupos %}
+  <div class="eyebrow mt">{{ grupo }}</div>
+  <div class="lista-secoes">
+    {% for s, n, tot in secoes %}
+    <a class="card secao-link" href="{{ url_for('biblioteca.secao', secao=s.id) }}">
+      <h3>{{ s.titulo }}</h3>
+      <p class="muted">{% if n < tot %}{{ n }} de {{ tot }} blocos liberados ao seu perfil{% else %}{{ tot }} blocos{% endif %}</p>
+    </a>
+    {% endfor %}
   </div>
   {% endfor %}
-</div>
 {% else %}
 <div class="card"><p>Seu perfil ainda não tem nenhum bloco liberado. Fale com a Controladoria.</p></div>
 {% endif %}
