@@ -13,6 +13,7 @@ from flask import Blueprint, abort, current_app, g, jsonify, render_template, re
 from .. import calculo
 from .. import catalogo as C
 from .. import comentarios as M
+from .. import navegacao
 from .. import destaques as D
 from ..calculo import competencia as comp_mod
 from ..seguranca import usuarios as U
@@ -57,23 +58,12 @@ def secao(secao):
     # o JSON vai dentro de <script type="application/json">: fechar a tag cedo é o único risco
     corpo = json.dumps(payloads, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     recursos = [r[0] for r in C.RECURSOS if U.pode(g.usuario, 'recurso:' + r[0])]
-    # comentários das áreas já aprovados: vão ao pé da página, fora do desenho do Kit
-    da_secao = {b['id'] for b in C.blocos_da_secao(secao)}
-    notas = [dict(c, titulo=C.BLOCO[c['bloco']]['titulo'])
-             for b, cs in M.por_bloco(comp, g.usuario).items() if b in da_secao for c in cs]
-    # onde a área escreve: com o mês aberto aos comentários, cada bloco que a área enxerga nesta
-    # seção ganha o seu "Comentar" (ou mostra em que pé está o comentário já escrito)
-    comentar = []
-    if M.competencia_aberta() == comp and not g.get('ver_como'):
-        for area in M.areas_do_usuario(g.usuario):
-            blocos_area = {b['id'] for b in M.blocos_da_area(area['codigo'])}
-            meus = {c['bloco']: c for c in M.da_area(comp, area['codigo'])}
-            itens = [{'bloco': b, 'comentario': meus.get(b['id'])}
-                     for b in C.blocos_da_secao(secao) if b['id'] in blocos_area and not b.get('so_apresentacao')]
-            if itens:
-                comentar.append({'area': area, 'itens': itens})
+    # o comentário da área mora em cima do dado: cada gráfico ou tabela da seção traz o seu estado
+    # (ou o botão para escrever). Sem mês aberto e sem nada aprovado, a camada não existe.
+    blocos = [b['id'] for b in C.blocos_da_secao(secao) if not b.get('so_apresentacao')]
+    cmt = M.camada(comp, g.usuario, blocos, so_leitura=bool(g.get('ver_como')))
     return render_template('biblioteca.html', secao=C.SECAO[secao], comp=comp, payload=corpo,
-                           recursos=json.dumps(recursos), comentarios=notas, comentar=comentar)
+                           recursos=json.dumps(recursos), cmt=cmt, nav=navegacao.barra(g.usuario, secao))
 
 
 @bp.route('/api/biblioteca/<secao>')

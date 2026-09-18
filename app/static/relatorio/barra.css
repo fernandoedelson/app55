@@ -1,0 +1,23 @@
+/* Barra das páginas de relatório. Escura como o topo da aplicação, para o leitor saber que está
+   no mesmo lugar; o relatório embaixo continua com a sua identidade. */
+.rb{position:sticky;top:0;z-index:40;background:var(--espresso);color:var(--cream);font-family:var(--sans)}
+.rb-in{max-width:1320px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.rb-marca img{display:block;border-radius:4px}
+.rb-caminho{display:flex;align-items:center;gap:8px;font-size:13.5px;min-width:0}
+.rb-caminho a,.rb-link{color:var(--cream);opacity:.78;text-decoration:none}
+.rb-caminho a:hover,.rb-link:hover{opacity:1;text-decoration:underline}
+.rb-caminho span{opacity:.55}
+.rb-caminho b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-trocar select{min-height:36px;padding:0 10px;border-radius:8px;border:1px solid rgba(242,238,228,.25);
+  background:var(--espresso-2);color:var(--cream);font:400 13.5px var(--sans);cursor:pointer}
+.rb-dir{margin-left:auto;display:flex;align-items:center;gap:18px;font-size:13.5px}
+.rb-comp{padding:4px 10px;border:1px solid rgba(242,238,228,.3);border-radius:999px;font-size:12px;letter-spacing:.08em}
+.rb-badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;margin-left:4px;border-radius:999px;
+  background:var(--blue);color:#fff;font-size:11.5px;font-weight:600}
+.rb-link:focus-visible,.rb-caminho a:focus-visible,.rb-trocar select:focus-visible,.rb-passo a:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
+.rb-passo{max-width:1320px;margin:0 auto;padding:0 20px 8px;display:flex;justify-content:space-between;font-size:12.5px}
+.rb-passo a{color:var(--cream);opacity:.7;text-decoration:none}
+.rb-passo a:hover{opacity:1}
+.rb-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:720px){.rb-caminho span,.rb-caminho a{display:none}.rb-dir{gap:12px}.rb-trocar{order:5;width:100%}.rb-trocar select{width:100%}}
+@media print{.rb{display:none}}

@@ -44,9 +44,28 @@ def criar_app(config=None):
 
     @app.context_processor
     def _globais():
+        from .comentarios import contagem
         from .seguranca.usuarios import pode
         return {'csrf_token': web.csrf_token, 'usuario': g.get('usuario'), 'usuario_real': g.get('usuario_real'),
-                'pode': lambda p: pode(g.get('usuario'), p), 'foto_aleatoria': lambda: random.choice(FOTOS)}
+                'pode': lambda p: pode(g.get('usuario'), p), 'foto_aleatoria': lambda: random.choice(FOTOS),
+                # só é calculado se a página pedir (a barra e o menu mostram o número de pendências)
+                'pendencias_n': lambda: contagem(g.get('usuario'))}
+
+    @app.template_filter('data_br')
+    def _data_br(v):
+        """2026-09-30 -> 30/09/2026 (datas vêm do campo de data do navegador); o resto passa como está."""
+        v = (v or '').strip()
+        if len(v) >= 10 and v[4] == '-' and v[7] == '-':
+            return '%s/%s/%s' % (v[8:10], v[5:7], v[:4])
+        return v
+
+    @app.template_filter('data_iso')
+    def _data_iso(v):
+        """30/09/2026 -> 2026-09-30, para preencher um <input type=date> com o valor já gravado."""
+        v = (v or '').strip()
+        if len(v) == 10 and v[2] == '/' and v[5] == '/':
+            return '%s-%s-%s' % (v[6:], v[3:5], v[:2])
+        return v
 
     for codigo in (400, 403, 404, 429):
         app.register_error_handler(codigo, lambda e, c=codigo: (render_template('erro.html', codigo=c, erro=e), c))

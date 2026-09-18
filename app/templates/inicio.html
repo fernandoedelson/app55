@@ -15,10 +15,12 @@
     <p class="muted">A leitura na ordem da reunião, com os comentários das áreas e os encaminhamentos.</p>
   </a>
   {% if pode_comentar %}
+  {% set n_pend = pendencias_n() %}
   <a class="card atalho" href="{{ url_for('comentarios.index') }}">
-    <div class="eyebrow">Comentários</div>
+    <div class="eyebrow">Pendências{% if n_pend %} · {{ n_pend }}{% endif %}</div>
     <h3>{% if aberta %}{{ aberta }} aberto para comentários{% else %}Comentário da área{% endif %}</h3>
-    <p class="muted">Escrever, enviar e acompanhar o que a sua área tem a dizer sobre o mês.</p>
+    <p class="muted">{% if aberta %}Abra qualquer gráfico abaixo e use o botão Comentar ao lado do título.
+      Aqui ficam os pedidos, os devolvidos e o que falta enviar.{% else %}Nenhum mês aberto para comentários agora.{% endif %}</p>
   </a>
   {% endif %}
   {% if pode_fechamento %}

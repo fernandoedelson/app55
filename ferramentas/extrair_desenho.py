@@ -167,6 +167,8 @@ def main():
            "  INSRT.mount(typeof sec==='string'?document.getElementById(sec):sec); };\n\n") % TAG
     os.makedirs(DESTINO, exist_ok=True)
     open(os.path.join(DESTINO, 'kit.js'), 'w', encoding='utf-8').write(cab + corpo + '\n')
+    # no Kit as fotos ficam ao lado do CSS (img/); na aplicação ficam em static/img, um nível acima
+    css = css.replace("url('img/", "url('../img/")
     open(os.path.join(DESTINO, 'style2.css'), 'w', encoding='utf-8').write(css)
     print('kit.js: %d declarações, %d linhas | style2.css copiado' % (len(NOMES), corpo.count('\n') + 1))
     destaques(incluidos)

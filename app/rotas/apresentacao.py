@@ -20,6 +20,7 @@ from .. import destaques as D
 from ..apresentacao import atos as A
 from ..apresentacao import encaminhamentos as E
 from ..calculo import competencia as comp_mod
+from ..db import get_db
 from ..seguranca import usuarios as U
 
 bp = Blueprint('apresentacao', __name__, url_prefix='/apresentacao')
@@ -61,7 +62,12 @@ def ver(codigo=None):
         escolhidos = [c for c in cs if c['na_apresentacao']]
         if escolhidos:
             notas[bloco] = escolhidos
+    blocos = [b for ato in roteiro for b in A.blocos_do_ato(ato) if not b.endswith('.abertura')]
+    cmt = M.camada(comp, g.usuario, blocos, so_leitura=bool(g.get('ver_como')), so_apresentacao=True,
+                     escrever=False)
+    pessoas = [dict(r) for r in get_db().execute('SELECT login, nome FROM usuarios WHERE ativo=1 ORDER BY nome')]         if U.pode(g.usuario, 'recurso:curar_comentarios') else []
     return render_template('apresentacao/reuniao.html', comp=comp, roteiro=roteiro, payload=corpo,
+                           cmt=cmt, pessoas=pessoas, nav=None,
                            recursos=json.dumps(recursos), secoes=A.secoes_necessarias(roteiro),
                            notas=notas, titulo=C.BLOCO, anexos=A.ANEXOS, secao=C.SECAO,
                            encaminhamentos=E.da_competencia(comp), retomada=E.retomada(comp),

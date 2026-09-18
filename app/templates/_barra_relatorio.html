@@ -1,0 +1,38 @@
+{# Barra das páginas de relatório (seção e reunião): a mesma identidade do resto da aplicação,
+   com o caminho, a troca de seção e o contador de pendências. #}
+<header class="rb">
+  <div class="rb-in">
+    <a class="rb-marca" href="{{ url_for('inicio.index') }}" aria-label="+55 Design — início">
+      <img src="{{ url_for('static', filename='logo-chip.png') }}" alt="" width="28" height="28"></a>
+    <nav class="rb-caminho" aria-label="Você está em">
+      <a href="{{ url_for('inicio.index') }}">Início</a>
+      {% if nav and nav.atual %}<span aria-hidden="true">/</span><span>{{ nav.atual.grupo }}</span>
+        <span aria-hidden="true">/</span><b aria-current="page">{{ nav.atual.titulo }}</b>
+      {% elif titulo_pagina %}<span aria-hidden="true">/</span><b aria-current="page">{{ titulo_pagina }}</b>{% endif %}
+    </nav>
+    {% if nav and nav.grupos %}
+    <label class="rb-trocar"><span class="rb-sr">Ir para a seção</span>
+      <select onchange="if(this.value) location.href=this.value">
+        <option value="">Ir para a seção…</option>
+        {% for g in nav.grupos %}<optgroup label="{{ g.grupo }}">
+          {% for s in g.secoes %}<option value="{{ url_for('biblioteca.secao', secao=s.id) }}"
+            {% if nav.atual and s.id == nav.atual.id %}selected{% endif %}>{{ s.titulo }}</option>{% endfor %}
+        </optgroup>{% endfor %}
+      </select></label>
+    {% endif %}
+    <div class="rb-dir">
+      {% if comp %}<span class="rb-comp" title="Mês de referência">{{ comp }}</span>{% endif %}
+      <a class="rb-link" href="{{ url_for('apresentacao.ver') }}">Reunião</a>
+      {% if pode('recurso:comentar') or pode('recurso:curar_comentarios') %}
+      {% set n = pendencias_n() %}
+      <a class="rb-link" href="{{ url_for('comentarios.index') }}">Pendências{% if n %} <span class="rb-badge" aria-label="{{ n }} pendentes">{{ n }}</span>{% endif %}</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if nav and (nav.anterior or nav.proxima) %}
+  <div class="rb-passo">
+    {% if nav.anterior %}<a href="{{ url_for('biblioteca.secao', secao=nav.anterior.id) }}">&larr; {{ nav.anterior.titulo }}</a>{% else %}<span></span>{% endif %}
+    {% if nav.proxima %}<a href="{{ url_for('biblioteca.secao', secao=nav.proxima.id) }}">{{ nav.proxima.titulo }} &rarr;</a>{% endif %}
+  </div>
+  {% endif %}
+</header>

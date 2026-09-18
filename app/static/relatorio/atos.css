@@ -39,3 +39,25 @@ body.modo-apresentar .ato-passo { position: fixed; right: 18px; bottom: 14px; fo
   .reuniao-barra, .ato-encaminhamentos form, .app55-barra { display: none; }
   section.ato { break-inside: avoid; }
 }
+
+/* botões da reunião (a página usa o estilo do relatório, que não tem .btn) */
+.btn{display:inline-flex;align-items:center;min-height:40px;padding:0 16px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface);color:var(--ink);font:500 14px var(--sans);cursor:pointer;text-decoration:none}
+.btn:hover{border-color:var(--blue)}
+.btn-sm{min-height:32px;padding:0 10px;font-size:12.5px}
+#btn-apresentar{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* índice dos atos: a reunião tem seis partes — dá para pular direto para qualquer uma */
+.ato-indice{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 0}
+.ato-indice a{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 14px;border:1px solid var(--border);
+  border-radius:999px;color:var(--ink2);text-decoration:none;font:500 13px var(--sans)}
+.ato-indice a:hover{border-color:var(--blue);color:var(--blue-deep)}
+.ato-indice span{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--page);font-size:11px}
+body.modo-apresentar .ato-indice,body.modo-apresentar .rb{display:none}
+
+/* encaminhamento: rótulo visível em cada campo, responsável e ato escolhidos, não digitados */
+.enc-form{display:grid;grid-template-columns:2fr 1fr 150px 1fr auto;gap:12px;align-items:end;margin-top:18px}
+.enc-campo{display:flex;flex-direction:column;gap:6px;font:500 12.5px var(--sans);color:var(--ink2)}
+.enc-campo input,.enc-campo select{min-height:40px;padding:0 10px;border:1px solid var(--grid);border-radius:8px;background:#fff;font:400 14px var(--sans);color:var(--ink)}
+.enc-form .btn{min-height:40px}
+@media (max-width:900px){.enc-form{grid-template-columns:1fr 1fr}.enc-texto{grid-column:1/-1}}

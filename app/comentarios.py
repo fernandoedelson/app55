@@ -315,3 +315,130 @@ def avisar_areas(codigo):
             n += 1
     current_app.logger.info('avisei %d pessoas sobre %s', n, codigo)
     return n
+
+
+def _nomes_das_areas():
+    return {a['codigo']: a['nome'] for a in areas_que_comentam()}
+
+
+def camada(codigo, ctx, blocos, so_leitura=False, so_apresentacao=False, escrever=True):
+    """O que a página precisa para pôr o comentário em cada gráfico ou tabela que o leitor enxerga.
+
+    O comentário nasce em cima do dado: quem abre a seção vê, ao lado do título de cada bloco, o
+    que a sua área já escreveu (ou o botão para escrever), o que a Controladoria tem para curar e
+    o que já foi aprovado. Devolve None quando não há nada a mostrar — a página fica idêntica ao
+    relatório aprovado."""
+    if not codigo or not ctx:
+        return None
+    visiveis = {b['id'] for b in U.blocos_visiveis(ctx)}
+    blocos = [b for b in blocos if b in visiveis]
+    aberto, motivo = prazo_aberto(codigo)
+    cura = U.pode(ctx, 'recurso:curar_comentarios') and not so_leitura
+    # na reunião ninguém escreve: o gráfico só mostra o que foi aprovado e, a quem cura, o que falta
+    areas = [] if (so_leitura or not escrever) else areas_do_usuario(ctx)
+    for a in areas:
+        a['blocos'] = sorted({b['id'] for b in blocos_da_area(a['codigo'])} & set(blocos))
+    nomes = _nomes_das_areas()
+    por_bloco = {b: {'aprovados': [], 'minhas': {}, 'curar': 0, 'pedidos': []} for b in blocos}
+    for c in da_todas(codigo):
+        alvo = por_bloco.get(c['bloco'])
+        if alvo is None:
+            continue
+        # na reunião, só o que a Controladoria escolheu para a apresentação aparece no gráfico
+        if c['status'] == 'aprovado' and (c['na_apresentacao'] or not so_apresentacao):
+            alvo['aprovados'].append({'area': nomes.get(c['area'], c['area']), 'texto': c['texto']})
+        if any(a['codigo'] == c['area'] for a in areas):
+            alvo['minhas'][c['area']] = {'status': c['status'], 'motivo': c['motivo']}
+        if cura and c['status'] == 'enviado':
+            alvo['curar'] += 1
+    minhas_areas = {a['codigo'] for a in areas}
+    for p in pedidos(codigo):
+        alvo = por_bloco.get(p['bloco'])
+        if alvo is not None and (p['area'] in minhas_areas or cura):
+            alvo['pedidos'].append({'area': p['area'], 'nome': nomes.get(p['area'], p['area']),
+                                    'observacao': p['observacao']})
+    escreve = aberto and bool(areas)
+    tem_algo = any(v['aprovados'] or v['minhas'] or v['curar'] for v in por_bloco.values())
+    if not (escreve or (cura and aberto) or tem_algo):
+        return None
+    return {'comp': codigo, 'aberto': aberto, 'motivo': motivo, 'cura': cura, 'so_ler': not escrever,
+            'pode_enviar': U.pode(ctx, 'recurso:consolidar') and not so_leitura,
+            'areas': [{'codigo': a['codigo'], 'nome': a['nome'], 'blocos': a['blocos']} for a in areas],
+            'todas_areas': [{'codigo': k, 'nome': v} for k, v in nomes.items()] if cura else [],
+            'blocos': por_bloco}
+
+
+def detalhe(codigo, bloco, ctx):
+    """Tudo sobre o comentário de um bloco, para o painel lateral: o texto e o histórico de cada
+    área do leitor e, para quem cura, o que cada área enviou."""
+    nomes = _nomes_das_areas()
+    aberto, motivo = prazo_aberto(codigo)
+    minhas = []
+    for a in areas_do_usuario(ctx):
+        if not any(b['id'] == bloco for b in blocos_da_area(a['codigo'])):
+            continue
+        c = obter(codigo, bloco, a['codigo'])
+        pedido = next((p for p in pedidos(codigo, a['codigo']) if p['bloco'] == bloco), None)
+        minhas.append({'area': a['codigo'], 'nome': a['nome'], 'comentario': c,
+                       'historico': historico(c['id']) if c else [], 'pedido': pedido})
+    curar = []
+    if U.pode(ctx, 'recurso:curar_comentarios'):
+        for c in da_todas(codigo):
+            if c['bloco'] == bloco and c['status'] != 'rascunho':
+                curar.append(dict(c, nome=nomes.get(c['area'], c['area'])))
+    aprovados = [{'area': nomes.get(c['area'], c['area']), 'texto': c['texto']}
+                 for c in aprovados_do_bloco(codigo, bloco)]
+    return {'comp': codigo, 'bloco': bloco, 'titulo': titulo_legivel(bloco),
+            'secao': C.SECAO[C.BLOCO[bloco]['secao']]['titulo'], 'aberto': aberto, 'motivo': motivo,
+            'minhas': minhas, 'curar': curar, 'aprovados': aprovados,
+            'areas_para_pedir': [{'codigo': k, 'nome': v} for k, v in nomes.items()
+                                 if any(b['id'] == bloco for b in blocos_da_area(k))]
+            if U.pode(ctx, 'recurso:curar_comentarios') else []}
+
+
+def aprovados_do_bloco(codigo, bloco):
+    return [dict(r) for r in get_db().execute(
+        "SELECT * FROM comentarios WHERE competencia=? AND bloco=? AND status='aprovado' ORDER BY area",
+        (codigo, bloco))]
+
+
+def pendencias(codigo, ctx):
+    """A caixa de entrada: só o que pede ação de quem abriu — nada de listar o catálogo inteiro."""
+    nomes = _nomes_das_areas()
+    saida = {'pedidos': [], 'devolvidos': [], 'rascunhos': [], 'enviados': [], 'aprovados': [], 'curar': []}
+    for a in areas_do_usuario(ctx):
+        meus = {c['bloco']: c for c in da_area(codigo, a['codigo'])}
+        for p in pedidos(codigo, a['codigo']):
+            if p['bloco'] not in meus or meus[p['bloco']]['status'] in ('rascunho', 'recusado'):
+                saida['pedidos'].append(dict(p, nome=a['nome']))
+        for c in meus.values():
+            chave = {'recusado': 'devolvidos', 'rascunho': 'rascunhos', 'enviado': 'enviados',
+                     'aprovado': 'aprovados'}[c['status']]
+            saida[chave].append(dict(c, nome=a['nome']))
+    if U.pode(ctx, 'recurso:curar_comentarios'):
+        saida['curar'] = [dict(c, nome=nomes.get(c['area'], c['area'])) for c in enviados(codigo)
+                          if c['status'] == 'enviado']
+    for lista in saida.values():
+        for item in lista:
+            b = C.BLOCO.get(item['bloco'])
+            item['titulo'] = titulo_legivel(item['bloco']) if b else item['bloco']
+            item['secao'] = b['secao'] if b else ''
+            item['secao_titulo'] = C.SECAO[b['secao']]['titulo'] if b else ''
+    return saida
+
+
+def contagem(ctx):
+    """Quantas coisas pedem ação de quem está logado — o número ao lado de "Pendências"."""
+    codigo = competencia_aberta()
+    if not codigo or not ctx:
+        return 0
+    p = pendencias(codigo, ctx)
+    return len(p['pedidos']) + len(p['devolvidos']) + len(p['rascunhos']) + len(p['curar'])
+
+
+def titulo_legivel(bloco):
+    """O nome que a área reconhece. As aberturas têm no catálogo um nome técnico ("Abertura — título,
+    indicadores e resumo"); para quem comenta, são os indicadores do topo da seção."""
+    if bloco.endswith('.abertura'):
+        return 'Indicadores do topo · ' + C.SECAO[C.BLOCO[bloco]['secao']]['titulo']
+    return C.BLOCO[bloco]['titulo']

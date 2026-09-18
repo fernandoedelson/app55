@@ -7,12 +7,13 @@
 <link rel="icon" href="{{ url_for('static', filename='logo-chip.png') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/style2.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/atos.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='relatorio/barra.css') }}">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% if cmt %}<link rel="stylesheet" href="{{ url_for('static', filename='comentarios.css') }}">{% endif %}
 </head>
 <body>
-<div class="app55-barra" style="display:flex;gap:16px;align-items:center;padding:10px 20px;font-size:.85rem">
-  <a href="{{ url_for('inicio.index') }}">&larr; Início</a>
-  <span>Reunião · competência {{ comp }}</span>
-</div>
+{% set titulo_pagina = 'Reunião' %}
+{% include '_barra_relatorio.html' %}
 
 <div class="reuniao-topo">
   <h1>A reunião de <b>{{ comp }}</b></h1>
@@ -21,8 +22,11 @@
   <div class="reuniao-barra">
     {% if pode_apresentar %}<button class="btn" type="button" id="btn-apresentar">Apresentar</button>{% endif %}
     {% if pode_exportar %}<button class="btn" type="button" onclick="window.print()">Baixar (imprimir em PDF)</button>{% endif %}
-    <a href="{{ url_for('inicio.index') }}">Ver o relatório completo</a>
   </div>
+  <nav class="ato-indice" aria-label="Atos">
+    {% for ato in roteiro %}<a href="#ato{{ ato.n }}"><span>{{ ato.n }}</span>{{ ato.t }}</a>{% endfor %}
+    <a href="#encaminhamentos"><span>·</span>Encaminhamentos</a>
+  </nav>
 </div>
 
 {# tudo vive dentro de #main: as ferramentas do Kit (ordenar, CSV, zoom) só enxergam o que está
@@ -54,11 +58,6 @@
            {% if it.semFiltro %}data-sem-filtro="1"{% endif %}
            {% if it.filtro %}data-filtro="1"{% endif %}
            {% if it.filtroSel %}data-filtro-sel="{{ it.filtroSel }}"{% endif %}></div>
-      {% if it.blk and notas.get(it.blk) %}
-        <div class="ato-notas">
-          {% for c in notas[it.blk] %}<div><b>{{ c.area }}:</b> {{ c.texto }}</div>{% endfor %}
-        </div>
-      {% endif %}
     {% endif %}
   {% endfor %}
 </section>
@@ -66,7 +65,7 @@
 
 </main>
 
-<section class="ato-encaminhamentos">
+<section class="ato-encaminhamentos" id="encaminhamentos">
   <h2>Encaminhamentos</h2>
   {% if retomada %}
     <h3>Retomada — o que ficou dos meses anteriores</h3>
@@ -88,7 +87,7 @@
     <tbody>
     {% for e in encaminhamentos %}
       <tr><td>{{ e.ato or '—' }}</td><td>{{ e.texto }}{% if e.resposta %}<br><span class="st">resposta: {{ e.resposta }}</span>{% endif %}</td>
-          <td>{{ e.responsavel }}</td><td>{{ e.prazo }}</td><td class="st">{{ e.status }}</td>
+          <td>{{ e.responsavel }}</td><td>{{ e.prazo|data_br }}</td><td class="st">{{ e.status }}</td>
           <td>{% include 'apresentacao/_acoes_encaminhamento.html' %}</td></tr>
     {% else %}
       <tr><td colspan="6" class="st">Nada combinado ainda.</td></tr>
@@ -97,12 +96,19 @@
   </table>
 
   {% if cura %}
-  <form method="post" action="{{ url_for('apresentacao.criar_encaminhamento', codigo=comp) }}" class="reuniao-barra">
+  <form method="post" action="{{ url_for('apresentacao.criar_encaminhamento', codigo=comp) }}" class="enc-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input name="texto" placeholder="o que ficou combinado" size="46" required>
-    <input name="responsavel" placeholder="login do responsável" required>
-    <input name="prazo" placeholder="prazo (ex.: 30/09/2026)">
-    <input name="ato" placeholder="ato" size="3">
+    <label class="enc-campo enc-texto">O que ficou combinado
+      <input name="texto" required maxlength="2000"></label>
+    <label class="enc-campo">Responsável
+      <select name="responsavel" required>
+        <option value="">Escolha…</option>
+        {% for u in pessoas %}<option value="{{ u.login }}">{{ u.nome or u.login }}</option>{% endfor %}
+      </select></label>
+    <label class="enc-campo">Prazo <input name="prazo" type="date"></label>
+    <label class="enc-campo">Ato
+      <select name="ato"><option value="0">—</option>
+        {% for ato in roteiro %}<option value="{{ ato.n }}">{{ ato.n }} · {{ ato.t }}</option>{% endfor %}</select></label>
     <button class="btn" type="submit">Registrar</button>
   </form>
   {% endif %}
@@ -157,5 +163,9 @@ document.addEventListener('DOMContentLoaded',function(){
   if(b) b.addEventListener('click',()=>ATOS.apresentar(!document.body.classList.contains('modo-apresentar')));
 });
 </script>
+{% if cmt %}
+<script type="application/json" id="cmt-config" data-api="{{ url_for('comentarios.api_detalhe', codigo=cmt.comp, bloco='X')[:-2] }}">{{ cmt|tojson }}</script>
+<script src="{{ url_for('static', filename='comentarios.js') }}"></script>
+{% endif %}
 </body>
 </html>

@@ -65,17 +65,24 @@ teste e servidos à página por um fetch substituto, porque a página é aberta 
 
 ## Comentário da área
 
-Disponibilizar a competência avisa as áreas por e-mail (se houver SMTP) e abre a janela até o prazo
-que a Controladoria definiu. Quem tem `recurso:comentar` escreve pela **área que é um perfil seu** e
-só nos blocos que esse perfil enxerga; quem tem `recurso:consolidar` envia à Controladoria; quem tem
-`recurso:curar_comentarios` aprova (podendo ajustar o texto — o autor é avisado e o texto original
-fica guardado), recusa com motivo, devolve para reescrever e marca o que vai à apresentação.
+O comentário mora em cima do dado. Com o mês aberto às áreas (Fechamento → etapa 4, com prazo), cada
+gráfico ou tabela que a área enxerga traz, ao lado do título, o botão **Comentar** — ou o estado do
+comentário: Rascunho, Enviado, Devolvido, Aprovado. O clique abre um painel lateral com o gráfico ainda
+à vista: a área escreve, o responsável envia, e a Controladoria cura no mesmo painel (aprovar, ajustar
+avisando o autor, devolver, recusar com motivo, pedir comentário a outra área, marcar para a
+apresentação). O comentário aprovado aparece logo abaixo do título do gráfico para todo mundo que
+enxerga aquele bloco; na Reunião, só os marcados para a apresentação.
 
-O responsável da área é um usuário como os outros: some um perfil "Responsável de área" contendo só
-`recurso:consolidar` aos perfis dele. Assim a área continua sendo o perfil que enxerga os blocos.
+**Pendências** (menu do topo, com contador) é só a caixa de entrada: pedidos da Controladoria,
+devolvidos, rascunhos e — para quem cura — o que falta curar. Cada item leva direto ao gráfico com o
+painel aberto (`/biblioteca/<seção>?comentar=<bloco>`).
 
-Até ser aprovado, o comentário só existe para a própria área. Aprovado, aparece ao pé da página da
-seção para todo mundo que enxerga aquele bloco.
+Permissões: `recurso:comentar` (a área é o perfil), `recurso:consolidar` (responsável que envia — um
+perfil extra só com isso), `recurso:curar_comentarios` (Controladoria).
+
+Revisão de telas sem digitar senha: `python ferramentas/servidor_revisao.py` (porta 5058, banco
+temporário, usuários de teste por perfil, `/revisao/entrar/<login>`). O atalho de entrada existe só
+nesse processo de revisão.
 
 ## A reunião
 

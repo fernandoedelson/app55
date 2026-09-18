@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Pendências · +55 Design{% endblock %}
+{% macro item(c, acao) -%}
+<a class="pend" href="{{ no_grafico(codigo, c.bloco) }}">
+  <span class="pend-onde">{{ c.secao_titulo }} · {{ c.nome }}</span>
+  <span class="pend-ir">{{ acao }} no gráfico &rarr;</span>
+  <span class="pend-titulo">{{ c.titulo }}</span>
+  {% if c.motivo %}<span class="pend-texto"><b>Motivo:</b> {{ c.motivo }}</span>
+  {% elif c.observacao %}<span class="pend-texto">“{{ c.observacao }}”</span>
+  {% elif c.texto %}<span class="pend-texto">{{ c.texto[:180] }}{% if c.texto|length > 180 %}…{% endif %}</span>{% endif %}
+</a>
+{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Comentário da área{% if codigo %} · {{ codigo }}{% endif %}</div>
+  <h1>Suas <b>pendências</b></h1>
+  <p class="muted">Aqui só aparece o que pede ação sua. Para comentar um número, abra o gráfico ou a
+    tabela no relatório: o botão <b>Comentar</b> fica ao lado do título de cada um.</p>
+</div>
+
+{% if not codigo %}
+  <div class="estado-vazio"><b>Nenhum mês aberto para comentários.</b>
+    {% if pode('recurso:fechamento') %}Para abrir: <a href="{{ url_for('competencias.index') }}">Fechamento</a> → abra o mês →
+      em Situação escolha <b>disponibilizada</b> e defina o prazo.
+    {% else %}A Controladoria avisa quando o fechamento estiver disponível.{% endif %}</div>
+{% else %}
+  {% if not aberto %}<div class="aviso">{{ motivo|capitalize }} Dá para ler, não para escrever.</div>
+  {% elif prazo %}<p class="muted">Prazo para comentar: <b>{{ prazo|data_br }}</b>.</p>{% endif %}
+
+  {% set total = p.pedidos|length + p.devolvidos|length + p.rascunhos|length + p.curar|length %}
+  {% if p.curar %}
+  <section class="pend-grupo"><h2>Para curar <span class="n">{{ p.curar|length }}</span></h2>
+    <div class="pend-lista">{% for c in p.curar %}{{ item(c, 'Curar') }}{% endfor %}</div></section>
+  {% endif %}
+  {% if p.devolvidos %}
+  <section class="pend-grupo"><h2>Devolvidos pela Controladoria <span class="n">{{ p.devolvidos|length }}</span></h2>
+    <div class="pend-lista">{% for c in p.devolvidos %}{{ item(c, 'Reescrever') }}{% endfor %}</div></section>
+  {% endif %}
+  {% if p.pedidos %}
+  <section class="pend-grupo"><h2>A Controladoria pediu comentário <span class="n">{{ p.pedidos|length }}</span></h2>
+    <div class="pend-lista">{% for c in p.pedidos %}{{ item(c, 'Comentar') }}{% endfor %}</div></section>
+  {% endif %}
+  {% if p.rascunhos %}
+  <section class="pend-grupo"><h2>Rascunhos para enviar <span class="n">{{ p.rascunhos|length }}</span></h2>
+    <div class="pend-lista">{% for c in p.rascunhos %}{{ item(c, 'Revisar') }}{% endfor %}</div></section>
+  {% endif %}
+
+  {% if not total %}
+  <div class="estado-vazio mt-lg"><b>Nada pendente.</b>
+    {% if tem_area %}Quando quiser explicar um número, abra a seção no <a href="{{ url_for('inicio.index') }}">relatório</a>
+      e use o botão Comentar do gráfico.
+    {% elif cura %}As áreas ainda não enviaram nada para curar.{% endif %}</div>
+  {% endif %}
+
+  {% if p.enviados or p.aprovados %}
+  <section class="pend-grupo"><h2>Já enviados <span class="n">{{ p.enviados|length + p.aprovados|length }}</span></h2>
+    <div class="pend-lista">
+      {% for c in p.enviados %}{{ item(c, 'Ver') }}{% endfor %}
+      {% for c in p.aprovados %}{{ item(c, 'Ver') }}{% endfor %}
+    </div></section>
+  {% endif %}
+
+  {% if painel %}
+  <section class="pend-grupo"><h2>Quem já enviou</h2>
+    <table class="tbl">
+      <thead><tr><th>Área</th><th class="right">Rascunhos</th><th class="right">Enviados</th><th class="right">Aprovados</th>
+        <th class="right">Devolvidos</th><th>Pedidos sem resposta</th></tr></thead>
+      <tbody>
+      {% for l in painel %}
+        <tr><td>{{ l.nome }}</td><td class="right">{{ l.rascunho }}</td><td class="right">{{ l.enviado }}</td>
+          <td class="right">{{ l.aprovado }}</td><td class="right">{{ l.recusado }}</td>
+          <td>{% for b in l.pendentes %}<a href="{{ no_grafico(codigo, b) }}">{{ titulo[b].titulo }}</a>{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted mt">Para pedir comentário a uma área, abra o gráfico e use <b>Pedir comentário a uma área</b> no painel.</p>
+  </section>
+  {% endif %}
+
+  {% if cura and not tem_area %}
+  <p class="muted mt-lg">Você cura, mas não escreve por nenhuma área. Quem escreve são os usuários dos perfis
+    com "Comentar pela área" (hoje Gestão Comercial, Fábrica e Loja).</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

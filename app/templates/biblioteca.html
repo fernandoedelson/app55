@@ -5,41 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ secao.titulo }} · +55 Design</title>
 <link rel="icon" href="{{ url_for('static', filename='logo-chip.png') }}">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/style2.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='relatorio/barra.css') }}">
+{% if cmt %}<link rel="stylesheet" href="{{ url_for('static', filename='comentarios.css') }}">{% endif %}
 </head>
 <body>
-<div class="app55-barra" style="display:flex;gap:16px;align-items:center;padding:10px 20px;font-size:.85rem">
-  <a href="{{ url_for('inicio.index') }}">&larr; Início</a>
-  <span>{{ secao.titulo }} · competência {{ comp }}</span>
-</div>
+{% include '_barra_relatorio.html' %}
 <main id="main">
   <section id="{{ secao.id }}"></section>
 </main>
-{% if comentar %}
-<section class="app55-comentar" style="max-width:1100px;margin:24px auto;padding:16px 20px;font-size:.9rem;border-top:1px solid rgba(128,128,128,.3)">
-  <h2 style="font-size:1rem">Comentário da área · {{ comp }} está aberto para comentários</h2>
-  {% for grupo in comentar %}
-    <p style="opacity:.75;margin:10px 0 6px">{{ grupo.area.nome }}</p>
-    <ul style="list-style:none;padding:0;margin:0">
-    {% for it in grupo.itens %}
-      <li style="display:flex;gap:12px;align-items:baseline;padding:4px 0">
-        <a href="{{ url_for('comentarios.bloco', codigo=comp, area=grupo.area.codigo, bloco=it.bloco.id) }}"
-           style="min-width:130px">{{ 'Abrir comentário' if it.comentario else 'Comentar' }}</a>
-        <span>{{ it.bloco.titulo }}</span>
-        {% if it.comentario %}<span style="opacity:.6">· {{ it.comentario.status }}</span>{% endif %}
-      </li>
-    {% endfor %}
-    </ul>
-  {% endfor %}
-</section>
-{% endif %}
-{% if comentarios %}
-<section class="app55-comentarios" style="max-width:1100px;margin:24px auto;padding:0 20px;font-size:.9rem">
-  <h2 style="font-size:1rem">Comentários das áreas</h2>
-  {% for c in comentarios %}
-    <p><b>{{ c.titulo }}</b> · <span style="opacity:.7">{{ c.area }}</span><br>{{ c.texto }}</p>
-  {% endfor %}
-</section>
+{% if cmt %}
+{# a camada de comentário: o servidor diz, bloco a bloco, o que o leitor pode ver e fazer #}
+<script type="application/json" id="cmt-config" data-api="{{ url_for('comentarios.api_detalhe', codigo=cmt.comp, bloco='X')[:-2] }}">{{ cmt|tojson }}</script>
 {% endif %}
 <script type="application/json" id="payload">{{ payload|safe }}</script>
 <script src="{{ url_for('static', filename='relatorio/kit.js') }}"></script>
@@ -76,5 +54,6 @@ document.addEventListener('DOMContentLoaded',function(){
   if(window.DESENHO_POS&&DESENHO_POS[SID]) DESENHO_POS[SID](sec,ctx);
 });
 </script>
+{% if cmt %}<script src="{{ url_for('static', filename='comentarios.js') }}"></script>{% endif %}
 </body>
 </html>

@@ -26,7 +26,7 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);fo
  border-right:1px solid rgba(255,255,255,.05);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent}
 #side::-webkit-scrollbar{width:5px}#side::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
 .brand{padding:0 26px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px}
-.brand::before{content:'';display:block;width:128px;height:55px;background:url('img/logo.png') left center/contain no-repeat;margin-bottom:12px}
+.brand::before{content:'';display:block;width:128px;height:55px;background:url('../img/logo.png') left center/contain no-repeat;margin-bottom:12px}
 .brand b{display:none}
 .brand span{display:block;font-size:10.5px;color:#8d8175;letter-spacing:.22em;text-transform:uppercase;font-weight:500}
 #nav{display:flex;flex-direction:column;padding:8px 0}
@@ -112,7 +112,7 @@ section.admin-hidden{display:none}
 
 /* ---------- hero ---------- */
 #pagehero{position:relative;min-height:340px;display:flex;align-items:flex-end;overflow:hidden;background:var(--espresso)}
-#pagehero .ph-img{position:absolute;inset:0;background:url('img/p4.jpg') center 35%/cover no-repeat;opacity:.85;
+#pagehero .ph-img{position:absolute;inset:0;background:url('../img/p4.jpg') center 35%/cover no-repeat;opacity:.85;
  animation:heroZoom 24s var(--ease) forwards}
 @keyframes heroZoom{from{transform:scale(1.12)}to{transform:scale(1)}}
 #pagehero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(33,26,20,.25) 0%,rgba(33,26,20,.35) 45%,rgba(33,26,20,.88) 100%)}
@@ -134,18 +134,18 @@ section::before{content:'';position:absolute;top:0;left:50%;transform:translateX
  -webkit-mask-image:linear-gradient(to left,rgba(0,0,0,.95) 12%,rgba(0,0,0,.45) 45%,transparent 80%);
  mask-image:linear-gradient(to left,rgba(0,0,0,.95) 12%,rgba(0,0,0,.45) 45%,transparent 80%)}
 section:not(.rv)::before,section.rv.vis::before{opacity:.15}
-#resumo::before{background-image:url('img/p1.jpg')}
-#evolutiva::before{background-image:url('img/p2.jpg')}
-#ytd::before{background-image:url('img/p3.jpg')}
-#mensal::before{background-image:url('img/p5.jpg')}
-#periodo::before{background-image:url('img/p6.jpg')}
-#carteira::before{background-image:url('img/p4.jpg')}
-#qualidade::before{background-image:url('img/p2.jpg')}
-#dre::before{background-image:url('img/p3.jpg')}
-#custofixo::before{background-image:url('img/p5.jpg')}
-#divida::before{background-image:url('img/p6.jpg')}
-#custosx::before{background-image:url('img/p8.jpg')}
-#custos::before{background-image:url('img/p1.jpg')}
+#resumo::before{background-image:url('../img/p1.jpg')}
+#evolutiva::before{background-image:url('../img/p2.jpg')}
+#ytd::before{background-image:url('../img/p3.jpg')}
+#mensal::before{background-image:url('../img/p5.jpg')}
+#periodo::before{background-image:url('../img/p6.jpg')}
+#carteira::before{background-image:url('../img/p4.jpg')}
+#qualidade::before{background-image:url('../img/p2.jpg')}
+#dre::before{background-image:url('../img/p3.jpg')}
+#custofixo::before{background-image:url('../img/p5.jpg')}
+#divida::before{background-image:url('../img/p6.jpg')}
+#custosx::before{background-image:url('../img/p8.jpg')}
+#custos::before{background-image:url('../img/p1.jpg')}
 section>*{position:relative}
 
 /* ---------- abertura de capítulo (faixa editorial + numeral) ----------

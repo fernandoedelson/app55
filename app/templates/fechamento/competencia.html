@@ -3,13 +3,34 @@
 {% block content %}
 <div class="page-head">
   <div class="eyebrow"><a href="{{ url_for('competencias.index') }}">Fechamento</a></div>
-  <h1>Competência <b>{{ comp.codigo }}</b> <span class="muted">· {{ comp.status }}</span></h1>
+  <h1>Competência <b>{{ comp.codigo }}</b></h1>
 </div>
+
+{# as etapas do mês, na ordem em que acontecem — cada uma diz em que pé está #}
+{% set importada = comp.criada_por == 'importação inicial' %}
+{% set n_bases = bases|length %}
+{% set n_env = arquivos|map(attribute='base')|unique|list|length %}
+<ol class="etapas">
+  <li class="{{ 'feita' if importada or not faltando else 'atual' }}">
+    <a href="#bases"><span class="etapa-n">1</span><b>Bases</b>
+      <small>{% if importada %}importação inicial{% else %}{{ n_env }} de {{ n_bases }} enviadas{% endif %}</small></a></li>
+  <li class="{{ 'feita' if comp.processada_em else ('atual' if not faltando else '') }}">
+    <a href="#processar"><span class="etapa-n">2</span><b>Processar</b>
+      <small>{{ comp.processada_em|data_br if comp.processada_em else 'ainda não' }}</small></a></li>
+  <li class="{{ 'feita' if blocos_publicados or importada else ('atual' if comp.processada_em else '') }}">
+    <a href="#publicar"><span class="etapa-n">3</span><b>Publicar</b>
+      <small>{% if importada %}publicado{% else %}{{ blocos_publicados|length }} blocos{% endif %}</small></a></li>
+  <li class="{{ 'feita' if comp.status in ('disponibilizada','fechada') else ('atual' if blocos_publicados or importada else '') }}">
+    <a href="#situacao"><span class="etapa-n">4</span><b>Abrir às áreas</b>
+      <small>{% if comp.status == 'disponibilizada' %}até {{ comp.prazo_comentarios|data_br or 'sem prazo' }}{% elif comp.status == 'fechada' %}encerrado{% else %}fechado às áreas{% endif %}</small></a></li>
+  <li class="{{ 'feita' if comp.status == 'fechada' else ('atual' if comp.status == 'disponibilizada' else '') }}">
+    <a href="#situacao"><span class="etapa-n">5</span><b>Fechar</b>
+      <small>{{ 'fechado' if comp.status == 'fechada' else 'em aberto' }}</small></a></li>
+</ol>
 
 {% if comp.criada_por == 'importação inicial' %}
   <div class="aviso">Este mês veio da importação inicial (o relatório aprovado): os dados já estão
-    publicados e não há planilhas aqui. Use a <b>Situação</b>, no fim da página, para disponibilizá-lo
-    às áreas e abrir os comentários.</div>
+    publicados e não há planilhas aqui. Use a etapa <a href="#situacao"><b>Abrir às áreas</b></a> para liberar os comentários.</div>
 {% elif faltando %}
   <div class="aviso">Faltam bases obrigatórias:
     {% for b in faltando %}<b>{{ bases[b].titulo }}</b>{% if not loop.last %}, {% endif %}{% endfor %}.</div>
@@ -34,7 +55,7 @@
 {% endif %}
 
 {% if comp.criada_por != 'importação inicial' %}
-<h2>Bases do mês</h2>
+<h2 id="bases">Bases do mês</h2>
 <table class="tbl">
   <thead><tr><th>Base</th><th>Arquivo</th><th>Posição</th><th>Enviado</th><th></th></tr></thead>
   <tbody>
@@ -51,8 +72,8 @@
               enctype="multipart/form-data" class="actions">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="base" value="{{ bid }}">
-          <input type="file" name="arquivo" accept=".xlsx,.xlsm" required>
-          <input name="data_posicao" placeholder="posição (ex.: 31/07/2026)" required>
+          <label class="campo">Planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" required></label>
+          <label class="campo">Posição dos números <input name="data_posicao" type="date" required></label>
           <button class="btn btn-sm" type="submit">Enviar</button>
         </form>
         {% else %}<span class="muted">sem permissão</span>{% endif %}
@@ -62,7 +83,7 @@
   </tbody>
 </table>
 
-<h2 class="mt-lg">Processar</h2>
+<h2 class="mt-lg" id="processar">Processar</h2>
 <p class="muted">Lê as planilhas e gera os dados desta competência — é a mesma leitura que gerou o relatório aprovado.</p>
 <form method="post" action="{{ url_for('competencias.processar', codigo=comp.codigo) }}" class="actions">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -73,7 +94,7 @@
 {% endif %}
 
 {% if comp.processada_em and comp.criada_por != 'importação inicial' %}
-<h2 class="mt-lg">Publicar</h2>
+<h2 class="mt-lg" id="publicar">Publicar</h2>
 <p class="muted">Publicação é por bloco: o que você marcar passa a ler esta competência. Um bloco nunca mistura meses.</p>
 <form method="post" action="{{ url_for('competencias.publicar', codigo=comp.codigo) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -97,16 +118,35 @@
 </form>
 {% endif %}
 
-<h2 class="mt-lg">Situação</h2>
-<form method="post" action="{{ url_for('competencias.situacao', codigo=comp.codigo) }}" class="actions">
+<h2 class="mt-lg" id="situacao">Abrir às áreas e fechar</h2>
+<form method="post" action="{{ url_for('competencias.situacao', codigo=comp.codigo) }}" class="situacao">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <select name="status">
-    <option value="rascunho" {% if comp.status=='rascunho' %}selected{% endif %}>rascunho (só a Controladoria vê)</option>
-    <option value="disponibilizada" {% if comp.status=='disponibilizada' %}selected{% endif %}>disponibilizada (áreas comentam)</option>
-    <option value="fechada" {% if comp.status=='fechada' %}selected{% endif %}>fechada</option>
-  </select>
-  <label>Prazo dos comentários <input name="prazo_comentarios" value="{{ comp.prazo_comentarios or '' }}" placeholder="ex.: 12/08/2026"></label>
-  <button class="btn btn-sm" type="submit">Salvar</button>
+  {% if comp.status == 'rascunho' %}
+    <p class="muted">Hoje só a Controladoria vê este mês. Ao abrir, as áreas recebem o aviso e passam a
+      ver o botão <b>Comentar</b> em cada gráfico até o prazo.</p>
+    <div class="actions">
+      <label class="campo">Prazo dos comentários <input name="prazo_comentarios" type="date" required
+        value="{{ comp.prazo_comentarios|data_iso }}"></label>
+      <button class="btn btn-primary" type="submit" name="status" value="disponibilizada">Abrir às áreas</button>
+    </div>
+  {% elif comp.status == 'disponibilizada' %}
+    <p class="muted">Aberto às áreas{% if comp.prazo_comentarios %} até <b>{{ comp.prazo_comentarios|data_br }}</b>{% endif %}.
+      <a href="{{ url_for('comentarios.index', comp=comp.codigo) }}">Ver quem já comentou</a>.</p>
+    <div class="actions">
+      <label class="campo">Mudar o prazo <input name="prazo_comentarios" type="date" value="{{ comp.prazo_comentarios|data_iso }}"></label>
+      <button class="btn btn-sm" type="submit" name="status" value="disponibilizada">Salvar o prazo</button>
+      <button class="btn btn-primary" type="submit" name="status" value="fechada"
+              onclick="return confirm('Fechar {{ comp.codigo }}? As áreas deixam de poder comentar.')">Fechar o mês</button>
+    </div>
+  {% else %}
+    <p class="muted">Mês fechado{% if comp.fechada_em %} em {{ comp.fechada_em|data_br }}{% endif %}. Os comentários
+      aprovados continuam no relatório.</p>
+    <div class="actions">
+      <label class="campo">Prazo, se reabrir <input name="prazo_comentarios" type="date"></label>
+      <button class="btn btn-sm" type="submit" name="status" value="disponibilizada">Reabrir às áreas</button>
+      {% if not importada %}<button class="btn btn-sm" type="submit" name="status" value="rascunho">Voltar a rascunho</button>{% endif %}
+    </div>
+  {% endif %}
 </form>
 
 {% if comp.status == 'rascunho' and comp.criada_por != 'importação inicial' %}

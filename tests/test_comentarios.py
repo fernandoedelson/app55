@@ -199,12 +199,65 @@ def test_mes_da_importacao_inicial_pode_ser_aberto_e_disponibilizado(app, admin)
     from app import comentarios as M
     with app.app_context():
         assert M.competencia_aberta() == cod
-    # a área encontra o "Comentar" ao pé da seção do relatório, só nos blocos que enxerga
+    # a área comenta em cima do gráfico: a página da seção traz a camada com os blocos dela
+    import json
+    import re
     loja = usuario(app, admin, 'lojaabre', ['loja'])
     html = loja.get('/biblioteca/mensal').get_data(as_text=True)
-    assert 'aberto para comentários' in html and '/comentarios/%s/loja/mn-evol' % cod in html
-    assert 'Comentar' not in admin.get('/biblioteca/mensal').get_data(as_text=True).split('</main>')[1]
+    m = re.search(r'<script type="application/json" id="cmt-config"[^>]*>(.*?)</script>', html, re.S)
+    assert m, 'a página da seção não trouxe a camada de comentário'
+    cfg = json.loads(m.group(1))
+    assert cfg['aberto'] and [a['codigo'] for a in cfg['areas']] == ['loja']
+    assert 'mn-evol' in cfg['areas'][0]['blocos']
+    # quem só lê e não tem nada aprovado não carrega camada nenhuma (a página é o relatório aprovado)
+    leitor = usuario(app, admin, 'diretor', ['gestao55'])
+    assert 'cmt-config' not in leitor.get('/biblioteca/mensal').get_data(as_text=True)
+    # o endereço antigo do comentário leva ao gráfico, com o painel aberto
+    r = loja.get('/comentarios/%s/loja/mn-evol' % cod)
+    assert r.status_code == 302 and '/biblioteca/mensal' in r.location and 'comentar=mn-evol' in r.location
     # descartar nunca apaga os dados do mês importado
     post(admin, '/fechamento/%s/situacao' % cod, status='rascunho')
     r = admin.post('/fechamento/%s/descartar' % cod, data={'csrf_token': csrf(admin)}, follow_redirects=True)
     assert 'não pode ser descartada' in r.get_data(as_text=True)
+
+
+def _api(c, cod, bloco, **corpo):
+    return c.post('/comentarios/api/%s/%s' % (cod, bloco), json=corpo, headers={'X-CSRF-Token': csrf(c)})
+
+
+def test_painel_do_grafico_escreve_envia_e_cura(app, admin):
+    """O ciclo inteiro pelo painel lateral, sem sair do gráfico."""
+    cod = competencia_disponivel(app)
+    admin.post('/admin/perfis/novo', data={'nome': 'Resp Loja', 'csrf_token': csrf(admin)})
+    from app.db import get_db
+    with app.app_context():
+        p = get_db().execute("SELECT id, codigo FROM perfis WHERE nome='Resp Loja'").fetchone()
+        get_db().execute("INSERT INTO perfil_permissoes (perfil_id, recurso) VALUES (?, 'recurso:consolidar')", (p['id'],))
+        get_db().commit()
+    vend = usuario(app, admin, 'vendedora', ['loja'])
+    chefe = usuario(app, admin, 'gerenteloja', ['loja', p['codigo']])
+
+    # sem o token de CSRF não grava
+    assert vend.post('/comentarios/api/%s/mn-evol' % cod, json={'acao': 'escrever', 'area': 'loja', 'texto': 'x'}).status_code == 400
+    r = _api(vend, cod, 'mn-evol', acao='escrever', area='loja', texto='A feira puxou setembro.')
+    assert r.status_code == 200 and r.get_json()['minhas'][0]['comentario']['status'] == 'rascunho'
+    assert _api(vend, cod, 'mn-evol', acao='enviar', area='loja').status_code == 403       # só o responsável
+    assert _api(vend, cod, 'mn-evol', acao='escrever', area='fabrica', texto='x').status_code == 403  # área alheia
+    r = _api(chefe, cod, 'mn-evol', acao='enviar', area='loja', texto='A feira de design puxou setembro.')
+    assert r.status_code == 200 and r.get_json()['minhas'][0]['comentario']['status'] == 'enviado'
+    # a Controladoria vê o que curar no mesmo painel, e aprova com ajuste
+    d = admin.get('/comentarios/api/%s/mn-evol' % cod).get_json()
+    assert [c['area'] for c in d['curar']] == ['loja']
+    r = _api(admin, cod, 'mn-evol', acao='recusar', area='loja', motivo='')
+    assert r.status_code == 400 and 'recusando' in r.get_json()['erro']
+    r = _api(admin, cod, 'mn-evol', acao='aprovar', area='loja', texto='A feira de design puxou setembro de 2025.',
+             na_apresentacao=True)
+    assert r.status_code == 200 and r.get_json()['aprovados'][0]['texto'].endswith('2025.')
+    # quem só lê vê o aprovado no gráfico, e não vê o painel de outro bloco que não enxerga
+    leitor = usuario(app, admin, 'leitora', ['gestao55'])
+    assert leitor.get('/comentarios/api/%s/mn-evol' % cod).get_json()['aprovados'][0]['area'] == 'Loja'
+    fab = usuario(app, admin, 'fabrica9', ['fabrica'])
+    assert fab.get('/comentarios/api/%s/mn-evol' % cod).status_code == 404
+    # e a pendência some da caixa de quem escreveu, e o aprovado passa a "já enviados"
+    html = vend.get('/comentarios/').get_data(as_text=True)
+    assert 'Já enviados' in html and 'Rascunhos para enviar' not in html
