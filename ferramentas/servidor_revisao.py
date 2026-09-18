@@ -31,7 +31,9 @@ app = criar_app({'DATA_DIR': tmp, 'DB_PATH': os.path.join(tmp, 'r.db'), 'SECRET_
 USUARIOS = [('ana.loja', 'Ana (vendedora da Loja)', ['loja']),
             ('gerente.loja', 'Gerente da Loja (responsável)', ['loja', 'responsavel_de_area']),
             ('controladoria', 'Controladoria', ['controladoria']),
-            ('diretor', 'Diretoria (só lê)', ['gestao55'])]
+            ('diretor', 'Diretoria (só lê)', ['gestao55']),
+            ('fabrica.op', 'Fábrica (operação)', ['fabrica']),
+            ('comercial', 'Gestão Comercial', ['gestao_comercial'])]
 
 with app.app_context():
     con = get_db()

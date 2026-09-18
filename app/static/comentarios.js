@@ -80,6 +80,45 @@
       // comentário aprovado se lê sem clicar: aparece logo abaixo do título
       mostrarAprovados(alvo, bloco);
     });
+    montarNosGraficos(raiz);
+  }
+
+  /* ---------- um botão em cada gráfico e em cada tabela ----------
+     Um bloco pode ter vários gráficos e tabelas; o comentário é do bloco, mas quem está olhando
+     para uma tabela não deve ter de subir até o título para achar onde escrever. */
+  function blocoDe(el) {
+    const dono = el.closest('[data-blk-of]');
+    if (!dono) return null;
+    if (dono.dataset.blkOf !== '__abre') return dono.dataset.blkOf;
+    const sec = el.closest('section[id]');
+    return sec ? sec.id + '.abertura' : null;
+  }
+
+  function montarNosGraficos(raiz) {
+    raiz.querySelectorAll('#main .fig, #main .twz').forEach(el => {
+      if (el.closest('#chartzoom')) return;                    // a camada ampliada é só leitura
+      const bloco = blocoDe(el);
+      const r = bloco && CFG.blocos[bloco] ? resumo(bloco) : null;
+      let btn = el.querySelector(':scope > .cmt-mini');
+      if (!r) { if (btn) btn.remove(); return; }
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cmt-mini';
+        btn.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); abrir(btn.dataset.bloco, btn); });
+        el.appendChild(btn);
+      }
+      const tipo = el.classList.contains('fig') ? 'gráfico' : 'tabela';
+      const chave = bloco + '|' + r.rotulo;
+      if (btn.dataset.chave !== chave) {
+        btn.dataset.chave = chave;
+        btn.dataset.bloco = bloco;
+        btn.dataset.tom = r.tom;
+        btn.innerHTML = ICONE + '<span class="cmt-mini-rot">' + esc(r.rotulo) + '</span>';
+        btn.title = r.rotulo + ' — comentário da área sobre este ' + tipo;
+        btn.setAttribute('aria-label', btn.title);
+      }
+    });
   }
 
   function mostrarAprovados(alvo, bloco) {
@@ -156,7 +195,7 @@
   }
 
   function marcarAtivo(bloco) {
-    document.querySelectorAll('.cmt-btn').forEach(b => b.classList.toggle('cmt-ativo', b.dataset.bloco === bloco));
+    document.querySelectorAll('.cmt-btn, .cmt-mini').forEach(b => b.classList.toggle('cmt-ativo', b.dataset.bloco === bloco));
   }
 
   const chip = s => '<span class="cmt-chip" data-status="' + s + '">' + esc(ROTULO_STATUS[s] || s) + '</span>';
