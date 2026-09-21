@@ -125,6 +125,31 @@ def _filtrada(comp):
                            cura=U.pode(g.usuario, 'recurso:curar_comentarios'))
 
 
+def _atos_com_subitens(atos):
+    """Cada ato com os gráficos dele (e os subtítulos, para agrupar): a pendência vai a um subitem."""
+    saida = []
+    for a in atos:
+        itens = []
+        for it in a['itens']:
+            if it.get('sub'):
+                itens.append({'sub': it['sub']})
+            elif it.get('blk') in C.BLOCO:
+                itens.append({'blk': it['blk'], 't': C.BLOCO[it['blk']]['titulo']})
+        saida.append({'n': a['n'], 't': a['t'], 'itens': itens})
+    return saida
+
+
+def _onde(valor):
+    """'ato:4' ou 'blk:4:av-jogo' -> (ato, bloco)."""
+    partes = (valor or '').split(':')
+    try:
+        ato = int(partes[1]) if len(partes) > 1 else 0
+    except ValueError:
+        ato = 0
+    bloco = partes[2] if partes[0] == 'blk' and len(partes) > 2 and partes[2] in C.BLOCO else ''
+    return ato, bloco
+
+
 @bp.route('/<codigo>/encaminhamentos')
 def encaminhamentos(codigo):
     """O combinado da reunião tem página própria: a apresentação é o documento aprovado, sem acréscimos."""
@@ -136,6 +161,8 @@ def encaminhamentos(codigo):
                            pessoas=[dict(p, rotulo=E.rotulo(p)) for p in E.pessoas()] if cura else [],
                            nomes={p['login']: E.rotulo(p) for p in E.pessoas()},
                            atos=dict([(0, '—')] + [(a['n'], '%d · %s' % (a['n'], a['t'])) for a in A.ativos(A.vigente(comp))]),
+                           atos_sub=_atos_com_subitens(A.ativos(A.vigente(comp))),
+                           titulo_bloco={b['id']: b['titulo'] for b in C.BLOCOS},
                            situacao={'aberto': 'Em aberto', 'feito': 'Feito — falta confirmar',
                                      'confirmado': 'Confirmado', 'cancelado': 'Cancelado'})
 
@@ -147,9 +174,9 @@ def criar_encaminhamento(codigo):
     if g.get('ver_como'):
         abort(403)
     try:
+        ato, bloco = _onde(request.form.get('onde'))
         E.criar(codigo, request.form.get('texto'), request.form.get('responsavel'),
-                request.form.get('prazo'), g.usuario['login'], ato=request.form.get('ato') or 0,
-                bloco=request.form.get('bloco') or '')
+                request.form.get('prazo'), g.usuario['login'], ato=ato, bloco=bloco)
     except ValueError as e:
         flash(str(e), 'erro')
         return redirect(url_for('apresentacao.encaminhamentos', codigo=codigo))
@@ -318,10 +345,10 @@ def _painel_encaminhamentos(comp, atos):
     cura = U.pode(g.usuario, 'recurso:curar_comentarios') and not g.get('ver_como')
     cfg = {'api': url_for('apresentacao.enc_api', codigo=comp), 'csrf': csrf_token(), 'cura': cura, 'comp': comp,
            'pessoas': [{'login': p['login'], 'rotulo': E.rotulo(p)} for p in E.pessoas()] if cura else [],
-           'atos': [{'n': a['n'], 't': a['t']} for a in atos], 'lista': _enc_lista(comp)}
+           'atos': _atos_com_subitens(atos), 'lista': _enc_lista(comp)}
     js = io.open(ENC_JS, encoding='utf-8').read()
     return ('<script>window.ENC_55=%s;</script><script>%s</script>'
-            % (json.dumps(cfg, ensure_ascii=False).replace('</', '<\/'), js))
+            % (json.dumps(cfg, ensure_ascii=False).replace('</', '<\\/'), js))
 
 
 @bp.route('/<codigo>/encaminhamentos/api')
@@ -342,9 +369,8 @@ def enc_api_acao(codigo):
         if acao == 'criar':
             if not cura:
                 abort(403)
-            bloco = f.get('bloco') if f.get('bloco') in C.BLOCO else ''
-            E.criar(comp, f.get('texto'), f.get('responsavel'), f.get('prazo'), login,
-                    ato=int(f.get('ato') or 0), bloco=bloco)
+            ato, bloco = _onde(f.get('onde'))
+            E.criar(comp, f.get('texto'), f.get('responsavel'), f.get('prazo'), login, ato=ato, bloco=bloco)
         elif acao == 'feito':
             E.marcar_feito(int(f.get('id') or 0), login, f.get('resposta', ''))
         elif acao in ('confirmar', 'reabrir', 'cancelar'):

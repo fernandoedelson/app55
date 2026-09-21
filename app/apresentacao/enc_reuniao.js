@@ -33,7 +33,6 @@
     '.enc-f textarea,.enc-f select,.enc-f input{font:400 14px/1.4 var(--sans);color:#2a211b;padding:8px 10px;border:1px solid #d0c4b0;' +
     'border-radius:6px;background:#fff;text-transform:none;letter-spacing:0}' +
     '.enc-f .enc-2{display:grid;grid-template-columns:1fr 150px;gap:10px}' +
-    '.enc-f .enc-graf{display:flex;gap:8px;align-items:center;font-weight:400;letter-spacing:0;text-transform:none;font-size:13px;color:#2a211b}' +
     '.enc-bt{min-height:36px;padding:8px 16px;border-radius:999px;border:1px solid #d0c4b0;background:transparent;cursor:pointer;' +
     'font:500 12.5px/1 var(--sans);color:#2a211b}.enc-bt.pri{background:#211a14;border-color:#211a14;color:#f2eee4}' +
     '.enc-bt.pri:hover{background:#614b3e}.enc-bt:disabled{opacity:.5;cursor:default}' +
@@ -99,16 +98,24 @@
   }
 
   function desenhar(msg, erro) {
-    var o = onde(), h = '<p class="enc-av' + (erro ? ' erro' : '') + '" role="status" aria-live="polite">' + esc(msg || '') + '</p>';
+    var o = onde(), atual = o.bloco ? 'blk:' + o.ato + ':' + o.bloco : 'ato:' + o.ato;
+    var h = '<p class="enc-av' + (erro ? ' erro' : '') + '" role="status" aria-live="polite">' + esc(msg || '') + '</p>';
     if (C.cura) {
-      h += '<form class="enc-f" id="enc-form"><label>O que ficou combinado<textarea name="texto" rows="3" maxlength="2000" required></textarea></label>' +
+      h += '<form class="enc-f" id="enc-form"><label>Registre a pendência da reunião aqui<textarea name="texto" rows="3" maxlength="2000" required></textarea></label>' +
         '<div class="enc-2"><label>Responsável<select name="responsavel" required><option value="">Escolha…</option>' +
         C.pessoas.map(function (u) { return '<option value="' + esc(u.login) + '">' + esc(u.rotulo) + '</option>'; }).join('') +
         '</select></label><label>Prazo<input type="date" name="prazo"></label></div>' +
-        '<label>Ato<select name="ato"><option value="0">Fora dos atos</option>' + C.atos.map(function (a) {
-          return '<option value="' + a.n + '"' + (a.n === o.ato ? ' selected' : '') + '>Ato ' + a.n + ' · ' + esc(a.t) + '</option>'; }).join('') +
+        /* o ato é grande demais para virar pendência: escolhe-se o subitem (o gráfico). Vem marcado
+           o que está na tela; "o ato inteiro" continua possível. */
+        '<label>Onde<select name="onde"><option value="ato:0">Fora dos atos</option>' + C.atos.map(function (a) {
+          var sel = function (v) { return v === atual ? ' selected' : ''; };
+          return '<optgroup label="Ato ' + a.n + ' · ' + esc(a.t) + '">' +
+            '<option value="ato:' + a.n + '"' + sel('ato:' + a.n) + '>O ato inteiro</option>' +
+            a.itens.map(function (it) {
+              return it.sub ? '<option disabled>— ' + esc(it.sub) + '</option>'
+                : '<option value="blk:' + a.n + ':' + esc(it.blk) + '"' + sel('blk:' + a.n + ':' + it.blk) + '>' + esc(it.t) + '</option>';
+            }).join('') + '</optgroup>'; }).join('') +
         '</select></label>' +
-        (o.bloco ? '<label class="enc-graf"><input type="checkbox" name="bloco" value="' + esc(o.bloco) + '" checked> Ligar ao gráfico “' + esc(o.titulo) + '”</label>' : '') +
         '<div><button class="enc-bt pri" type="submit">Registrar</button></div></form>';
     }
     h += '<p class="enc-h">Desta reunião</p>' + (lista.itens.length ? lista.itens.map(item).join('') :
@@ -145,7 +152,7 @@
     ev.preventDefault();
     var f = ev.target, b = f.querySelector('button[type=submit]');
     var corpo = { acao: 'criar', texto: f.texto.value, responsavel: f.responsavel.value, prazo: f.prazo.value,
-      ato: f.ato.value, bloco: f.bloco && f.bloco.checked ? f.bloco.value : '' };
+      onde: f.onde.value };
     if (!corpo.texto.trim()) { desenhar('Escreva o que ficou combinado.', true); return; }
     if (!corpo.responsavel) { desenhar('Escolha o responsável.', true); return; }
     b.disabled = true;

@@ -28,7 +28,7 @@
   <thead><tr><th>Ato</th><th>O quê</th><th>Responsável</th><th>Prazo</th><th>Situação</th><th></th></tr></thead>
   <tbody>
   {% for e in encaminhamentos %}
-    <tr><td>{{ atos.get(e.ato, '—') }}</td>
+    <tr><td>{{ atos.get(e.ato, '—') }}{% if e.bloco in titulo_bloco %}<br><span class="muted">{{ titulo_bloco[e.bloco] }}</span>{% endif %}</td>
         <td>{{ e.texto }}{% if e.resposta %}<br><span class="muted">Resposta: {{ e.resposta }}</span>{% endif %}</td>
         <td>{{ nomes.get(e.responsavel, e.responsavel) }}</td><td>{{ e.prazo|data_br }}</td>
         <td>{{ situacao.get(e.status, e.status) }}</td>
@@ -43,7 +43,7 @@
 <h2 class="mt-lg">Registrar um encaminhamento</h2>
 <form method="post" action="{{ url_for('apresentacao.criar_encaminhamento', codigo=comp) }}" class="card" style="max-width:760px">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="field"><label for="enc-texto">O que ficou combinado</label>
+  <div class="field"><label for="enc-texto">Registre a pendência da reunião aqui</label>
     <input id="enc-texto" name="texto" required maxlength="2000"></div>
   <div class="actions" style="align-items:flex-end;flex-wrap:wrap">
     <label class="campo">Responsável
@@ -52,9 +52,13 @@
         {% for u in pessoas %}<option value="{{ u.login }}">{{ u.rotulo }}</option>{% endfor %}
       </select></label>
     <label class="campo">Prazo <input name="prazo" type="date"></label>
-    <label class="campo">Ato
-      <select name="ato"><option value="0">—</option>
-        {% for n, t in atos.items() %}{% if n %}<option value="{{ n }}">{{ t }}</option>{% endif %}{% endfor %}</select></label>
+    <label class="campo">Onde
+      <select name="onde"><option value="ato:0">Fora dos atos</option>
+        {% for a in atos_sub %}<optgroup label="Ato {{ a.n }} · {{ a.t }}">
+          <option value="ato:{{ a.n }}">O ato inteiro</option>
+          {% for it in a.itens %}{% if it.sub %}<option disabled>— {{ it.sub }}</option>
+          {% else %}<option value="blk:{{ a.n }}:{{ it.blk }}">{{ it.t }}</option>{% endif %}{% endfor %}
+        </optgroup>{% endfor %}</select></label>
     <button class="btn btn-primary" type="submit">Registrar</button>
   </div>
 </form>

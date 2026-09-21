@@ -35,11 +35,11 @@ def test_responsavel_e_usuario_e_so_ele_marca_feito(app, admin):
     # responsável tem de ser um usuário; um código de perfil não serve
     assert _api(admin, acao='criar', texto='x', responsavel='loja').status_code == 400
     r = _api(admin, acao='criar', texto='Trazer o plano de recompra.', responsavel='gerente1',
-             prazo='2026-09-10', ato=4, bloco='av-jogo')
+             prazo='2026-09-10', onde='blk:4:av-jogo')
     assert r.status_code == 200
     item = r.get_json()['itens'][0]
     assert item['responsavel'] == 'gerente1' and item['ato'].startswith('Ato 4')
-    assert item['bloco'] == 'O que está em jogo' or item['bloco']
+    assert item['bloco'] == 'O que está em jogo'
     # quem não cura não registra; quem não é o responsável não marca feito
     assert _api(gerente, acao='criar', texto='y', responsavel='gerente1').status_code == 403
     assert _api(outro, acao='feito', id=item['id'], resposta='fiz').status_code == 400
