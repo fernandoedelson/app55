@@ -295,6 +295,8 @@ def test_ver_como_testa_o_ciclo_da_area(app, admin):
     with app.app_context():
         aud = get_db().execute("SELECT como_perfil FROM auditoria WHERE acao='comentario.escrever'").fetchone()
         assert aud['como_perfil']                     # a auditoria diz que foi no modo "ver como"
+        hist = [r['como_perfil'] for r in get_db().execute('SELECT como_perfil FROM comentario_historico')]
+        assert hist and all(hist)                     # o histórico do comentário diz em nome de qual perfil
     # 2) como Controladoria: vê o que curar e aprova
     post(admin, '/admin/ver-como/sair')
     with app.app_context():

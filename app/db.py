@@ -135,7 +135,8 @@ CREATE TABLE IF NOT EXISTS comentario_historico (
     quem TEXT NOT NULL DEFAULT '',
     acao TEXT NOT NULL,                           -- escrever | enviar | aprovar | ajustar | recusar | apresentacao
     texto TEXT NOT NULL DEFAULT '',
-    detalhes TEXT NOT NULL DEFAULT ''
+    detalhes TEXT NOT NULL DEFAULT '',
+    como_perfil TEXT NOT NULL DEFAULT ''          -- perfil em nome do qual o admin agiu no "ver como"
 );
 CREATE INDEX IF NOT EXISTS ix_coment_hist ON comentario_historico(comentario_id, em);
 CREATE TABLE IF NOT EXISTS comentario_pedidos (
@@ -228,6 +229,14 @@ def init_db(app):
         colunas = {r[1] for r in con.execute('PRAGMA table_info(comentario_pedidos)')}
         if 'origem' not in colunas:
             con.execute("ALTER TABLE comentario_pedidos ADD COLUMN origem TEXT NOT NULL DEFAULT ''")
+        colunas = {r[1] for r in con.execute('PRAGMA table_info(comentario_historico)')}
+        if 'como_perfil' not in colunas:
+            con.execute("ALTER TABLE comentario_historico ADD COLUMN como_perfil TEXT NOT NULL DEFAULT ''")
+            # o que já foi gravado recupera o perfil pela auditoria (mesmo login, mesmo segundo)
+            con.execute("""UPDATE comentario_historico SET como_perfil = COALESCE((
+                SELECT a.como_perfil FROM auditoria a WHERE a.login = comentario_historico.quem
+                   AND a.em = comentario_historico.em AND a.acao LIKE 'comentario.%' AND a.como_perfil <> ''
+                 LIMIT 1), '')""")
         _garantir_admin(con)
         con.commit()
     finally:

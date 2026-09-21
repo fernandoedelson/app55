@@ -13,7 +13,7 @@ Regras que vêm da especificação e vivem aqui:
 """
 from datetime import date, datetime
 
-from flask import current_app, g
+from flask import current_app, g, has_request_context, session
 
 from . import catalogo as C
 from .db import agora, get_db
@@ -85,9 +85,12 @@ def obter(codigo, bloco, area):
 
 
 def _registrar(cid, acao, texto='', detalhes=''):
-    get_db().execute('INSERT INTO comentario_historico (comentario_id, em, quem, acao, texto, detalhes) '
-                     'VALUES (?,?,?,?,?,?)',
-                     (cid, agora(), (g.get('usuario') or {}).get('login', ''), acao, texto, detalhes))
+    como = ''
+    if has_request_context() and session.get('ver_como'):
+        como = str(session.get('ver_como_nome', session.get('ver_como')))[:64]
+    get_db().execute('INSERT INTO comentario_historico (comentario_id, em, quem, acao, texto, detalhes, como_perfil) '
+                     'VALUES (?,?,?,?,?,?,?)',
+                     (cid, agora(), (g.get('usuario') or {}).get('login', ''), acao, texto, detalhes, como))
 
 
 def historico(cid):

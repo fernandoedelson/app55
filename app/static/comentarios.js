@@ -199,7 +199,15 @@
   }
 
   const chip = s => '<span class="cmt-chip" data-status="' + s + '">' + esc(ROTULO_STATUS[s] || s) + '</span>';
-  const quando = t => t ? esc(String(t).replace('T', ' ').slice(0, 16)) : '';
+  const quando = t => {
+    if (!t) return '';
+    const m = String(t).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}:\d{2})/);
+    return esc(m ? m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] : t);
+  };
+  const VERBO = { escrever: 'escreveu', editar: 'editou depois de enviar', enviar: 'enviou', aprovar: 'aprovou',
+    ajustar: 'aprovou com ajuste', recusar: 'recusou', devolver: 'devolveu', apresentacao: 'mudou a apresentação' };
+  // no "ver como", o admin agiu em nome de um perfil: o histórico diz qual
+  const quem = x => x.como_perfil ? '<b>' + esc(x.como_perfil) + '</b> <span class="cmt-como">(' + esc(x.quem) + ' no ver como)</span>' : esc(x.quem);
 
   function desenhar(D) {
     painel.querySelector('#cmt-eyebrow').textContent = D.secao + ' · ' + D.comp;
@@ -242,7 +250,7 @@
       }
       if (m.historico.length) {
         h += '<details class="cmt-hist"><summary>Histórico (' + m.historico.length + ')</summary><ol>' +
-          m.historico.map(x => '<li><span>' + quando(x.em) + '</span> ' + esc(x.quem) + ' · ' + esc(x.acao) +
+          m.historico.map(x => '<li><span>' + quando(x.em) + '</span> ' + quem(x) + ' · ' + esc(VERBO[x.acao] || x.acao) +
             (x.detalhes ? ' — ' + esc(x.detalhes) : '') + '</li>').join('') + '</ol></details>';
       }
       h += '</section>';
