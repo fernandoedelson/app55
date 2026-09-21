@@ -18,6 +18,29 @@
     tabela no relatório: o botão <b>Comentar</b> fica ao lado do título de cada um.</p>
 </div>
 
+{% if meus_enc %}
+<section class="pend-grupo" id="encaminhamentos"><h2>Seus encaminhamentos <span class="n">{{ meus_enc|length }}</span></h2>
+  <p class="muted">Combinados na reunião com você como responsável. Quando concluir, diga o que foi feito e marque
+    <b>Feito</b>; a Controladoria confirma. Passado o prazo, chega um e-mail por dia até a conclusão.</p>
+  <div class="pend-lista">
+  {% for e in meus_enc %}
+    <div class="pend enc-pend{% if e.atrasado %} enc-atrasado{% endif %}">
+      <span class="pend-onde">Reunião de {{ e.competencia }}{% if e.prazo %} · prazo {{ e.prazo|data_br }}{% if e.atrasado %} — atrasado{% endif %}{% endif %}</span>
+      <span class="pend-titulo">{{ e.texto }}</span>
+      {% if e.status == 'feito' %}<span class="pend-texto">Feito{% if e.resposta %}: {{ e.resposta }}{% endif %} — aguardando a Controladoria confirmar.</span>
+      {% else %}
+      <form method="post" action="{{ url_for('apresentacao.feito', eid=e.id) }}" class="enc-feito">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="volta" value="pendencias">
+        <input name="resposta" placeholder="O que foi feito" maxlength="1000" aria-label="O que foi feito">
+        <button class="btn btn-sm btn-primary" type="submit">Feito</button>
+      </form>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% if not codigo %}
   <div class="estado-vazio"><b>Nenhum mês aberto para comentários.</b>
     {% if pode('recurso:fechamento') %}Para abrir: <a href="{{ url_for('competencias.index') }}">Fechamento</a> → abra o mês →

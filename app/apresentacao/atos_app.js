@@ -279,8 +279,38 @@ function esconderRepetidos(){
     var fora=!!OCULTAR[el.getAttribute('data-blk-of')];
     if(fora!==el.classList.contains('r55-fora')) el.classList.toggle('r55-fora',fora);
   });
+  esconderIndicadores();
 }
 function visivel(el){ return !el.classList.contains('r55-fora'); }
+
+/* [app] cartao de indicador e ponto de leitura do anexo que repete um numero dos atos.
+   A regra (rotulo do cartao ou titulo do ponto) vem do servidor, em R55.repetidos. */
+function norm(t){ return String(t||'').replace(/\s+/g,' ').trim().toLowerCase(); }
+function esconderIndicadores(){
+  var R=(R55&&R55.repetidos)||[]; if(!R.length) return;
+  R.forEach(function(r){
+    var sec=$(r.sec); if(!sec) return;
+    if(r.kpi) sec.querySelectorAll('.kpi').forEach(function(k){
+      var l=k.querySelector('.kpi-l');
+      if(l && norm(l.textContent)===norm(r.kpi) && !k.classList.contains('r55-fora')) k.classList.add('r55-fora');
+    });
+    if(r.leitura) sec.querySelectorAll('.pv').forEach(function(p){
+      var b=p.querySelector('b');
+      if(b && norm(b.textContent)===norm(r.leitura) && !p.classList.contains('r55-fora')) p.classList.add('r55-fora');
+    });
+  });
+  /* grade que ficou sem cartao some inteira; a leitura e renumerada 1, 2, 3 */
+  document.querySelectorAll('main > section:not(.ato) .kpis, main > section:not(.ato) .prov').forEach(function(g){
+    var filhosG=Array.prototype.slice.call(g.children);
+    var algum=filhosG.some(function(c){ return !c.classList.contains('r55-fora'); });
+    if(filhosG.length && !algum && !g.classList.contains('r55-fora')) g.classList.add('r55-fora');
+    if(g.classList.contains('prov')){
+      var i=0;
+      filhosG.forEach(function(p){ if(p.classList.contains('r55-fora')) return;
+        var n=p.querySelector('.pv-n'); i++; if(n && n.textContent!==String(i)) n.textContent=String(i); });
+    }
+  });
+}
 
 /* ---------- 4) faxina: secao de anexo que ficou sem conteudo some ---------- */
 function esconderVazias(){
@@ -289,11 +319,7 @@ function esconderVazias(){
     var util=filhos(s).some(function(el){
       /* [app] um bloco inteiro escondido deixa, as vezes, so o envoltorio: conta o texto que se ve */
       if(el.classList.contains('r55-fora')) return false;
-      if(el.querySelector && el.querySelector('.r55-fora')){
-        var vis=Array.prototype.slice.call(el.querySelectorAll('[data-blk-of]')).filter(visivel)
-          .some(function(x){ return (x.textContent||'').trim()!==''; });
-        if(!vis) return false;
-      }
+      if(el.querySelector && el.querySelector('.r55-fora') && !(el.innerText||'').trim()) return false;
       return !el.classList.contains('chap') && !el.classList.contains('sec-head')
           && !el.classList.contains('digest') && !el.classList.contains('fb-moved')
           && (el.textContent||'').trim()!==''; });
@@ -370,6 +396,7 @@ function montarMenu(){
     var h=document.createElement('div'); h.className='nav-grp'; h.textContent=G.k;
     nav.appendChild(h);
     G.secs.forEach(function(id){ var a=antigos[id]; if(!a) return;
+      if(id==='resumo'){ var limpo=a.cloneNode(true); a.parentNode.replaceChild(limpo,a); a=limpo; }  /* [app] sem a cortina */
       a.classList.add('nav-anexo'); nav.appendChild(a); });
   });
   nav.querySelectorAll('a').forEach(function(a){ a.addEventListener('click',function(){

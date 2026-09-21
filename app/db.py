@@ -237,6 +237,9 @@ def init_db(app):
         colunas = {r[1] for r in con.execute('PRAGMA table_info(comentario_pedidos)')}
         if 'origem' not in colunas:
             con.execute("ALTER TABLE comentario_pedidos ADD COLUMN origem TEXT NOT NULL DEFAULT ''")
+        colunas = {r[1] for r in con.execute('PRAGMA table_info(encaminhamentos)')}
+        if 'ultimo_aviso' not in colunas:            # o dia do último e-mail de atraso
+            con.execute("ALTER TABLE encaminhamentos ADD COLUMN ultimo_aviso TEXT")
         colunas = {r[1] for r in con.execute('PRAGMA table_info(comentario_historico)')}
         if 'como_perfil' not in colunas:
             con.execute("ALTER TABLE comentario_historico ADD COLUMN como_perfil TEXT NOT NULL DEFAULT ''")

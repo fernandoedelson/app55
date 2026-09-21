@@ -112,27 +112,31 @@ def _json_script(obj):
     return json.dumps(obj, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 
 
-def montar(html_kit, atos, anexos, ocultar, comentarios=None):
+def montar(html_kit, roteiro, comentarios=None, extra=''):
     """O documento do Kit com o roteiro pilotado na aplicação.
 
     Uma troca só, e conferida: o <script> do atos.js do Kit vira o atos_app.js (a mesma camada de
     reorganização, lendo o roteiro de window.ROTEIRO_55). O resto — dados, app.js, estilos,
-    imagens — é o documento do Kit, byte a byte."""
+    imagens — é o documento do Kit, byte a byte. `extra` (o painel de encaminhamentos da reunião ao
+    vivo) entra antes do </body>; o arquivo para levar não o leva."""
     atos_kit = io.open(os.path.join(PASTA_KIT, 'atos.js'), encoding='utf-8').read()   # como o ler() do Kit
     velho = '<script>' + atos_kit + '</script>'
     if html_kit.count(velho) != 1:
         raise RuntimeError('o documento do Kit não tem o atos.js esperado')
-    dados = 'window.ROTEIRO_55=%s;window.CMT_REUNIAO=%s;' % (
-        _json_script({'atos': atos, 'anexos': anexos, 'ocultar': ocultar}), _json_script(comentarios or {}))
+    dados = 'window.ROTEIRO_55=%s;window.CMT_REUNIAO=%s;' % (_json_script(roteiro), _json_script(comentarios or {}))
     novo = ('<script>' + dados + '</script><script>'
             + io.open(ATOS_APP, encoding='utf-8', newline='').read() + '</script>')
-    return html_kit.replace(velho, novo)
+    html = html_kit.replace(velho, novo)
+    if extra:
+        i = html.rindex('</body>')
+        html = html[:i] + extra + html[i:]
+    return html
 
 
-def documento(codigo, atos, anexos, ocultar, comentarios=None):
+def documento(codigo, roteiro, comentarios=None, extra=''):
     """A reunião da competência: o Kit (em cache) montado com o roteiro em vigor e os comentários."""
     html = io.open(obter(codigo), encoding='utf-8', newline='').read()
-    return montar(html, atos, anexos, ocultar, comentarios)
+    return montar(html, roteiro, comentarios, extra)
 
 
 def pode_ver_inteiro(ctx):

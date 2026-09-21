@@ -84,4 +84,6 @@ def criar_app(config=None):
 
     for codigo in (400, 403, 404, 429):
         app.register_error_handler(codigo, lambda e, c=codigo: (render_template('erro.html', codigo=c, erro=e), c))
+    from .lembretes import iniciar as _lembretes
+    _lembretes(app)
     return app

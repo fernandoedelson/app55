@@ -89,3 +89,6 @@ a.pend:hover{border-color:var(--taupe);background:var(--surface-warm)}
 .secao-link p.muted{font-size:.9rem;line-height:1.5}
 /* rótulos pequenos em caixa alta: no claro, a tinta mais escura da marca para passar de 4,5:1 */
 :root[data-theme="light"] .eyebrow,:root[data-theme="light"] .page-head .eyebrow{color:var(--taupe-deep)}
+
+.enc-feito{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.enc-feito input{flex:1;min-width:200px}
+.enc-atrasado{border-left:3px solid var(--crit)}.enc-atrasado .pend-onde{color:var(--crit)}

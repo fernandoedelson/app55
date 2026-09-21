@@ -493,11 +493,15 @@ def pendencias(codigo, ctx):
 
 def contagem(ctx):
     """Quantas coisas pedem ação de quem está logado — o número ao lado de "Pendências"."""
-    codigo = competencia_aberta()
-    if not codigo or not ctx:
+    if not ctx:
         return 0
+    from .apresentacao import encaminhamentos as E
+    enc = sum(1 for e in E.meus(ctx['login']) if e['status'] == 'aberto')    # encaminhamento à espera de "feito"
+    codigo = competencia_aberta()
+    if not codigo:
+        return enc
     p = pendencias(codigo, ctx)
-    return len(p['pedidos']) + len(p['devolvidos']) + len(p['rascunhos']) + len(p['curar'])
+    return enc + len(p['pedidos']) + len(p['devolvidos']) + len(p['rascunhos']) + len(p['curar'])
 
 
 def titulo_legivel(bloco):

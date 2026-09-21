@@ -130,7 +130,7 @@
   function desenhar() {
     const alvo = $('#pl-atos');
     alvo.innerHTML = atos.map((a, ai) =>
-      '<section class="pl-ato" data-ato="' + ai + '">' +
+      '<section class="pl-ato' + (a.ativo === false ? ' pl-desligado' : '') + '" data-ato="' + ai + '">' +
       '<header class="pl-ato-h"><span class="pl-ato-n">Ato ' + a.n + '</span>' +
       '<input class="pl-ato-t" data-campo="t" value="' + esc(a.t) + '" maxlength="80" aria-label="Título do ato ' + a.n + '" placeholder="Título do ato">' +
       '<span class="pl-ctl"><button type="button" class="pl-ico" data-ato-mover="-1" title="Subir o ato" aria-label="Subir o ato">↑</button>' +
@@ -139,7 +139,9 @@
       '<div class="pl-ato-campos">' +
       '<label class="pl-q">Pergunta que o ato responde<input data-campo="q" value="' + esc(a.q) + '" maxlength="200"></label>' +
       '<label class="pl-min">Tempo<input data-campo="min" value="' + esc(a.min) + '" maxlength="12" placeholder="5 min"></label>' +
-      '<label class="pl-cort"><input type="checkbox" data-campo="cortina"' + (a.cortina ? ' checked' : '') + '> Abrir com cortina</label></div>' +
+      '<label class="pl-cort"><input type="checkbox" data-campo="cortina"' + (a.cortina ? ' checked' : '') + '> Abrir com cortina</label>' +
+      '<label class="pl-cort pl-ativo"><input type="checkbox" data-campo="ativo"' + (a.ativo !== false ? ' checked' : '') + '> Entra na reunião</label></div>' +
+      (a.ativo === false ? '<p class="pl-off">Desligado: este ato não aparece na reunião, e os gráficos dele ficam nos anexos.</p>' : '') +
       (a.itens.length ? '<ol class="pl-itens">' + a.itens.map((it, i) => linhaItem(a, it, i)).join('') + '</ol>'
         : '<p class="pl-vazio">Ato só de enunciado: aparece com o título e a pergunta, sem gráficos.</p>') +
       '<select class="pl-add" data-add aria-label="Adicionar ao ato ' + a.n + '">' + opcoesAdicionar(a) + '</select>' +
@@ -155,7 +157,11 @@
     const sec = ev.target.closest('.pl-ato'); if (!sec) return;
     const a = atos[+sec.dataset.ato];
     const campo = ev.target.dataset.campo;
-    if (campo) { a[campo] = ev.target.type === 'checkbox' ? ev.target.checked : ev.target.value; marcarSujo(true); return; }
+    if (campo) {
+      a[campo] = ev.target.type === 'checkbox' ? ev.target.checked : ev.target.value; marcarSujo(true);
+      if (campo === 'ativo') desenhar();
+      return;
+    }
     if (ev.target.hasAttribute('data-sub')) {
       a.itens[+ev.target.closest('.pl-item').dataset.i].sub = ev.target.value; marcarSujo(true);
     }
@@ -164,7 +170,7 @@
   $('#pl-atos').addEventListener('change', async ev => {
     const sec = ev.target.closest('.pl-ato'); if (!sec) return;
     const a = atos[+sec.dataset.ato];
-    if (ev.target.dataset.campo === 'cortina') return;            // já tratado no input
+    if (ev.target.dataset.campo) return;                          // já tratado no input
     if (ev.target.hasAttribute('data-add')) {
       const [tipo, id] = ev.target.value.split(':'); ev.target.value = '';
       if (!tipo) return;
@@ -233,7 +239,7 @@
   });
 
   $('#pl-novo-ato').addEventListener('click', () => {
-    atos.push({ n: atos.length + 1, t: 'Novo ato', q: '', min: '', cortina: false, itens: [] });
+    atos.push({ n: atos.length + 1, t: 'Novo ato', q: '', min: '', cortina: false, ativo: true, itens: [] });
     marcarSujo(true); desenhar();
     const t = document.querySelectorAll('.pl-ato-t'); const u = t[t.length - 1]; if (u) { u.focus(); u.select(); }
   });

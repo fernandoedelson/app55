@@ -10,7 +10,9 @@
 O roteiro é igual para todos: o padrão do código ou o que a Controladoria gerou para o mês. O que
 muda é o conteúdo: o servidor manda só os blocos permitidos e o ato que ficou sem nenhum diz
 "conteúdo restrito"."""
+import io
 import json
+import os
 
 from flask import (Blueprint, Response, abort, current_app, flash, g, jsonify, redirect, render_template,
                    request, url_for)
@@ -47,7 +49,7 @@ def ver(codigo=None):
     if kit_atos.pode_ver_inteiro(g.usuario):
         # quem enxerga tudo recebe o documento do Kit (mesmo código, mesmos dados), com o roteiro em vigor
         auditoria.registrar('apresentacao.abrir', comp)
-        resp = Response(_documento(comp), mimetype='text/html')
+        resp = Response(_documento(comp, ao_vivo=True), mimetype='text/html')
         resp.headers['Cache-Control'] = 'private, no-store'
         return resp
     return _filtrada(comp)
@@ -62,9 +64,13 @@ def _comentarios_da_reuniao(comp):
     return mapa
 
 
-def _documento(comp, atos=None):
-    atos = atos if atos is not None else A.vigente(comp)
-    return kit_atos.documento(comp, atos, A.ANEXOS, A.ocultos_nos_anexos(atos), _comentarios_da_reuniao(comp))
+def _documento(comp, ao_vivo=False):
+    """O Kit com o roteiro em vigor (só os atos ligados). Ao vivo, com o painel de encaminhamentos."""
+    atos = A.ativos(A.vigente(comp))
+    roteiro = {'atos': atos, 'anexos': A.ANEXOS, 'ocultar': A.ocultos_nos_anexos(atos),
+               'repetidos': A.repetidos_nos_anexos(atos)}
+    extra = _painel_encaminhamentos(comp, atos) if ao_vivo else ''
+    return kit_atos.documento(comp, roteiro, _comentarios_da_reuniao(comp), extra)
 
 
 @bp.route('/<codigo>/baixar')
@@ -84,7 +90,7 @@ def _filtrada(comp):
     """Perfil que vê só parte do relatório: o roteiro montado apenas com os blocos dele. O
     documento do Kit não serve aqui — ele carrega os dados do mês inteiros."""
     pode = lambda bid: U.pode(g.usuario, 'bloco:' + bid)
-    roteiro = A.roteiro(pode, A.vigente(comp))
+    roteiro = A.roteiro(pode, A.vigente(comp))           # roteiro() já deixa de fora o ato desligado
     dados = comp_mod.carregar(current_app.config, comp)
     payloads = {}
     for secao in A.secoes_necessarias(roteiro):
@@ -127,8 +133,9 @@ def encaminhamentos(codigo):
     pessoas = [dict(r) for r in get_db().execute('SELECT login, nome FROM usuarios WHERE ativo=1 ORDER BY nome')]
     return render_template('apresentacao/encaminhamentos.html', comp=comp, cura=cura,
                            encaminhamentos=E.da_competencia(comp), retomada=E.retomada(comp),
-                           pessoas=pessoas if cura else [], nomes={p['login']: p['nome'] or p['login'] for p in pessoas},
-                           atos=dict([(0, '—')] + [(a['n'], '%d · %s' % (a['n'], a['t'])) for a in A.vigente(comp)]),
+                           pessoas=[dict(p, rotulo=E.rotulo(p)) for p in E.pessoas()] if cura else [],
+                           nomes={p['login']: E.rotulo(p) for p in E.pessoas()},
+                           atos=dict([(0, '—')] + [(a['n'], '%d · %s' % (a['n'], a['t'])) for a in A.ativos(A.vigente(comp))]),
                            situacao={'aberto': 'Em aberto', 'feito': 'Feito — falta confirmar',
                                      'confirmado': 'Confirmado', 'cancelado': 'Cancelado'})
 
@@ -163,6 +170,8 @@ def feito(eid):
         return redirect(url_for('apresentacao.encaminhamentos', codigo=e['competencia']))
     auditoria.registrar('encaminhamento.feito', str(eid))
     flash('Marcado como feito. A Controladoria confirma.', 'ok')
+    if request.form.get('volta') == 'pendencias':
+        return redirect(url_for('comentarios.index') + '#encaminhamentos')
     return redirect(url_for('apresentacao.encaminhamentos', codigo=e['competencia']))
 
 
@@ -275,3 +284,80 @@ def pilotar_salvar(codigo):
     auditoria.registrar('apresentacao.' + acao, comp)
     return jsonify({'ok': True, 'atos': A.rascunho(comp), 'estado': A.estado(comp),
                     'anexos': A.sobras_dos_anexos(A.rascunho(comp))})
+
+
+# ------------------------------------------------------------------ encaminhamentos durante a reunião
+ENC_JS = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'apresentacao', 'enc_reuniao.js')
+SITUACAO_ENC = {'aberto': 'Em aberto', 'feito': 'Feito — falta confirmar', 'confirmado': 'Confirmado',
+                'cancelado': 'Cancelado'}
+
+
+def _enc_lista(comp):
+    """Os encaminhamentos do mês e a retomada, com o que este usuário pode fazer em cada um."""
+    cura = U.pode(g.usuario, 'recurso:curar_comentarios') and not g.get('ver_como')
+    login = (g.usuario or {}).get('login', '').lower()
+    nomes = {p['login'].lower(): E.rotulo(p) for p in E.pessoas()}
+    titulos = {a['n']: a['t'] for a in A.ativos(A.vigente(comp))}
+
+    def um(e):
+        return {'id': e['id'], 'competencia': e['competencia'], 'texto': e['texto'], 'resposta': e['resposta'],
+                'responsavel': nomes.get((e['responsavel'] or '').lower(), e['responsavel']),
+                'prazo': e['prazo'], 'atrasado': E.atrasado(e), 'status': e['status'],
+                'situacao': SITUACAO_ENC.get(e['status'], e['status']),
+                'ato': ('Ato %d · %s' % (e['ato'], titulos[e['ato']])) if e['ato'] in titulos else '',
+                'bloco': C.BLOCO[e['bloco']]['titulo'] if e['bloco'] in C.BLOCO else '',
+                'pode_feito': e['status'] == 'aberto' and (e['responsavel'] or '').lower() == login
+                              and not g.get('ver_como'),
+                'pode_curar': cura and e['status'] in ('aberto', 'feito')}
+    return {'itens': [um(e) for e in E.da_competencia(comp) if e['status'] != 'cancelado'],
+            'retomada': [um(e) for e in E.retomada(comp)]}
+
+
+def _painel_encaminhamentos(comp, atos):
+    from ..seguranca.web import csrf_token
+    cura = U.pode(g.usuario, 'recurso:curar_comentarios') and not g.get('ver_como')
+    cfg = {'api': url_for('apresentacao.enc_api', codigo=comp), 'csrf': csrf_token(), 'cura': cura, 'comp': comp,
+           'pessoas': [{'login': p['login'], 'rotulo': E.rotulo(p)} for p in E.pessoas()] if cura else [],
+           'atos': [{'n': a['n'], 't': a['t']} for a in atos], 'lista': _enc_lista(comp)}
+    js = io.open(ENC_JS, encoding='utf-8').read()
+    return ('<script>window.ENC_55=%s;</script><script>%s</script>'
+            % (json.dumps(cfg, ensure_ascii=False).replace('</', '<\/'), js))
+
+
+@bp.route('/<codigo>/encaminhamentos/api')
+def enc_api(codigo):
+    return jsonify(_enc_lista(_competencia(codigo)))
+
+
+@bp.route('/<codigo>/encaminhamentos/api', methods=['POST'])
+def enc_api_acao(codigo):
+    """criar (Controladoria) · feito (o responsável) · confirmar, reabrir, cancelar (Controladoria)."""
+    comp = _competencia(codigo)
+    if g.get('ver_como'):
+        return jsonify({'erro': 'no modo "ver como perfil" os encaminhamentos são só leitura.'}), 403
+    f = request.get_json(silent=True) or {}
+    acao, login = f.get('acao'), g.usuario['login']
+    cura = U.pode(g.usuario, 'recurso:curar_comentarios')
+    try:
+        if acao == 'criar':
+            if not cura:
+                abort(403)
+            bloco = f.get('bloco') if f.get('bloco') in C.BLOCO else ''
+            E.criar(comp, f.get('texto'), f.get('responsavel'), f.get('prazo'), login,
+                    ato=int(f.get('ato') or 0), bloco=bloco)
+        elif acao == 'feito':
+            E.marcar_feito(int(f.get('id') or 0), login, f.get('resposta', ''))
+        elif acao in ('confirmar', 'reabrir', 'cancelar'):
+            if not cura:
+                abort(403)
+            eid = int(f.get('id') or 0)
+            if acao == 'cancelar':
+                E.cancelar(eid, login)
+            else:
+                E.confirmar(eid, login, confirma=acao == 'confirmar')
+        else:
+            return jsonify({'erro': 'ação inválida.'}), 400
+    except ValueError as e:
+        return jsonify({'erro': str(e)}), 400
+    auditoria.registrar('encaminhamento.' + acao, comp)
+    return jsonify(_enc_lista(comp))

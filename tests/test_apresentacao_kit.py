@@ -34,8 +34,10 @@ def _aprovado():
 
 
 def _sem_a_troca(html):
-    """O documento servido com o script do roteiro devolvido ao atos.js do Kit."""
+    """O documento servido com o script do roteiro devolvido ao atos.js do Kit e sem o painel ao vivo."""
     from app.apresentacao import kit_atos
+    if '<script>window.ENC_55=' in html:
+        html = html[:html.index('<script>window.ENC_55=')] + html[html.rindex('</body>'):]
     ini = html.index('<script>window.ROTEIRO_55=')
     fim = html.index('</script>', html.index('</script>', ini) + 9) + len('</script>')
     atos_kit = io.open(os.path.join(kit_atos.PASTA_KIT, 'atos.js'), encoding='utf-8').read()
@@ -62,8 +64,16 @@ def test_quem_ve_tudo_recebe_o_aprovado_com_o_roteiro(app, admin):
     rot = _roteiro(html)
     assert [a['t'] for a in rot['atos']][:2] == ['De onde viemos', 'O que já está vendido']
     assert rot['atos'][0]['cortina'] is True
+    assert len(rot['atos']) == 5                        # o Ato 6 nasce desligado: é montado mês a mês
     # o anexo não repete o que está nos atos — nem o quadro equivalente de outra seção
     assert 'cd-status' in rot['ocultar'] and 'ce-status' in rot['ocultar'] and 'cu-retrabalho' in rot['ocultar']
+    # nem os cartões e pontos de leitura do Sumário que os atos já mostram
+    rep = {(r['sec'], r.get('kpi') or r.get('leitura')) for r in rot['repetidos']}
+    assert ('resumo', 'Faturamento 2025 · DRE') in rep and ('resumo', 'Crescimento forte até 2025') in rep
+    assert ('performance', 'Realizado · acumulado') in rep
+    # a reunião ao vivo traz o painel de encaminhamentos; o arquivo para levar, não
+    assert 'window.ENC_55=' in html
+    assert 'window.ENC_55=' not in admin.get('/apresentacao/2026-07/baixar').get_data(as_text=True)
 
 
 def test_quem_ve_parte_nao_recebe_os_dados_inteiros(app, admin):
@@ -79,7 +89,9 @@ def test_quem_ve_parte_nao_recebe_os_dados_inteiros(app, admin):
 def test_baixar_entrega_o_mesmo_documento(app, admin):
     r = admin.get('/apresentacao/2026-07/baixar')
     assert r.status_code == 200 and 'attachment' in r.headers['Content-Disposition']
-    assert r.data == admin.get('/apresentacao/2026-07').data
+    ao_vivo = admin.get('/apresentacao/2026-07').get_data(as_text=True)
+    painel = ao_vivo[ao_vivo.index('<script>window.ENC_55='):ao_vivo.rindex('</body>')]
+    assert r.get_data(as_text=True) == ao_vivo.replace(painel, '')
 
 
 def _pilotar(c, **corpo):
@@ -91,22 +103,30 @@ def test_pilotar_rascunho_so_vale_depois_de_gerar(app, admin):
     assert admin.get('/apresentacao/2026-07/pilotar').status_code == 200
     atos = json.loads(admin.get('/apresentacao/2026-07/pilotar').get_data(as_text=True)
                       .split('id="pl-dados">')[1].split('</script>')[0])['atos']
-    # o gráfico anual sai do Ato 1 e vai para o Ato 6; o Ato 6 muda de título
+    # o Ato 6 é ligado, muda de título e recebe o gráfico anual, que sai do Ato 1
+    assert atos[5]['ativo'] is False
     atos[0]['itens'] = [it for it in atos[0]['itens'] if it.get('blk') != 'ev-anual']
     atos[5]['itens'].append({'sec': 'evolutiva', 'blk': 'ev-anual'})
-    atos[5]['t'] = 'Para onde vamos'
+    atos[5]['t'], atos[5]['ativo'] = 'Para onde vamos', True
     r = _pilotar(admin, acao='salvar', atos=atos)
     assert r.status_code == 200 and r.get_json()['estado']['pendente']
     rot = _roteiro(admin.get('/apresentacao/2026-07').get_data(as_text=True))
-    assert rot['atos'][5]['t'] == 'O que vem a seguir'                 # rascunho não muda a reunião
+    assert len(rot['atos']) == 5                                       # rascunho não muda a reunião
     assert _pilotar(admin, acao='gerar').status_code == 200
     rot = _roteiro(admin.get('/apresentacao/2026-07').get_data(as_text=True))
     assert rot['atos'][5]['t'] == 'Para onde vamos'
     assert rot['atos'][5]['itens'] == [{'sec': 'evolutiva', 'blk': 'ev-anual'}]
+    # desligar um ato do meio renumera os seguintes, sem buraco
+    atos[1]['ativo'] = False
+    _pilotar(admin, acao='salvar', atos=atos)
+    _pilotar(admin, acao='gerar')
+    rot = _roteiro(admin.get('/apresentacao/2026-07').get_data(as_text=True))
+    assert [a['n'] for a in rot['atos']] == [1, 2, 3, 4, 5] and rot['atos'][1]['t'] == 'O mês'
+    assert 'pe-cart' not in rot['ocultar']                             # o gráfico do ato desligado volta ao anexo
     # voltar ao padrão é um rascunho: vale quando gerar
     assert _pilotar(admin, acao='padrao').get_json()['estado']['pendente']
     _pilotar(admin, acao='gerar')
-    assert _roteiro(admin.get('/apresentacao/2026-07').get_data(as_text=True))['atos'][5]['t'] == 'O que vem a seguir'
+    assert len(_roteiro(admin.get('/apresentacao/2026-07').get_data(as_text=True))['atos']) == 5
 
 
 def test_pilotar_recusa_roteiro_invalido(app, admin):

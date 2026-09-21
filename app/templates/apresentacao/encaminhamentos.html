@@ -49,7 +49,7 @@
     <label class="campo">Responsável
       <select name="responsavel" required>
         <option value="">Escolha…</option>
-        {% for u in pessoas %}<option value="{{ u.login }}">{{ u.nome or u.login }}</option>{% endfor %}
+        {% for u in pessoas %}<option value="{{ u.login }}">{{ u.rotulo }}</option>{% endfor %}
       </select></label>
     <label class="campo">Prazo <input name="prazo" type="date"></label>
     <label class="campo">Ato

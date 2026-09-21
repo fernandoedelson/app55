@@ -82,9 +82,10 @@ ATOS = [
         {'sec': 'custosx', 'blk': 'cx-retrabalho-pareto'},
         {'sec': 'custosx', 'blk': 'cx-assistencia'},
         {'sec': 'custosx', 'blk': 'cx-assistencia-prod'}]},
-    # ato de passagem: só o enunciado — o estudo Fábrica × Loja é apresentado à parte e vive no Anexo III
+    # o Ato 6 é montado mês a mês pela Controladoria, com o que for importante: nasce desligado
     {'n': 6, 't': 'O que vem a seguir',
-     'q': 'Como o resultado se reparte quando a leitura muda de empresa para função?', 'min': '4 min', 'itens': []},
+     'q': 'Como o resultado se reparte quando a leitura muda de empresa para função?', 'min': '4 min', 'itens': [],
+     'ativo': False},
 ]
 
 ANEXOS = [
@@ -126,7 +127,7 @@ def roteiro(pode_bloco, atos=None):
     Ato vazio não some — ele aparece dizendo "conteúdo restrito", senão a reunião pareceria
     ter menos atos para quem tem menos permissão (decisão da especificação)."""
     saida = []
-    for ato in (atos if atos is not None else ATOS):
+    for ato in ativos(atos if atos is not None else padrao()):
         itens = []
         for it in ato['itens']:
             if it.get('sub'):
@@ -158,6 +159,41 @@ EQUIVALENTES = {
 }
 # barras de filtro que não são filhas diretas da seção: só as conhecidas (o valor vira seletor CSS)
 FILTROS_INTERNOS = {'custosx': '#custosx-body > .filterbar'}
+# Indicadores (cartão .kpi, pelo rótulo) e pontos de leitura (.pv, pelo título) de um anexo que
+# repetem, mesmo número e mesmo período, o que um bloco dos atos mostra. Saem do anexo quando
+# algum dos blocos de `cobre` está num ato. Levantado comparando o documento cartão a cartão.
+REPETIDOS = [
+    # Sumário executivo
+    {'sec': 'resumo', 'kpi': 'Faturamento 2025 · DRE', 'cobre': ['ev-anual']},
+    {'sec': 'resumo', 'kpi': 'Carteira em aberto', 'cobre': ['pe-cart']},
+    {'sec': 'resumo', 'kpi': 'Venda contratada · 2026', 'cobre': ['perf-acum', 'ytd-kpi']},
+    {'sec': 'resumo', 'kpi': 'Faturamento · DRE', 'cobre': ['ev-anual']},
+    {'sec': 'resumo', 'kpi': 'EBITDA · DRE', 'cobre': ['dre-ponte']},
+    {'sec': 'resumo', 'kpi': 'EBIT · DRE', 'cobre': ['dre-ponte']},
+    {'sec': 'resumo', 'kpi': 'Pedidos · 2026', 'cobre': ['ytd-kpi']},
+    {'sec': 'resumo', 'kpi': 'Ticket médio · 2026', 'cobre': ['ytd-kpi']},
+    {'sec': 'resumo', 'leitura': 'Crescimento forte até 2025', 'cobre': ['ev-anual']},
+    # Performance Comercial: os cartões da abertura são o gráfico acumulado do Ato 1 em números
+    {'sec': 'performance', 'kpi': 'Realizado · acumulado', 'cobre': ['perf-acum']},
+    {'sec': 'performance', 'kpi': 'Meta · mesmo período', 'cobre': ['perf-acum']},
+    {'sec': 'performance', 'kpi': 'Gap acumulado', 'cobre': ['perf-acum']},
+    {'sec': 'performance', 'kpi': 'Atingimento', 'cobre': ['perf-acum']},
+    {'sec': 'performance', 'kpi': 'Meta do ano', 'cobre': ['perf-acum']},
+    {'sec': 'performance', 'kpi': 'A realizar', 'cobre': ['perf-mes']},
+    {'sec': 'performance', 'kpi': 'Ritmo necessário', 'cobre': ['perf-mes']},
+    # DRE: a ponte do Ato 5 é a mesma cascata, da receita ao EBITDA
+    {'sec': 'dre', 'kpi': 'Receita bruta', 'cobre': ['dre-minidre']},
+    {'sec': 'dre', 'kpi': 'Receita líquida', 'cobre': ['dre-ponte']},
+    {'sec': 'dre', 'kpi': 'Margem de contribuição', 'cobre': ['dre-ponte']},
+    {'sec': 'dre', 'kpi': 'Custo fixo', 'cobre': ['dre-ponte']},
+    {'sec': 'dre', 'kpi': 'EBITDA', 'cobre': ['dre-ponte']},
+    # Análise de Vendas: a líder é o retrato do Ato 4
+    {'sec': 'vendas', 'kpi': 'Líder', 'cobre': ['av-lider']},
+    # Custos — Executivo: mão de obra e GGF do CPV já estão nos cartões da abertura trazida ao Ato 5
+    {'sec': 'custosx', 'kpi': 'Mão de obra', 'cobre': ['custosx.abertura']},
+    {'sec': 'custosx', 'kpi': 'GGF', 'cobre': ['custosx.abertura']},
+]
+
 # seções cuja abertura traz números próprios (e não só título e texto): no anexo ela conta como conteúdo
 ABERTURA_COM_CONTEUDO = {'resumo', 'performance', 'carteira_dinamica', 'divida'}
 CHAVES_ITEM = ('sec', 'blk', 'abre', 'semHead', 'filtro', 'filtroSel', 'semFiltro', 'sub', 'nota')
@@ -178,9 +214,22 @@ def ocultos_nos_anexos(atos):
     return sorted(nos_atos | {b for b, alvo in EQUIVALENTES.items() if alvo in nos_atos})
 
 
+def _presentes(atos):
+    """Blocos dos atos, mais '<seção>.abertura' para cada abertura trazida a um ato."""
+    return set(blocos_nos_atos(atos)) | {it['sec'] + '.abertura' for a in atos for it in a['itens'] if it.get('abre')}
+
+
+def repetidos_nos_anexos(atos):
+    """Indicadores e pontos de leitura dos anexos que repetem o que um ato já mostra."""
+    tem = _presentes(atos)
+    return [dict(r, cobre=[b for b in r['cobre'] if b in tem]) for r in REPETIDOS if any(b in tem for b in r['cobre'])]
+
+
 def sobras_dos_anexos(atos):
     """O que fica em cada anexo depois dos atos — a prévia da página de pilotar."""
+    atos = ativos(atos)
     fora = set(ocultos_nos_anexos(atos))
+    sem_abertura = {r['sec'] for r in repetidos_nos_anexos(atos) if r['sec'] == 'performance'}
     aberturas = {it['sec'] for a in atos for it in a['itens'] if it.get('abre')}
     saida = []
     for g in ANEXOS:
@@ -188,7 +237,7 @@ def sobras_dos_anexos(atos):
         for sid in g['secs']:
             blocos = [b for b in C.BLOCOS if b['secao'] == sid and b['id'] not in fora
                       and not b['id'].endswith('.abertura')]
-            if sid in ABERTURA_COM_CONTEUDO and sid not in aberturas:
+            if sid in ABERTURA_COM_CONTEUDO and sid not in aberturas and sid not in sem_abertura:
                 blocos.insert(0, C.BLOCO[sid + '.abertura'])
             if blocos:
                 secs.append({'id': sid, 'titulo': C.SECAO[sid]['titulo'], 'blocos': blocos})
@@ -249,7 +298,16 @@ def normalizar(atos):
                     novo['semFiltro'] = True
                 itens.append(novo)
         saida.append({'n': i, 't': t, 'q': _texto(a.get('q'), 200), 'min': _texto(a.get('min'), 12),
-                      'cortina': bool(a.get('cortina')), 'itens': itens})
+                      'cortina': bool(a.get('cortina')), 'ativo': bool(a.get('ativo', True)), 'itens': itens})
+    return saida
+
+
+def ativos(atos):
+    """Os atos que entram na reunião, renumerados na ordem (ato desligado não deixa buraco)."""
+    saida = []
+    for a in atos:
+        if a.get('ativo', True):
+            saida.append(dict(a, n=len(saida) + 1))
     return saida
 
 

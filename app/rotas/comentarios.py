@@ -63,9 +63,11 @@ def no_grafico(codigo, bloco):
 def index():
     """Pendências: só o que pede ação de quem abriu. Escrever é no gráfico, não aqui."""
     codigo = _competencia(request.args.get('comp'))
+    from ..apresentacao import encaminhamentos as E
+    meus_enc = [dict(e, atrasado=E.atrasado(e)) for e in E.meus(g.usuario['login'])]
     if not codigo:
         return render_template('comentarios/pendencias.html', codigo=None, p=None, painel=None, cura=_cura(),
-                               tem_area=bool(M.areas_do_usuario(g.usuario)))
+                               tem_area=bool(M.areas_do_usuario(g.usuario)), meus_enc=meus_enc)
     aberto, motivo = M.prazo_aberto(codigo)
     comp = M._comp(codigo) or {}
     return render_template('comentarios/pendencias.html', codigo=codigo, p=M.pendencias(codigo, g.usuario),
@@ -77,7 +79,7 @@ def index():
                                          if _cura() or s['pedido_por'] == g.usuario['login']],
                            areas=[a for a in M.areas_que_comentam()
                                   if a['codigo'] not in {x['codigo'] for x in M.areas_do_usuario(g.usuario)}],
-                           grupos_blocos=_blocos_por_secao() if _pode_pedir() else [])
+                           grupos_blocos=_blocos_por_secao() if _pode_pedir() else [], meus_enc=meus_enc)
 
 
 def _blocos_por_secao():

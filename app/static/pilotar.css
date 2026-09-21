@@ -79,3 +79,8 @@
 }
 .pl-ato input,.pl-ato select,.pl-ato textarea,.pl-barra select{font-family:var(--body);color:var(--ink)}
 .pl-ato input:not([type=checkbox]),.pl-ato textarea,.pl-ato select{border-radius:var(--radius)}
+.pl-ato-campos{grid-template-columns:1fr 110px auto auto}
+.pl-desligado{border-top-color:var(--line-strong);background:var(--surface-warm)}
+.pl-desligado .pl-itens,.pl-desligado .pl-ato-t{opacity:.55}
+.pl-off{margin:-4px 0 12px;font-size:.86rem;color:var(--taupe-deep)}
+@media (max-width:760px){.pl-ato-campos{grid-template-columns:1fr}}
