@@ -18,25 +18,37 @@ from . import kit_parser as K
 _trava = threading.Lock()
 
 # base -> o que ela alimenta no relatório (o id é o mesmo do catálogo, em base:upload:<id>)
+# reaproveitavel: planilha que não muda todo mês — dá para usar a do mês anterior sem subir de novo.
+# As duas carteiras são a mesma planilha (VENDAS LOJA) em dois momentos: a posição de fechamento do
+# mês (a "Carteira" do relatório) e a posição mais recente (a "Carteira dinâmica", que é atualizada
+# quantas vezes for preciso, mesmo depois de o mês estar publicado).
 BASES = {
     'comercial': {'padroes': ['*Controle*Vendas*.xlsx'], 'obrigatoria': True,
                   'titulo': 'Base comercial (Controle ADM de Vendas)'},
     'painel': {'padroes': ['*Painel*Resultado*.xlsm', '*Resultado*.xlsm'], 'obrigatoria': True,
                'titulo': 'Painel de Resultado (DRE e razão do custo fixo)'},
+    'carteira_fech': {'padroes': ['Carteira_Fechamento/VENDAS LOJA*.xlsx'], 'obrigatoria': False,
+                      'titulo': 'Carteira — posição de fechamento (VENDAS LOJA)'},
     'carteira': {'padroes': ['VENDAS LOJA*.xlsx'], 'obrigatoria': False,
-                 'titulo': 'Carteira dinâmica (VENDAS LOJA)'},
-    'metas': {'padroes': ['Metas*Vendas*.xlsx'], 'obrigatoria': False, 'titulo': 'Metas de venda do ano'},
-    'aportes': {'padroes': ['Aportes*.xlsx'], 'obrigatoria': False, 'titulo': 'Dívida com o acionista (Aportes)'},
-    'apelidos': {'padroes': ['Apelidos.xlsx'], 'obrigatoria': False, 'titulo': 'Apelidos (de-para de nomes)'},
-    'designers': {'padroes': ['Designers.xlsx'], 'obrigatoria': False, 'titulo': 'Designers'},
-    'custos': {'padroes': ['Custos/*.xlsx'], 'obrigatoria': False, 'titulo': 'Fontes de custo (pasta Custos)'},
+                 'titulo': 'Carteira dinâmica — posição mais recente (VENDAS LOJA)', 'atualizavel': True},
+    'metas': {'padroes': ['Metas*Vendas*.xlsx'], 'obrigatoria': False, 'titulo': 'Metas de venda do ano',
+              'reaproveitavel': True},
+    'aportes': {'padroes': ['Aportes*.xlsx'], 'obrigatoria': False, 'titulo': 'Dívida com o acionista (Aportes)',
+                'reaproveitavel': True},
+    'apelidos': {'padroes': ['Apelidos.xlsx'], 'obrigatoria': False, 'titulo': 'Apelidos (de-para de nomes)',
+                 'reaproveitavel': True},
+    'designers': {'padroes': ['Designers.xlsx'], 'obrigatoria': False, 'titulo': 'Designers',
+                  'reaproveitavel': True},
+    'custos': {'padroes': ['Custos/*.xlsx'], 'obrigatoria': False, 'titulo': 'Fontes de custo (pasta Custos)',
+               'reaproveitavel': True},
     'fabloja': {'padroes': ['Modelo_Gerencial_Fabrica_Loja/*.xlsx'], 'obrigatoria': False,
-                'titulo': 'Modelo gerencial Fábrica × Loja'},
+                'titulo': 'Modelo gerencial Fábrica × Loja', 'reaproveitavel': True},
 }
 
 # blob -> arquivo json da competência (o cálculo lê por esses nomes)
 BLOBS = ['DATA', 'DRE', 'DPNL', 'DECK', 'CF', 'CUSTOS', 'CARTDIN', 'CFMENSAL', 'MAXYM_DRE', 'APORTES',
-         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS']
+         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH']
+PASTA_CARTEIRA_FECH = 'Carteira_Fechamento'
 
 
 def _config(base):
@@ -73,19 +85,50 @@ def processar(fontes, base=None, custos=None):
             'FABLOJA': K.parse_fabloja(),
             'PARTES_RELACIONADAS': cfg.get('partes_relacionadas', []),
             'DESTAQUES_MANUAIS': cfg.get('destaques_manuais', {}),
+            'CARTDIN_FECH': _carteira_em(os.path.join(fontes, PASTA_CARTEIRA_FECH), fontes, custos, base),
         }
+
+
+def _carteira_em(pasta, fontes, custos, base):
+    """A mesma leitura da carteira dinâmica, apontada para outra pasta (chamar com a trava tomada)."""
+    if not os.path.isdir(pasta):
+        return None
+    try:
+        K.definir_pastas(pasta, custos, base)
+        return K.parse_carteira_dinamica()
+    finally:
+        K.definir_pastas(fontes, custos, base)
+
+
+def carteira_dinamica(fontes, base=None, custos=None):
+    """Só a carteira dinâmica: a atualização do meio do mês não relê as outras bases."""
+    base = base or fontes
+    with _trava:
+        K.definir_pastas(fontes, custos, base)
+        return K.parse_carteira_dinamica()
 
 
 def gravar(blobs, pasta):
     """Um arquivo por base, como o gabarito importado — o cálculo lê blob a blob, sob demanda."""
     os.makedirs(pasta, exist_ok=True)
     for nome in BLOBS:
+        if nome == 'CARTDIN_FECH' and blobs.get(nome) is None:
+            continue                     # sem a carteira de fechamento, a Carteira usa a dinâmica (como o Kit)
         caminho = os.path.join(pasta, nome + '.json')
         tmp = caminho + '.tmp'
         with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(blobs.get(nome), f, ensure_ascii=False, separators=(',', ':'))
         os.replace(tmp, caminho)
     return pasta
+
+
+def gravar_um(nome, blob, pasta):
+    """Regrava um blob só (a carteira dinâmica atualizada no meio do mês)."""
+    caminho = os.path.join(pasta, nome + '.json')
+    tmp = caminho + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(blob, f, ensure_ascii=False, separators=(',', ':'))
+    os.replace(tmp, caminho)
 
 
 def fontes_encontradas(fontes):

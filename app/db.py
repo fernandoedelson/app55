@@ -263,6 +263,8 @@ MIGRACOES = [
      'controladoria': ['recurso:comentar', 'recurso:consolidar', 'recurso:curar_comentarios']},
     # pilotar a apresentação ganhou permissão própria (antes vinha junto com curar os comentários)
     {'controladoria': ['recurso:pilotar']},
+    # a carteira passou a ter dois arquivos: a posição de fechamento e a dinâmica
+    {'controladoria': ['base:upload:carteira_fech']},
 ]
 
 

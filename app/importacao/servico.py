@@ -22,7 +22,8 @@ from ..db import agora, get_db
 from . import comparar, motor
 
 RE_COMP = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
-SUBPASTA = {'custos': 'Custos', 'fabloja': 'Modelo_Gerencial_Fabrica_Loja'}
+SUBPASTA = {'custos': 'Custos', 'fabloja': 'Modelo_Gerencial_Fabrica_Loja',
+            'carteira_fech': motor.PASTA_CARTEIRA_FECH}
 
 
 def pasta_fontes(codigo):
@@ -85,6 +86,10 @@ def criar(codigo, login):
 
 # bases que são uma PASTA (várias planilhas, sem nome único): quem sobe diz a qual pertence
 BASES_PASTA = {bid for bid, b in motor.BASES.items() if any('/' in p for p in b['padroes'])}
+# bases de arquivo único numa subpasta (a carteira de fechamento): mesmo nome de outra base, então
+# vale a escolha de quem sobe — e um arquivo novo substitui o anterior
+BASES_ESCOLHIDAS = {'carteira_fech'}
+BASES_PASTA -= BASES_ESCOLHIDAS
 
 
 def base_do_arquivo(nome):
@@ -95,7 +100,7 @@ def base_do_arquivo(nome):
     import fnmatch
     alvo = os.path.basename(nome)
     for bid, b in motor.BASES.items():
-        if bid in BASES_PASTA:
+        if bid in BASES_PASTA or bid in BASES_ESCOLHIDAS:
             continue
         for padrao in b['padroes']:
             if fnmatch.fnmatch(alvo, padrao):
@@ -108,7 +113,7 @@ def guardar_arquivo(codigo, arquivo, data_posicao, login, base_declarada=None):
     comp = obter(codigo)
     if not comp:
         raise ValueError('competência não encontrada.')
-    if comp['status'] == 'fechada':
+    if comp['status'] == 'fechada' and base_declarada != 'carteira':
         raise ValueError('competência fechada: reabra antes de trocar as bases.')
     nome = os.path.basename(arquivo.filename or '')
     if not nome:
@@ -116,6 +121,8 @@ def guardar_arquivo(codigo, arquivo, data_posicao, login, base_declarada=None):
     if not nome.lower().endswith(('.xlsx', '.xlsm')):
         raise ValueError('a base tem de ser uma planilha .xlsx ou .xlsm.')
     base = base_do_arquivo(nome)
+    if base_declarada in BASES_ESCOLHIDAS and base == 'carteira':
+        base = base_declarada          # mesma planilha (VENDAS LOJA), outro momento: a escolha manda
     if base is None and base_declarada in BASES_PASTA:
         base = base_declarada          # planilha de pasta (Custos/, Fábrica×Loja): a escolha manda
     if base is None:
@@ -130,18 +137,104 @@ def guardar_arquivo(codigo, arquivo, data_posicao, login, base_declarada=None):
         raise ValueError('declare a data de posição da base (o dia a que os números se referem).')
     destino_dir = os.path.join(pasta_fontes(codigo), SUBPASTA.get(base, ''))
     os.makedirs(destino_dir, exist_ok=True)
+    if base not in BASES_PASTA:
+        _tirar_anteriores(codigo, base, destino_dir)   # base de arquivo único: o novo substitui o antigo
     destino = os.path.join(destino_dir, nome)
     arquivo.save(destino)
     with open(destino, 'rb') as f:
         dados = f.read()
+    _registrar_arquivo(codigo, base, nome, dados, data_posicao.strip(), login)
+    return {'base': base, 'arquivo': nome, 'tamanho': len(dados)}
+
+
+def _registrar_arquivo(codigo, base, nome, dados, data_posicao, login):
     con = get_db()
-    con.execute('DELETE FROM competencia_arquivos WHERE competencia=? AND arquivo=?', (codigo, nome))
+    con.execute('DELETE FROM competencia_arquivos WHERE competencia=? AND base=? AND arquivo=?', (codigo, base, nome))
     con.execute('INSERT INTO competencia_arquivos (competencia, base, arquivo, sha256, tamanho, data_posicao, '
                 'enviado_por, enviado_em) VALUES (?,?,?,?,?,?,?,?)',
-                (codigo, base, nome, hashlib.sha256(dados).hexdigest(), len(dados), data_posicao.strip(),
-                 login, agora()))
+                (codigo, base, nome, hashlib.sha256(dados).hexdigest(), len(dados), data_posicao, login, agora()))
     con.commit()
-    return {'base': base, 'arquivo': nome, 'tamanho': len(dados)}
+
+
+def _tirar_anteriores(codigo, base, pasta):
+    """Apaga os arquivos que esta base já tinha no mês: sem isso, um nome novo deixaria dois
+    arquivos da mesma base na pasta e a leitura escolheria pelo mais recente, sem avisar."""
+    con = get_db()
+    for r in con.execute('SELECT arquivo FROM competencia_arquivos WHERE competencia=? AND base=?',
+                         (codigo, base)).fetchall():
+        caminho = os.path.join(pasta, r['arquivo'])
+        if os.path.isfile(caminho):
+            os.remove(caminho)
+    con.execute('DELETE FROM competencia_arquivos WHERE competencia=? AND base=?', (codigo, base))
+    con.commit()
+
+
+def anterior_com_base(codigo, base):
+    """O mês anterior mais próximo que tem arquivo desta base (para reaproveitar)."""
+    r = get_db().execute('SELECT competencia FROM competencia_arquivos WHERE base=? AND competencia<? '
+                         'ORDER BY competencia DESC LIMIT 1', (base, codigo)).fetchone()
+    return r['competencia'] if r else None
+
+
+def reaproveitar(codigo, base, login):
+    """Copia para este mês os arquivos da base no mês anterior mais próximo — sem subir de novo."""
+    if not motor.BASES.get(base, {}).get('reaproveitavel'):
+        raise ValueError('esta base muda todo mês: suba o arquivo do mês.')
+    comp = obter(codigo)
+    if not comp:
+        raise ValueError('competência não encontrada.')
+    if comp['status'] == 'fechada':
+        raise ValueError('competência fechada: reabra antes de trocar as bases.')
+    origem = anterior_com_base(codigo, base)
+    if not origem:
+        raise ValueError('nenhum mês anterior tem arquivo de "%s".' % motor.BASES[base]['titulo'])
+    sub = SUBPASTA.get(base, '')
+    de_dir, para_dir = os.path.join(pasta_fontes(origem), sub), os.path.join(pasta_fontes(codigo), sub)
+    os.makedirs(para_dir, exist_ok=True)
+    _tirar_anteriores(codigo, base, para_dir)
+    copiados = 0
+    for r in get_db().execute('SELECT * FROM competencia_arquivos WHERE competencia=? AND base=?',
+                              (origem, base)).fetchall():
+        org = os.path.join(de_dir, r['arquivo'])
+        if not os.path.isfile(org):
+            continue
+        shutil.copy2(org, os.path.join(para_dir, r['arquivo']))
+        with open(org, 'rb') as f:
+            dados = f.read()
+        _registrar_arquivo(codigo, base, r['arquivo'], dados, r['data_posicao'], '%s (de %s)' % (login, origem))
+        copiados += 1
+    if not copiados:
+        raise ValueError('os arquivos de %s não estão mais no servidor: suba de novo.' % origem)
+    return origem, copiados
+
+
+def _data_br(d):
+    d = (d or '').strip()
+    if len(d) == 10 and d[4] == '-':
+        return '%s/%s/%s' % (d[8:10], d[5:7], d[:4])
+    return d
+
+
+def _data_declarada(codigo, base):
+    r = get_db().execute('SELECT data_posicao FROM competencia_arquivos WHERE competencia=? AND base=? '
+                         'ORDER BY enviado_em DESC LIMIT 1', (codigo, base)).fetchone()
+    return _data_br(r['data_posicao']) if r else None
+
+
+def atualizar_carteira_dinamica(codigo, login):
+    """A carteira dinâmica do mês já processado passa a ser a do arquivo novo — só ela é relida e
+    regravada; as outras bases e o que já foi publicado continuam como estão."""
+    if codigo not in comp_mod.disponiveis(current_app.config):
+        return False                    # mês ainda não processado: entra no próximo "Processar"
+    blob = motor.carteira_dinamica(pasta_fontes(codigo), base=_config_anterior(codigo) or pasta_fontes(codigo))
+    if blob is None:
+        raise ValueError('não consegui ler a carteira dinâmica (a aba "VENDAS GERAL" existe na planilha?).')
+    d = _data_declarada(codigo, 'carteira')
+    if d:
+        blob['data_base'] = d
+    motor.gravar_um('CARTDIN', blob, pasta_dados(codigo))
+    comp_mod.esquecer(pasta_dados(codigo))
+    return True
 
 
 def arquivos(codigo):
@@ -170,6 +263,10 @@ def processar(codigo, login, config_de=None):
     # vem da competência anterior enquanto não houver tela para editá-lo
     base_cfg = config_de or _config_anterior(codigo) or fontes
     blobs = motor.processar(fontes, base=base_cfg)
+    for blob, base in (('CARTDIN', 'carteira'), ('CARTDIN_FECH', 'carteira_fech')):
+        d = _data_declarada(codigo, base)
+        if blobs.get(blob) and d:
+            blobs[blob]['data_base'] = d
     motor.gravar(blobs, pasta_dados(codigo))
     comp_mod.esquecer(pasta_dados(codigo))
     con = get_db()

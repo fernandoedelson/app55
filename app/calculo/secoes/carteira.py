@@ -9,7 +9,8 @@ ST_ROT = [('ANDAMENTO', 'Em andamento'), ('FINALIZADO', 'Finalizado (estoque)'),
 
 
 def calcular_carteira(C, params=None):
-    DATA, CD = C.blob('DATA'), C.blob('CARTDIN')
+    # a Carteira é a posição de fechamento; sem esse arquivo, usa a dinâmica (é o que o Kit faz)
+    DATA, CD = C.blob('DATA'), C.blob('CARTDIN_FECH') or C.blob('CARTDIN')
     c = DATA['carteira']
     # o aging vem logo depois do quadro de status; sem carteira dinâmica não há esse título e o
     # aging passa a pertencer à abertura da seção (é assim que o Kit marca os blocos)

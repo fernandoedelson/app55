@@ -53,7 +53,11 @@ def ver(codigo):
         abort(404)
     publicadas = servico.blocos_publicados(codigo)
     secoes = [dict(s, blocos=C.blocos_da_secao(s['id'])) for s in C.SECOES]
-    return render_template('fechamento/competencia.html', comp=comp, bases=motor.BASES,
+    anteriores = {b: servico.anterior_com_base(codigo, b) for b, d in motor.BASES.items() if d.get('reaproveitavel')}
+    enviadas = {a['base'] for a in servico.arquivos(codigo)}
+    reusaveis = [b for b, de in anteriores.items() if de and b not in enviadas]
+    return render_template('fechamento/competencia.html', comp=comp, bases=motor.BASES, anteriores=anteriores,
+                           reusaveis=reusaveis,
                            arquivos=servico.arquivos(codigo), faltando=servico.faltando(codigo),
                            passado=servico.mudou_o_passado(codigo), secoes=secoes,
                            blocos_publicados=publicadas,
@@ -79,7 +83,42 @@ def upload(codigo):
     auditoria.registrar('competencia.upload', '%s · %s · %s · posição %s'
                         % (codigo, r['base'], r['arquivo'], data_posicao))
     flash('%s recebido como "%s".' % (r['arquivo'], motor.BASES[r['base']]['titulo']), 'ok')
-    return redirect(url_for('competencias.ver', codigo=codigo))
+    if r['base'] == 'carteira':
+        # a carteira dinâmica vale na hora, mesmo com o mês publicado: só ela é relida
+        try:
+            if servico.atualizar_carteira_dinamica(codigo, g.usuario['login']):
+                auditoria.registrar('competencia.carteira_dinamica', '%s · posição %s' % (codigo, data_posicao))
+                flash('Carteira dinâmica atualizada no relatório e na reunião (posição %s).'
+                      % data_posicao, 'ok')
+        except Exception as e:
+            current_app.logger.exception('carteira dinâmica %s', codigo)
+            flash('Arquivo guardado, mas não consegui atualizar a carteira dinâmica: %s' % e, 'erro')
+    return redirect(url_for('competencias.ver', codigo=codigo) + '#bases')
+
+
+@bp.route('/<codigo>/reaproveitar', methods=['POST'])
+def reaproveitar(codigo):
+    """Usa a planilha do mês anterior (metas, apelidos, designers...) sem subir de novo."""
+    bases = [request.form.get('base')] if request.form.get('base') else \
+        [b for b in motor.BASES if motor.BASES[b].get('reaproveitavel')
+         and not any(a['base'] == b for a in servico.arquivos(codigo))]
+    feitos, erros = [], []
+    for base in bases:
+        if base not in motor.BASES or not U.pode(g.usuario, 'base:upload:' + base):
+            continue
+        try:
+            origem, n = servico.reaproveitar(codigo, base, g.usuario['login'])
+            feitos.append('%s (de %s)' % (motor.BASES[base]['titulo'], origem))
+            auditoria.registrar('competencia.reaproveitar', '%s · %s · de %s' % (codigo, base, origem))
+        except ValueError as e:
+            erros.append(str(e))
+    if feitos:
+        flash('Usando o do mês anterior: %s.' % '; '.join(feitos), 'ok')
+    for e in erros:
+        flash(e[:1].upper() + e[1:], 'erro')
+    if not feitos and not erros:
+        flash('Nada a trazer do mês anterior.', 'ok')
+    return redirect(url_for('competencias.ver', codigo=codigo) + '#bases')
 
 
 @bp.route('/<codigo>/processar', methods=['POST'])

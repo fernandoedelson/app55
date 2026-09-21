@@ -54,28 +54,53 @@
   </div>
 {% endif %}
 
-{% if comp.criada_por != 'importação inicial' %}
-<h2 id="bases">Bases do mês</h2>
+{% set so_carteira = comp.criada_por == 'importação inicial' %}
+<h2 id="bases">{{ 'Carteira dinâmica' if so_carteira else 'Bases do mês' }}</h2>
+{% if so_carteira %}
+<p class="muted">Os dados deste mês vieram prontos da importação inicial; a carteira dinâmica, porém, pode ser
+  atualizada: o arquivo novo substitui o anterior e a reunião passa a mostrá-lo na hora.</p>
+{% else %}
+<p class="muted">Suba cada base quando ela estiver pronta: o arquivo fica guardado no mês e dá para voltar
+  outro dia e subir as demais. <b>Processar</b> só libera quando as obrigatórias estiverem aqui. Mandar de novo
+  uma base substitui o arquivo anterior dela.</p>
+{% endif %}
+{% if reusaveis and comp.status != 'fechada' and not so_carteira %}
+<form method="post" action="{{ url_for('competencias.reaproveitar', codigo=comp.codigo) }}" class="actions">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-sm" type="submit">Usar do mês anterior tudo o que não muda ({{ reusaveis|length }})</button>
+  <span class="muted">{% for b in reusaveis %}{{ bases[b].titulo }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+</form>
+{% endif %}
 <table class="tbl">
   <thead><tr><th>Base</th><th>Arquivo</th><th>Posição</th><th>Enviado</th><th></th></tr></thead>
   <tbody>
-  {% for bid, b in bases.items() %}
+  {% for bid, b in bases.items() if not so_carteira or bid == 'carteira' %}
     {% set envios = arquivos|selectattr('base','equalto',bid)|list %}
     <tr>
-      <td>{{ b.titulo }}{% if b.obrigatoria %} <span class="muted">(obrigatória)</span>{% endif %}</td>
+      <td>{{ b.titulo }}{% if b.obrigatoria %} <span class="muted">(obrigatória)</span>{% endif %}
+        {% if bid == 'carteira' %}<br><span class="muted">Atualize quantas vezes quiser, mesmo com o mês publicado ou fechado: o arquivo novo substitui o anterior e a carteira dinâmica muda na hora.</span>
+        {% elif bid == 'carteira_fech' %}<br><span class="muted">A planilha VENDAS LOJA no último dia do mês: é a seção Carteira. Sem ela, a Carteira usa a dinâmica.</span>
+        {% elif b.reaproveitavel %}<br><span class="muted">Não muda todo mês: dá para usar a do mês anterior.</span>{% endif %}</td>
       <td>{% for a in envios %}{{ a.arquivo }}<br>{% else %}<span class="muted">—</span>{% endfor %}</td>
       <td>{% for a in envios %}{{ a.data_posicao|data_br }}<br>{% endfor %}</td>
       <td>{% for a in envios %}<span class="muted">{{ a.enviado_por }} · {{ a.enviado_em|data_br }}</span><br>{% endfor %}</td>
       <td class="right">
-        {% if pode_upload.get(bid) and comp.status != 'fechada' %}
+        {% if pode_upload.get(bid) and (comp.status != 'fechada' or bid == 'carteira') %}
         <form method="post" action="{{ url_for('competencias.upload', codigo=comp.codigo) }}"
               enctype="multipart/form-data" class="actions">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="base" value="{{ bid }}">
           <label class="campo">Planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" required></label>
           <label class="campo">Posição dos números <input name="data_posicao" type="date" required></label>
-          <button class="btn btn-sm" type="submit">Enviar</button>
+          <button class="btn btn-sm" type="submit">{{ 'Atualizar' if bid == 'carteira' and envios else 'Enviar' }}</button>
         </form>
+        {% if b.reaproveitavel and anteriores.get(bid) and comp.status != 'fechada' %}
+        <form method="post" action="{{ url_for('competencias.reaproveitar', codigo=comp.codigo) }}" class="actions">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="base" value="{{ bid }}">
+          <button class="btn btn-sm" type="submit">{{ 'Trocar pelo' if envios else 'Usar o' }} de {{ anteriores[bid] }}</button>
+        </form>
+        {% endif %}
         {% else %}<span class="muted">sem permissão</span>{% endif %}
       </td>
     </tr>
@@ -83,6 +108,7 @@
   </tbody>
 </table>
 
+{% if not so_carteira %}
 <h2 class="mt-lg" id="processar">Processar</h2>
 <p class="muted">Lê as planilhas e gera os dados desta competência — é a mesma leitura que gerou o relatório aprovado.</p>
 <form method="post" action="{{ url_for('competencias.processar', codigo=comp.codigo) }}" class="actions">
@@ -90,7 +116,6 @@
   <button class="btn btn-primary" type="submit" {% if faltando %}disabled{% endif %}>Processar as bases</button>
   {% if comp.processada_em %}<span class="muted">última vez: {{ comp.processada_em|data_br }}</span>{% endif %}
 </form>
-
 {% endif %}
 
 {% if comp.processada_em and comp.criada_por != 'importação inicial' %}
