@@ -12,6 +12,15 @@
   <a class="card" href="{{ url_for('admin.auditoria') }}"><div class="stat">&rarr;</div><div class="stat-l">Auditoria</div></a>
 </div>
 
+<h2 class="mt-lg">Apresentação do mês</h2>
+<p class="muted">Monte a reunião: o que entra em cada ato, a ordem, os textos e os comentários das áreas.
+  O que ficar fora dos atos vai para os anexos. A reunião muda quando você gera.</p>
+<form method="get" action="{{ url_for('apresentacao.pilotar_ir') }}" class="actions">
+  <label class="campo">Competência
+    <select name="comp">{% for c in competencias %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></label>
+  <button class="btn btn-primary btn-sm" type="submit">Pilotar a apresentação</button>
+</form>
+
 <h2 class="mt-lg">Ver a aplicação como um perfil</h2>
 <p class="muted">Mostra exatamente o que o perfil enxerga. É só leitura e fica registrado na auditoria.</p>
 <form method="post" action="{{ url_for('admin.ver_como') }}" class="actions">

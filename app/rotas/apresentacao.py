@@ -5,13 +5,15 @@
                                           ou o roteiro filtrado pelo perfil (quem vê parte)
     /apresentacao/<comp>/baixar           o mesmo HTML para levar (recurso exportar)
     /apresentacao/<comp>/encaminhamentos  o combinado: criar, marcar feito, confirmar
+    /apresentacao/<comp>/pilotar          a Controladoria monta os atos e gera a apresentação
 
-O roteiro é igual para todos (está no código, como o catálogo). O que muda é o conteúdo: o
-servidor manda só os blocos permitidos e o ato que ficou sem nenhum diz "conteúdo restrito"."""
+O roteiro é igual para todos: o padrão do código ou o que a Controladoria gerou para o mês. O que
+muda é o conteúdo: o servidor manda só os blocos permitidos e o ato que ficou sem nenhum diz
+"conteúdo restrito"."""
 import json
 
-from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template, request,
-                   send_file, url_for)
+from flask import (Blueprint, Response, abort, current_app, flash, g, jsonify, redirect, render_template,
+                   request, url_for)
 
 from .. import auditoria
 from .. import calculo
@@ -43,12 +45,26 @@ def _competencia(codigo):
 def ver(codigo=None):
     comp = _competencia(codigo)
     if kit_atos.pode_ver_inteiro(g.usuario):
-        # quem enxerga tudo recebe o documento do Kit, idêntico ao aprovado (mesmo código, mesmos dados)
+        # quem enxerga tudo recebe o documento do Kit (mesmo código, mesmos dados), com o roteiro em vigor
         auditoria.registrar('apresentacao.abrir', comp)
-        resp = send_file(kit_atos.obter(comp), mimetype='text/html', max_age=0)
+        resp = Response(_documento(comp), mimetype='text/html')
         resp.headers['Cache-Control'] = 'private, no-store'
         return resp
     return _filtrada(comp)
+
+
+def _comentarios_da_reuniao(comp):
+    """Bloco → comentários aprovados que a Controladoria marcou para a reunião."""
+    nomes = {a['codigo']: a['nome'] for a in M.areas_que_comentam()}
+    mapa = {}
+    for c in M.aprovados(comp, so_apresentacao=True):
+        mapa.setdefault(c['bloco'], []).append({'area': nomes.get(c['area'], c['area']), 'texto': c['texto']})
+    return mapa
+
+
+def _documento(comp, atos=None):
+    atos = atos if atos is not None else A.vigente(comp)
+    return kit_atos.documento(comp, atos, A.ANEXOS, A.ocultos_nos_anexos(atos), _comentarios_da_reuniao(comp))
 
 
 @bp.route('/<codigo>/baixar')
@@ -58,15 +74,17 @@ def baixar(codigo):
     if not (U.pode(g.usuario, 'recurso:exportar') and kit_atos.pode_ver_inteiro(g.usuario)):
         abort(403)
     auditoria.registrar('apresentacao.baixar', comp)
-    return send_file(kit_atos.obter(comp), mimetype='text/html', as_attachment=True,
-                     download_name='Analise_Vendas_e_DRE_55Design_Atos_%s.html' % comp, max_age=0)
+    resp = Response(_documento(comp), mimetype='text/html')
+    resp.headers['Content-Disposition'] = 'attachment; filename="Analise_Vendas_e_DRE_55Design_Atos_%s.html"' % comp
+    resp.headers['Cache-Control'] = 'private, no-store'
+    return resp
 
 
 def _filtrada(comp):
     """Perfil que vê só parte do relatório: o roteiro montado apenas com os blocos dele. O
     documento do Kit não serve aqui — ele carrega os dados do mês inteiros."""
     pode = lambda bid: U.pode(g.usuario, 'bloco:' + bid)
-    roteiro = A.roteiro(pode)
+    roteiro = A.roteiro(pode, A.vigente(comp))
     dados = comp_mod.carregar(current_app.config, comp)
     payloads = {}
     for secao in A.secoes_necessarias(roteiro):
@@ -110,7 +128,7 @@ def encaminhamentos(codigo):
     return render_template('apresentacao/encaminhamentos.html', comp=comp, cura=cura,
                            encaminhamentos=E.da_competencia(comp), retomada=E.retomada(comp),
                            pessoas=pessoas if cura else [], nomes={p['login']: p['nome'] or p['login'] for p in pessoas},
-                           atos=dict([(0, '—')] + [(a['n'], '%d · %s' % (a['n'], a['t'])) for a in A.ATOS]),
+                           atos=dict([(0, '—')] + [(a['n'], '%d · %s' % (a['n'], a['t'])) for a in A.vigente(comp)]),
                            situacao={'aberto': 'Em aberto', 'feito': 'Feito — falta confirmar',
                                      'confirmado': 'Confirmado', 'cancelado': 'Cancelado'})
 
@@ -166,3 +184,94 @@ def confirmar(eid):
         return redirect(url_for('apresentacao.encaminhamentos', codigo=e['competencia']))
     auditoria.registrar('encaminhamento.' + acao, str(eid))
     return redirect(url_for('apresentacao.encaminhamentos', codigo=e['competencia']))
+
+
+# ------------------------------------------------------------------ pilotar a apresentação
+def _pode_pilotar():
+    real = g.get('usuario_real') or g.usuario
+    return bool(real) and (real['admin'] or U.pode(g.usuario, 'recurso:curar_comentarios'))
+
+
+def _resumo_comentarios(comp):
+    """Por bloco: o que as áreas já escreveram e o que foi pedido — a coluna de comentários da página."""
+    nomes = {a['codigo']: a['nome'] for a in M.areas_que_comentam()}
+    mapa = {}
+    for c in M.da_todas(comp):
+        r = mapa.setdefault(c['bloco'], {'aprovados': [], 'enviados': 0, 'rascunhos': 0, 'recusados': 0, 'pedidos': []})
+        if c['status'] == 'aprovado':
+            r['aprovados'].append({'area': c['area'], 'nome': nomes.get(c['area'], c['area']), 'texto': c['texto'],
+                                   'na_apresentacao': bool(c['na_apresentacao'])})
+        elif c['status'] == 'enviado':
+            r['enviados'] += 1
+        elif c['status'] == 'recusado':
+            r['recusados'] += 1
+        else:
+            r['rascunhos'] += 1
+    for p in M.pedidos(comp):
+        r = mapa.setdefault(p['bloco'], {'aprovados': [], 'enviados': 0, 'rascunhos': 0, 'recusados': 0, 'pedidos': []})
+        r['pedidos'].append({'area': p['area'], 'nome': nomes.get(p['area'], p['area']), 'observacao': p['observacao']})
+    return mapa
+
+
+@bp.route('/pilotar')
+def pilotar_ir():
+    """O formulário do painel de administração escolhe a competência."""
+    return redirect(url_for('apresentacao.pilotar', codigo=_competencia(request.args.get('comp'))))
+
+
+@bp.route('/<codigo>/pilotar')
+def pilotar(codigo):
+    """A Controladoria monta a reunião: o que entra em cada ato, a ordem, os textos — e gera."""
+    if not _pode_pilotar():
+        abort(403)
+    comp = _competencia(codigo)
+    atos = A.rascunho(comp)
+    areas = M.areas_que_comentam()
+    quem_ve = {}
+    for a in areas:
+        for b in M.blocos_da_area(a['codigo']):
+            quem_ve.setdefault(b['id'], []).append(a['codigo'])
+    secoes = [{'id': s['id'], 'titulo': s['titulo'], 'grupo': s['grupo'],
+               'blocos': [{'id': b['id'], 'titulo': b['titulo']} for b in C.BLOCOS
+                          if b['secao'] == s['id'] and not b['id'].endswith('.abertura')],
+               'filtro_interno': A.FILTROS_INTERNOS.get(s['id'], '')} for s in C.SECOES]
+    dados = {'comp': comp, 'atos': atos, 'secoes': secoes, 'padrao': A.padrao(),
+             'equivalentes': A.EQUIVALENTES, 'areas': areas, 'quem_ve': quem_ve,
+             'comentarios': _resumo_comentarios(comp),
+             'url_salvar': url_for('apresentacao.pilotar_salvar', codigo=comp),
+             'url_cmt': url_for('comentarios.api_detalhe', codigo=comp, bloco='X')[:-2],
+             'url_biblioteca': url_for('biblioteca.secao', secao='X')[:-2]}
+    return render_template('apresentacao/pilotar.html', comp=comp, estado=A.estado(comp),
+                           anexos=A.sobras_dos_anexos(A.rascunho(comp)),
+                           competencias=list(reversed(comp_mod.disponiveis(current_app.config))),
+                           dados=json.dumps(dados, ensure_ascii=False).replace('</', '<\\/'))
+
+
+@bp.route('/<codigo>/pilotar', methods=['POST'])
+def pilotar_salvar(codigo):
+    """salvar (rascunho) · gerar (vira a apresentação) · descartar (volta ao gerado) · padrao (roteiro do Kit)."""
+    if not _pode_pilotar():
+        abort(403)
+    if g.get('ver_como'):
+        abort(403)
+    comp = _competencia(codigo)
+    f = request.get_json(silent=True) or {}
+    acao, login = f.get('acao'), g.usuario['login']
+    try:
+        if acao in ('salvar', 'gerar'):
+            if f.get('atos') is not None:
+                A.salvar_rascunho(comp, f['atos'], login)
+            if acao == 'gerar':
+                A.gerar(comp, login)
+                _documento(comp)                 # monta já: erro aparece aqui, e não na reunião
+        elif acao == 'descartar':
+            A.descartar_rascunho(comp, login)
+        elif acao == 'padrao':
+            A.salvar_rascunho(comp, A.padrao(), login)
+        else:
+            return jsonify({'erro': 'ação inválida.'}), 400
+    except ValueError as e:
+        return jsonify({'erro': str(e)}), 400
+    auditoria.registrar('apresentacao.' + acao, comp)
+    return jsonify({'ok': True, 'atos': A.rascunho(comp), 'estado': A.estado(comp),
+                    'anexos': A.sobras_dos_anexos(A.rascunho(comp))})

@@ -33,7 +33,8 @@ def index():
     return render_template('inicio.html', grupos=grupos, comp=comps[-1] if comps else None, pergunta=C.PERGUNTA_SECAO,
                            aberta=M.competencia_aberta(),
                            pode_fechamento=pode('fechamento'),
-                           pode_comentar=pode('comentar') or pode('curar_comentarios'))
+                           pode_comentar=pode('comentar') or pode('curar_comentarios'),
+                           pode_pilotar=pode('curar_comentarios') and not g.get('ver_como'))
 
 
 @bp.route('/saude')

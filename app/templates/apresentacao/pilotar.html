@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Pilotar a reunião {{ comp }} · +55 Design{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='pilotar.css') }}">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<div class="page-head">
+  <div class="eyebrow"><a href="{{ url_for('admin.painel') }}">Administração</a> · Apresentação</div>
+  <h1>Pilotar a reunião <b>{{ comp }}</b></h1>
+  <p class="muted pl-intro">Escolha o que entra em cada ato e em que ordem, ajuste os textos e peça os comentários
+    às áreas. O que fica fora dos atos vai para os anexos. A reunião só muda quando você <b>gera</b> a apresentação.</p>
+</div>
+
+<div class="pl-barra" id="pl-barra">
+  <div class="pl-estado">
+    <label class="pl-comp">Competência
+      <select id="pl-comp">{% for c in competencias %}<option value="{{ c }}"{% if c == comp %} selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+    </label>
+    <span id="pl-vigor">{% if estado.gerado_em %}Em vigor: gerada em {{ estado.gerado_em|data_br }} por {{ estado.gerado_por }}{% else %}Em vigor: o roteiro padrão{% endif %}</span>
+    <span class="pill pl-pend" id="pl-pend"{% if not estado.pendente %} hidden{% endif %}>Rascunho com mudanças não geradas</span>
+    <span class="pill pl-sujo" id="pl-sujo" hidden>Alterações não salvas</span>
+  </div>
+  <div class="pl-acoes">
+    <a class="btn btn-sm" href="{{ url_for('apresentacao.ver', codigo=comp) }}" target="_blank" rel="noopener">Abrir a reunião ↗</a>
+    <button type="button" class="btn btn-sm" data-acao="padrao">Voltar ao padrão</button>
+    <button type="button" class="btn btn-sm" data-acao="descartar">Descartar rascunho</button>
+    <button type="button" class="btn btn-sm btn-secondary" data-acao="salvar">Salvar rascunho</button>
+    <button type="button" class="btn btn-sm btn-primary" data-acao="gerar">Gerar apresentação</button>
+  </div>
+</div>
+<div class="pl-aviso" id="pl-aviso" role="status" aria-live="polite"></div>
+
+<div id="pl-atos" class="pl-atos"></div>
+<button type="button" class="btn btn-sm pl-novo-ato" id="pl-novo-ato">+ Novo ato</button>
+
+<section class="pl-anexos">
+  <h2>Anexos <small>o que fica fora dos atos, como está no rascunho salvo</small></h2>
+  <div id="pl-anexos">
+  {% for g in anexos %}
+    <div class="pl-anexo"><h3><span>{{ g.k }}</span> {{ g.t }}</h3>
+      {% if g.secoes %}<ul>{% for s in g.secoes %}<li><b>{{ s.titulo }}</b> — {{ s.blocos|map(attribute='titulo')|join(' · ') }}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">Nada: tudo deste anexo está nos atos. Ele não aparece na reunião.</p>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+</section>
+
+<script type="application/json" id="pl-dados">{{ dados|safe }}</script>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='pilotar.js') }}"></script>
+{% endblock %}

@@ -105,6 +105,36 @@ def obter(codigo):
     return destino
 
 
+ATOS_APP = os.path.join(os.path.dirname(__file__), 'atos_app.js')
+
+
+def _json_script(obj):
+    return json.dumps(obj, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+
+
+def montar(html_kit, atos, anexos, ocultar, comentarios=None):
+    """O documento do Kit com o roteiro pilotado na aplicação.
+
+    Uma troca só, e conferida: o <script> do atos.js do Kit vira o atos_app.js (a mesma camada de
+    reorganização, lendo o roteiro de window.ROTEIRO_55). O resto — dados, app.js, estilos,
+    imagens — é o documento do Kit, byte a byte."""
+    atos_kit = io.open(os.path.join(PASTA_KIT, 'atos.js'), encoding='utf-8').read()   # como o ler() do Kit
+    velho = '<script>' + atos_kit + '</script>'
+    if html_kit.count(velho) != 1:
+        raise RuntimeError('o documento do Kit não tem o atos.js esperado')
+    dados = 'window.ROTEIRO_55=%s;window.CMT_REUNIAO=%s;' % (
+        _json_script({'atos': atos, 'anexos': anexos, 'ocultar': ocultar}), _json_script(comentarios or {}))
+    novo = ('<script>' + dados + '</script><script>'
+            + io.open(ATOS_APP, encoding='utf-8', newline='').read() + '</script>')
+    return html_kit.replace(velho, novo)
+
+
+def documento(codigo, atos, anexos, ocultar, comentarios=None):
+    """A reunião da competência: o Kit (em cache) montado com o roteiro em vigor e os comentários."""
+    html = io.open(obter(codigo), encoding='utf-8', newline='').read()
+    return montar(html, atos, anexos, ocultar, comentarios)
+
+
 def pode_ver_inteiro(ctx):
     """O documento do Kit leva os dados do mês inteiros: só quem enxerga todos os blocos o recebe."""
     if not ctx:

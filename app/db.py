@@ -149,6 +149,14 @@ CREATE TABLE IF NOT EXISTS comentario_pedidos (
     origem TEXT NOT NULL DEFAULT '',              -- quem pediu: a área de quem solicitou, ou "Controladoria"
     PRIMARY KEY (competencia, bloco, area)
 );
+CREATE TABLE IF NOT EXISTS apresentacao_roteiro (
+    competencia TEXT PRIMARY KEY,                 -- sem FK: a competência importada não está em competencias
+    rascunho TEXT NOT NULL,                       -- o roteiro que está sendo pilotado (JSON)
+    atualizado_em TEXT NOT NULL,
+    atualizado_por TEXT NOT NULL DEFAULT '',
+    gerado TEXT,                                  -- o roteiro da apresentação em vigor (JSON), NULL = o padrão
+    gerado_em TEXT, gerado_por TEXT
+);
 CREATE TABLE IF NOT EXISTS competencia_blocos (
     competencia TEXT NOT NULL REFERENCES competencias(codigo) ON DELETE CASCADE,
     bloco TEXT NOT NULL,
