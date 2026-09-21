@@ -8,6 +8,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/style2.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/barra.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='dialogo.css') }}">
 {% if cmt %}<link rel="stylesheet" href="{{ url_for('static', filename='comentarios.css') }}">{% endif %}
 </head>
 <body>
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded',function(){
   if(window.DESENHO_POS&&DESENHO_POS[SID]) DESENHO_POS[SID](sec,ctx);
 });
 </script>
+<script src="{{ url_for('static', filename='dialogo.js') }}"></script>
 {% if cmt %}<script src="{{ url_for('static', filename='comentarios.js') }}"></script>{% endif %}
 </body>
 </html>

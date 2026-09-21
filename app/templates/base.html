@@ -7,6 +7,7 @@
 <link rel="icon" href="{{ url_for('static', filename='logo-chip.png') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='app55.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='dialogo.css') }}">
 <script>
   /* o relatório é claro: a aplicação abre clara também, para não alternar escuro e creme a cada clique.
      Quem preferir o escuro escolhe no botão, e a escolha fica guardada neste navegador. */
@@ -79,6 +80,7 @@
     try{ localStorage.setItem('app55-tema',prox); }catch(e){}
   });
 </script>
+<script src="{{ url_for('static', filename='dialogo.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

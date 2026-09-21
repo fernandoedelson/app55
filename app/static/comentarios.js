@@ -153,12 +153,12 @@
       '<div class="cmt-corpo" id="cmt-corpo"></div><div class="cmt-aviso" role="status" aria-live="polite"></div>';
     document.body.appendChild(painel);
     painel.querySelector('.cmt-fechar').addEventListener('click', fechar);
-    document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !painel.hidden) fechar(); });
+    document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !painel.hidden && !document.querySelector('dialog.dlg55[open]')) fechar(); });
   }
 
   async function abrir(bloco, botao) {
     if (!painel) criarPainel();
-    if (sujo && atual !== bloco && !confirm('Há texto não guardado neste comentário. Descartar?')) return;
+    if (sujo && atual !== bloco && !(await app55Confirmar({ titulo: 'Descartar o texto?', texto: 'Há texto neste comentário que ainda não foi guardado.', ok: 'Descartar', cancelar: 'Continuar escrevendo', tom: 'perigo' }))) return;
     atual = bloco; origem = botao || null; sujo = false;
     painel.hidden = false;
     document.body.classList.add('cmt-aberto');
@@ -181,8 +181,8 @@
     painel.querySelector('.cmt-fechar').focus();
   }
 
-  function fechar() {
-    if (sujo && !confirm('Há texto não guardado neste comentário. Descartar?')) return;
+  async function fechar() {
+    if (sujo && !(await app55Confirmar({ titulo: 'Descartar o texto?', texto: 'Há texto neste comentário que ainda não foi guardado.', ok: 'Descartar', cancelar: 'Continuar escrevendo', tom: 'perigo' }))) return;
     sujo = false;
     painel.classList.remove('cmt-visivel');
     document.body.classList.remove('cmt-aberto');
@@ -329,7 +329,9 @@
       if (!corpo.observacao.trim()) { avisar('Escreva o que você quer saber.', true); return; }
     }
     if ((acao === 'escrever' || acao === 'enviar') && !(corpo.texto || '').trim()) { avisar('Escreva o comentário antes.', true); if (txt) txt.focus(); return; }
-    if (acao === 'enviar' && !confirm('Enviar à Controladoria? Depois de enviado, só volta para edição se ela devolver.')) return;
+    if (acao === 'enviar' && !(await app55Confirmar({ titulo: 'Enviar à Controladoria?',
+      texto: 'A Controladoria passa a ver este comentário para aprovar. Até ela aprovar, você ainda pode editá-lo.',
+      ok: 'Enviar', cancelar: 'Agora não' }))) return;
     const original = botao.textContent;
     botao.disabled = true; botao.textContent = 'Salvando…';
     try {

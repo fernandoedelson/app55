@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/style2.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/atos.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/barra.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='dialogo.css') }}">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 {% if cmt %}<link rel="stylesheet" href="{{ url_for('static', filename='comentarios.css') }}">{% endif %}
 </head>
@@ -167,5 +168,6 @@ document.addEventListener('DOMContentLoaded',function(){
 <script type="application/json" id="cmt-config" data-api="{{ url_for('comentarios.api_detalhe', codigo=cmt.comp, bloco='X')[:-2] }}">{{ cmt|tojson }}</script>
 <script src="{{ url_for('static', filename='comentarios.js') }}"></script>
 {% endif %}
+<script src="{{ url_for('static', filename='dialogo.js') }}"></script>
 </body>
 </html>

@@ -1,0 +1,32 @@
+/* Confirmação no padrão +55: creme, taupe, Playfair no título. Cores próprias, para valer igual
+   na aplicação (tokens.css) e dentro do relatório (style2.css). */
+.dlg55{--d-fundo:#fbf9f4;--d-ink:#2a211b;--d-ink2:#6b5d52;--d-linha:#e7dfd0;--d-taupe:#92705d;--d-taupe-deep:#614b3e;
+  --d-esp:#211a14;--d-bad:#a8493c;
+  padding:0;border:0;border-radius:14px;max-width:min(460px,calc(100vw - 32px));width:100%;
+  background:var(--d-fundo);color:var(--d-ink);
+  box-shadow:0 1px 2px rgba(33,26,20,.12),0 30px 70px -20px rgba(33,26,20,.45);
+  opacity:0;transform:translateY(8px) scale(.98);transition:opacity .16s cubic-bezier(.22,.61,.36,1),transform .16s cubic-bezier(.22,.61,.36,1)}
+.dlg55.dlg55-visivel{opacity:1;transform:none}
+.dlg55::backdrop{background:rgba(33,26,20,.42);backdrop-filter:blur(2px)}
+.dlg55-caixa{margin:0;padding:26px 28px 22px;border-top:3px solid var(--d-taupe);border-radius:14px}
+.dlg55[data-tom="perigo"] .dlg55-caixa{border-top-color:var(--d-bad)}
+.dlg55-marca{margin:0 0 10px;font:600 10.5px/1 'Jost','Avenir Next','Segoe UI',system-ui,sans-serif;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--d-taupe)}
+.dlg55-titulo{margin:0 0 10px;font:400 22px/1.25 'Playfair Display',Georgia,'Times New Roman',serif;color:var(--d-ink)}
+.dlg55-texto{margin:0;font:400 15px/1.55 'Jost','Avenir Next','Segoe UI',system-ui,sans-serif;color:var(--d-ink2)}
+.dlg55-acoes{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:18px;border-top:1px solid var(--d-linha)}
+.dlg55-bt{min-height:40px;padding:9px 20px;border-radius:999px;cursor:pointer;
+  font:500 13.5px/1 'Jost','Avenir Next','Segoe UI',system-ui,sans-serif;letter-spacing:.03em;
+  transition:background .15s,border-color .15s,color .15s}
+.dlg55-cancelar{background:transparent;border:1px solid var(--d-linha);color:var(--d-ink2)}
+.dlg55-cancelar:hover{border-color:var(--d-taupe);color:var(--d-ink)}
+.dlg55-ok{background:var(--d-esp);border:1px solid var(--d-esp);color:#f2eee4}
+.dlg55-ok:hover{background:var(--d-taupe-deep);border-color:var(--d-taupe-deep)}
+.dlg55[data-tom="perigo"] .dlg55-ok{background:var(--d-bad);border-color:var(--d-bad)}
+.dlg55[data-tom="perigo"] .dlg55-ok:hover{background:#8a3a30;border-color:#8a3a30}
+.dlg55-bt:focus-visible{outline:2px solid var(--d-taupe);outline-offset:2px}
+:root[data-theme="dark"] .dlg55{--d-fundo:#1a140f;--d-ink:#f2eee4;--d-ink2:#a99d8f;--d-linha:rgba(227,205,182,.16);
+  --d-taupe:#c9a284;--d-taupe-deep:#e3cdb6;--d-esp:#e3cdb6;--d-bad:#d07b6d}
+:root[data-theme="dark"] .dlg55-ok{color:#1a140f}
+@media (max-width:480px){.dlg55-caixa{padding:22px 20px 18px}.dlg55-acoes{flex-direction:column-reverse}.dlg55-bt{width:100%}}
+@media (prefers-reduced-motion:reduce){.dlg55{transition:none}}

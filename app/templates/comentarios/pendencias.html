@@ -91,7 +91,8 @@
           <td>{{ s.situacao }}</td>
           <td class="right">
             <form method="post" action="{{ url_for('comentarios.cancelar_pedido', codigo=codigo) }}" class="inline-form"
-                  onsubmit="return confirm('Cancelar esta solicitação?')">
+                  data-confirmar="A área deixa de ver este pedido nas pendências dela." data-confirmar-titulo="Cancelar a solicitação?"
+                  data-confirmar-ok="Cancelar solicitação" data-confirmar-cancelar="Manter" data-confirmar-tom="perigo">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="area" value="{{ s.area }}"><input type="hidden" name="bloco" value="{{ s.bloco }}">
               <button class="btn btn-sm" type="submit">Cancelar</button>

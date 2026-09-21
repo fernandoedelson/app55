@@ -136,7 +136,8 @@
       <label class="campo">Mudar o prazo <input name="prazo_comentarios" type="date" value="{{ comp.prazo_comentarios|data_iso }}"></label>
       <button class="btn btn-sm" type="submit" name="status" value="disponibilizada">Salvar o prazo</button>
       <button class="btn btn-primary" type="submit" name="status" value="fechada"
-              onclick="return confirm('Fechar {{ comp.codigo }}? As áreas deixam de poder comentar.')">Fechar o mês</button>
+              data-confirmar="As áreas deixam de poder comentar {{ comp.codigo }}. Os comentários aprovados continuam no relatório, e o mês pode ser reaberto depois."
+              data-confirmar-titulo="Fechar o mês?" data-confirmar-ok="Fechar o mês">Fechar o mês</button>
     </div>
   {% else %}
     <p class="muted">Mês fechado{% if comp.fechada_em %} em {{ comp.fechada_em|data_br }}{% endif %}. Os comentários
@@ -151,7 +152,8 @@
 
 {% if comp.status == 'rascunho' and comp.criada_por != 'importação inicial' %}
 <form method="post" action="{{ url_for('competencias.descartar', codigo=comp.codigo) }}" class="actions mt"
-      onsubmit="return confirm('Descartar o rascunho {{ comp.codigo }} e apagar as bases enviadas?')">
+      data-confirmar="O rascunho {{ comp.codigo }} e as bases enviadas serão apagados. Não dá para desfazer."
+      data-confirmar-titulo="Descartar o rascunho?" data-confirmar-ok="Descartar" data-confirmar-tom="perigo">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button class="btn btn-sm btn-perigo" type="submit">Descartar rascunho</button>
 </form>

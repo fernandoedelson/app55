@@ -34,7 +34,8 @@
 {% if u %}
 <div class="actions mt-lg">
   <form method="post" action="{{ url_for('admin.usuario_resetar', uid=u.id) }}" class="inline-form"
-        onsubmit="return confirm('Gerar nova senha provisória? A pessoa sai de todos os aparelhos.')">
+        data-confirmar="Uma nova senha provisória será gerada e a pessoa sai de todos os aparelhos em que está conectada."
+        data-confirmar-titulo="Resetar a senha?" data-confirmar-ok="Gerar nova senha">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-secondary btn-sm" type="submit">Resetar senha</button>
   </form>
