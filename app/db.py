@@ -261,6 +261,8 @@ MIGRACOES = [
     # fase 6: comentário da área — as áreas escrevem, a Controladoria envia e cura
     {'gestao_comercial': ['recurso:comentar'], 'fabrica': ['recurso:comentar'], 'loja': ['recurso:comentar'],
      'controladoria': ['recurso:comentar', 'recurso:consolidar', 'recurso:curar_comentarios']},
+    # pilotar a apresentação ganhou permissão própria (antes vinha junto com curar os comentários)
+    {'controladoria': ['recurso:pilotar']},
 ]
 
 

@@ -37,7 +37,7 @@ def test_todas_as_telas_abrem_para_o_administrador(app, admin):
             '/admin/perfis/1', '/admin/auditoria', '/fechamento/', '/comentarios/', '/trocar-senha']
     if comp:
         urls += ['/fechamento/%s' % comp, '/fechamento/%s/mudancas' % comp, '/apresentacao/%s' % comp,
-                 '/apresentacao/%s/encaminhamentos' % comp]
+                 '/apresentacao/%s/encaminhamentos' % comp, '/apresentacao/', '/apresentacao/%s/pilotar' % comp]
         urls += ['/biblioteca/%s' % s['id'] for s in C.SECOES]
     falhas = []
     for u in urls:

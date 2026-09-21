@@ -138,13 +138,25 @@ def test_pilotar_recusa_roteiro_invalido(app, admin):
     assert _pilotar(admin, acao='salvar', atos=sel).status_code == 400
 
 
-def test_so_quem_cura_pilota(app, admin):
+def test_pilotar_e_permissao_do_perfil(app, admin):
     prov = criar_usuario(app, admin, 'lojapilota', ['loja'])
     c = app.test_client()
     entrar(c, 'lojapilota', prov)
     post(c, '/trocar-senha', new_password='LojaPilota2026ab', confirm_password='LojaPilota2026ab')
     assert c.get('/apresentacao/2026-07/pilotar').status_code == 403
     assert _pilotar(c, acao='gerar').status_code == 403
+    # a Controladoria tem o recurso "Pilotar a apresentação" no perfil
+    prov = criar_usuario(app, admin, 'ctrlpilota', ['controladoria'])
+    c = app.test_client()
+    entrar(c, 'ctrlpilota', prov)
+    post(c, '/trocar-senha', new_password='CtrlPilota2026ab', confirm_password='CtrlPilota2026ab')
+    assert c.get('/apresentacao/2026-07/pilotar').status_code == 200
+    # o recurso aparece na tela de perfil, no grupo "Reunião do mês"
+    from app.db import get_db
+    with app.app_context():
+        pid = get_db().execute("SELECT id FROM perfis WHERE codigo='controladoria'").fetchone()['id']
+    tela = admin.get('/admin/perfis/%d' % pid).get_data(as_text=True)
+    assert 'Pilotar a apresentação' in tela and 'Reunião do mês' in tela
 
 
 def test_comentario_escolhido_para_a_reuniao_aparece_nela(app, admin):

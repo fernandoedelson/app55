@@ -42,7 +42,39 @@ def _competencia(codigo):
     return comp
 
 
+MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro',
+         'novembro', 'dezembro']
+
+
+def nome_do_mes(codigo):
+    """2026-07 -> Julho de 2026."""
+    try:
+        return '%s de %s' % (MESES[int(codigo[5:7]) - 1].capitalize(), codigo[:4])
+    except (ValueError, IndexError):
+        return codigo
+
+
 @bp.route('/')
+def reunioes():
+    """Uma reunião por mês: a lista, da mais recente para a mais antiga, para escolher qual abrir."""
+    comps = list(reversed(comp_mod.disponiveis(current_app.config)))
+    situacao = {r['codigo']: r['status'] for r in get_db().execute('SELECT codigo, status FROM competencias')}
+    hoje = __import__('datetime').date.today().isoformat()
+    lista = []
+    for c in comps:
+        est = A.estado(c)
+        atos = A.ativos(A.vigente(c))
+        encs = [e for e in E.da_competencia(c) if e['status'] != 'cancelado']
+        lista.append({'codigo': c, 'nome': nome_do_mes(c), 'estado': est, 'situacao': situacao.get(c, ''),
+                      'atos': atos,
+                      'enc_abertos': sum(1 for e in encs if e['status'] in ('aberto', 'feito')),
+                      'enc_atrasados': sum(1 for e in encs if E.atrasado(e, hoje)),
+                      'enc_total': len(encs)})
+    return render_template('apresentacao/reunioes.html', reunioes=lista,
+                           pode_pilotar=_pode_pilotar() and not g.get('ver_como'),
+                           pode_baixar=U.pode(g.usuario, 'recurso:exportar') and kit_atos.pode_ver_inteiro(g.usuario))
+
+
 @bp.route('/<codigo>')
 def ver(codigo=None):
     comp = _competencia(codigo)
@@ -224,8 +256,9 @@ def confirmar(eid):
 
 # ------------------------------------------------------------------ pilotar a apresentação
 def _pode_pilotar():
+    """Permissão própria (recurso:pilotar, concedida no perfil); o administrador sempre pode."""
     real = g.get('usuario_real') or g.usuario
-    return bool(real) and (real['admin'] or U.pode(g.usuario, 'recurso:curar_comentarios'))
+    return bool(real) and (real['admin'] or U.pode(g.usuario, 'recurso:pilotar'))
 
 
 def _resumo_comentarios(comp):

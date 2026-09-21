@@ -27,12 +27,14 @@ RECURSOS = [
     ('comentar', 'Comentar pela área', 'Escrever o comentário da área nos blocos que ela enxerga'),
     ('consolidar', 'Enviar o comentário da área', 'Responsável: consolida o texto e envia à Controladoria'),
     ('curar_comentarios', 'Curar os comentários', 'Pedir, aprovar, ajustar ou recusar e escolher o que vai à apresentação'),
+    ('pilotar', 'Pilotar a apresentação', 'Montar os atos da reunião (o que entra, a ordem, os textos, qual ato existe) e gerar'),
 ]
 RECURSO = {r[0]: r for r in RECURSOS}
 
 # como a tela de perfil apresenta os recursos: pelo que eles liberam, não em lista corrida
 GRUPOS_RECURSO = [
-    ('Leitura do relatório', ['destaques', 'detalhar', 'filtro_livre', 'nomes_pf', 'exportar', 'apresentar']),
+    ('Leitura do relatório', ['destaques', 'detalhar', 'filtro_livre', 'nomes_pf', 'exportar']),
+    ('Reunião do mês', ['apresentar', 'pilotar']),
     ('Comentário da área', ['comentar', 'consolidar', 'curar_comentarios']),
     ('Fechamento do mês', ['fechamento']),
 ]

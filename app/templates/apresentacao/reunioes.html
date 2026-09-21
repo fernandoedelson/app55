@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Reuniões · +55 Design{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Reunião do mês</div>
+  <h1>As <b>reuniões</b></h1>
+  <p class="muted">Uma reunião por mês, da mais recente para a mais antiga. Cada uma abre com os números
+    e o roteiro daquele mês, e com os encaminhamentos combinados nela.</p>
+</div>
+
+{% if not reunioes %}
+  <div class="estado-vazio"><b>Nenhum mês publicado ainda.</b> A reunião aparece aqui quando o fechamento do mês é publicado.</div>
+{% else %}
+<div class="reunioes">
+  {% for r in reunioes %}
+  <article class="card reuniao{% if loop.first %} reuniao-atual{% endif %}">
+    <div class="reuniao-topo">
+      <div>
+        <div class="eyebrow">{% if loop.first %}A mais recente · {% endif %}{{ r.codigo }}</div>
+        <h2><a href="{{ url_for('apresentacao.ver', codigo=r.codigo) }}" target="_blank" rel="noopener">{{ r.nome }}</a></h2>
+      </div>
+      {% if r.situacao %}<span class="pill">{{ r.situacao|situacao }}</span>{% endif %}
+    </div>
+    <p class="reuniao-atos">
+      {% for a in r.atos %}<span>{{ a.n }} · {{ a.t }}</span>{% endfor %}
+    </p>
+    <p class="muted reuniao-meta">
+      {% if r.estado.gerado_em %}Roteiro gerado em {{ r.estado.gerado_em|data_br }} por {{ r.estado.gerado_por }}{% else %}Roteiro padrão{% endif %}
+      {% if r.estado.pendente %} · <b>há mudanças no rascunho ainda não geradas</b>{% endif %}
+      · {% if r.enc_total %}{{ r.enc_total }} encaminhamento{{ 's' if r.enc_total > 1 }}{% if r.enc_abertos %}, {{ r.enc_abertos }} em aberto{% endif %}{% if r.enc_atrasados %}, <span class="reuniao-atraso">{{ r.enc_atrasados }} atrasado{{ 's' if r.enc_atrasados > 1 }}</span>{% endif %}{% else %}nenhum encaminhamento{% endif %}
+    </p>
+    <p class="actions">
+      <a class="btn btn-primary btn-sm" href="{{ url_for('apresentacao.ver', codigo=r.codigo) }}" target="_blank" rel="noopener">Abrir a reunião ↗</a>
+      <a class="btn btn-sm" href="{{ url_for('apresentacao.encaminhamentos', codigo=r.codigo) }}">Encaminhamentos</a>
+      {% if pode_pilotar %}<a class="btn btn-sm" href="{{ url_for('apresentacao.pilotar', codigo=r.codigo) }}">Pilotar</a>{% endif %}
+      {% if pode_baixar %}<a class="btn btn-sm" href="{{ url_for('apresentacao.baixar', codigo=r.codigo) }}">Baixar o HTML</a>{% endif %}
+    </p>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+
+<style>
+.reunioes{display:grid;gap:16px;max-width:980px}
+.reuniao{padding:20px 22px}
+.reuniao-atual{border-top:3px solid var(--taupe)}
+.reuniao-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.reuniao h2{margin:4px 0 0;font-family:var(--serif);font-weight:400;font-size:1.6rem}
+.reuniao h2 a{color:inherit;text-decoration:none}
+.reuniao h2 a:hover{color:var(--taupe-deep)}
+.reuniao-atos{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 6px}
+.reuniao-atos span{padding:3px 10px;border:1px solid var(--line);border-radius:999px;font-size:.8rem;color:var(--ink-soft)}
+.reuniao-meta{font-size:.86rem;margin:6px 0 12px}
+.reuniao-atraso{color:var(--crit);font-weight:600}
+</style>
+{% endblock %}

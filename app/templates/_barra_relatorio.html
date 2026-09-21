@@ -32,7 +32,7 @@
     {% endif %}
     <div class="rb-dir">
       {% if comp %}<span class="rb-comp" title="Mês de referência">{{ comp }}</span>{% endif %}
-      <a class="rb-link" href="{{ url_for('apresentacao.ver') }}">Reunião</a>
+      <a class="rb-link" href="{{ url_for('apresentacao.reunioes') }}">Reunião</a>
       {% if pode('recurso:comentar') or pode('recurso:curar_comentarios') %}
       {% set n = pendencias_n() %}
       <a class="rb-link" href="{{ url_for('comentarios.index') }}">Pendências{% if n %} <span class="rb-badge" aria-label="{{ n }} pendentes">{{ n }}</span>{% endif %}</a>

@@ -32,7 +32,7 @@
     </a>
     <nav class="topnav">
       <a href="{{ url_for('inicio.index') }}" class="{{ 'active' if request.blueprint=='inicio' else '' }}">Início</a>
-      <a href="{{ url_for('apresentacao.ver') }}" target="_blank" rel="noopener">Reunião</a>
+      <a href="{{ url_for('apresentacao.reunioes') }}">Reunião</a>
       {% if pode('recurso:fechamento') %}
       <a href="{{ url_for('competencias.index') }}" class="{{ 'active' if request.blueprint=='competencias' else '' }}">Fechamento</a>
       {% endif %}

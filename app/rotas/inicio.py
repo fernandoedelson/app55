@@ -34,7 +34,7 @@ def index():
                            aberta=M.competencia_aberta(),
                            pode_fechamento=pode('fechamento'),
                            pode_comentar=pode('comentar') or pode('curar_comentarios'),
-                           pode_pilotar=pode('curar_comentarios') and not g.get('ver_como'))
+                           pode_pilotar=pode('pilotar') and not g.get('ver_como'))
 
 
 @bp.route('/saude')

@@ -11,9 +11,10 @@
 <div class="atalhos">
   <div class="card atalho atalho-principal">
     <div class="eyebrow">Reunião do mês</div>
-    <h3><a href="{{ url_for('apresentacao.ver') }}" target="_blank" rel="noopener">O mês em seis atos</a></h3>
-    <p class="muted">A apresentação da reunião, com menu, fotos e o modo Apresentar. Abre em outra aba.</p>
-    <p class="actions mt-sm"><a class="btn btn-primary btn-sm" href="{{ url_for('apresentacao.ver') }}" target="_blank" rel="noopener">Abrir a apresentação</a>
+    <h3><a href="{{ url_for('apresentacao.ver', codigo=comp) }}" target="_blank" rel="noopener">O mês em atos</a></h3>
+    <p class="muted">A apresentação da reunião, com menu, fotos e o modo Apresentar. Abre em outra aba.
+      <a href="{{ url_for('apresentacao.reunioes') }}">Ver as reuniões de outros meses</a>.</p>
+    <p class="actions mt-sm"><a class="btn btn-primary btn-sm" href="{{ url_for('apresentacao.ver', codigo=comp) }}" target="_blank" rel="noopener">Abrir a apresentação</a>
       <a class="btn btn-sm" href="{{ url_for('apresentacao.encaminhamentos', codigo=comp) }}">Encaminhamentos</a>
       {% if pode_pilotar %}<a class="btn btn-sm" href="{{ url_for('apresentacao.pilotar', codigo=comp) }}">Pilotar</a>{% endif %}</p>
   </div>
