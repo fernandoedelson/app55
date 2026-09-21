@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}Como usar · +55 Design{% endblock %}
+{% macro passo(n, titulo) -%}<li><span class="g-n" aria-hidden="true"></span><div><b>{{ titulo }}</b>{{ caller() }}</div></li>{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Como usar</div>
+  <h1>O guia de <b>{{ areas }}</b></h1>
+  <p class="muted g-intro">Só o que o seu perfil faz, na ordem em que aparece no dia a dia. Para voltar aqui, use
+    <b>Como usar</b> no menu do topo.</p>
+  {% if perfis %}
+  <form method="get" class="actions g-ver">
+    <label class="campo">Ver o guia de
+      <select name="perfil" onchange="this.form.submit()">
+        <option value="">Administrador (tudo)</option>
+        {% for p in perfis %}{% if p.codigo != 'administrador' %}<option value="{{ p.codigo }}"{% if perfil and perfil.codigo == p.codigo %} selected{% endif %}>{{ p.nome }}</option>{% endif %}{% endfor %}
+      </select></label>
+    <noscript><button class="btn btn-sm" type="submit">Ver</button></noscript>
+    <span class="muted">É exatamente o que cada área lê ao abrir esta página.</span>
+  </form>
+  {% endif %}
+</div>
+
+<div class="g-corpo">
+<nav class="g-indice" aria-label="Capítulos">
+  <p>Neste guia</p>
+  <ol>{% for cid, tit in capitulos %}<li><a href="#{{ cid }}">{{ tit }}</a></li>{% endfor %}</ol>
+</nav>
+
+<div class="g-texto">
+{% set tem = capitulos|map(attribute=0)|list %}
+
+{# ------------------------------------------------------------------ primeiros passos #}
+<section id="primeiros-passos" class="g-cap">
+  <h2><span>{{ tem.index('primeiros-passos') + 1 }}</span> Primeiros passos</h2>
+  <ol class="g-passos">
+    {% call passo('1', 'Entrar') %}<p>Use o login e a senha que a administração enviou. A primeira senha é
+      provisória: a aplicação pede uma nova antes de mostrar qualquer coisa. Depois, <b>Trocar senha</b> fica no
+      canto superior direito.</p>{% endcall %}
+    {% call passo('2', 'O menu do topo') %}<p><b>Início</b> reúne o relatório por seção. <b>Reunião</b> lista as
+      reuniões de cada mês.
+      {% if 'comentar' in tem or 'curadoria' in tem %}<b>Pendências</b> mostra só o que pede ação sua — o número
+      ao lado é quanto falta.{% else %}<b>Pendências</b> aparece quando houver um encaminhamento com você.{% endif %}
+      {% if 'fechamento' in tem %}<b>Fechamento</b> é onde o mês entra.{% endif %}
+      {% if 'admin' in tem %}<b>Administração</b> cuida de usuários, perfis e permissões.{% endif %}</p>{% endcall %}
+    {% call passo('3', 'O que você enxerga') %}<p>O seu perfil vê estas seções do relatório:
+      {% for s in secoes %}<b>{{ s.titulo }}</b>{% if not loop.last %}, {% endif %}{% else %}nenhuma ainda — fale com a administração{% endfor %}.
+      Se faltar alguma que você precisa, peça à administração: a liberação é por gráfico.</p>{% endcall %}
+    {% call passo('4', 'Claro ou escuro') %}<p>O botão <b>Tema</b> alterna. A escolha fica guardada neste navegador.</p>{% endcall %}
+  </ol>
+</section>
+
+{# ------------------------------------------------------------------ relatório #}
+<section id="relatorio" class="g-cap">
+  <h2><span>{{ tem.index('relatorio') + 1 }}</span> Ler o relatório</h2>
+  <p>No <b>Início</b>, cada cartão é uma seção e diz a pergunta que ela responde. Clique para abrir.</p>
+  <ol class="g-passos">
+    {% call passo('1', 'A barra do relatório') %}<p>No alto de cada seção: o caminho de volta, a troca de seção,
+      <b>anterior</b> e <b>próxima</b>, o mês que você está vendo e os atalhos para a Reunião
+      {% if 'comentar' in tem or 'curadoria' in tem %}e para as Pendências{% endif %}.</p>{% endcall %}
+    {% call passo('2', 'Período') %}<p>As seções que dependem de período têm uma barra de filtro logo abaixo do
+      título. {% if pode_g('recurso:filtro_livre') %}Você pode escolher qualquer intervalo de meses.{% else %}O seu
+      perfil usa os períodos prontos (ano, mês, últimos meses).{% endif %}</p>{% endcall %}
+    {% call passo('3', 'Ampliar um gráfico ou tabela') %}<p>O ícone <b>⤢</b> no canto abre em tela cheia. Na tabela
+      ampliada, <b>A+</b> e <b>A−</b> (ou as teclas <b>+</b> e <b>−</b>) mudam o tamanho da letra. <b>Esc</b> fecha.</p>{% endcall %}
+    {% call passo('4', 'Apontador laser') %}<p>Com o gráfico ampliado, o botão <b>● Laser</b> ou a tecla <b>L</b> acende um
+      ponto vermelho que segue o mouse — para mostrar um número na tela durante a reunião. <b>L</b> de novo apaga.</p>{% endcall %}
+    {% call passo('5', 'Tabelas') %}<p>Clique no cabeçalho de uma coluna para ordenar (de novo, inverte). O botão
+      <b>CSV</b> baixa a tabela para abrir no Excel.</p>{% endcall %}
+    {% if pode_g('recurso:detalhar') %}{% call passo('6', 'Detalhar') %}<p>Em muitos gráficos e tabelas, clicar numa
+      barra ou numa linha abre os itens por trás do número — até o cliente e o pedido.</p>{% endcall %}{% endif %}
+    {% if pode_g('recurso:destaques') %}{% call passo('7', 'Destaques') %}<p>Abaixo dos gráficos, os <b>destaques</b>
+      resumem o que chama atenção no número (o que subiu, o que caiu, o que foge do padrão). <b>Ver gráfico</b> leva
+      ao gráfico que sustenta cada um.</p>{% endcall %}{% endif %}
+    {% call passo('•', 'Comentários aprovados') %}<p>Quando uma área explica um número e a Controladoria aprova, o
+      texto aparece logo abaixo do título do gráfico, com o nome da área, para todos que veem aquele gráfico.</p>{% endcall %}
+  </ol>
+</section>
+
+{# ------------------------------------------------------------------ reunião #}
+<section id="reuniao" class="g-cap">
+  <h2><span>{{ tem.index('reuniao') + 1 }}</span> A reunião do mês</h2>
+  <p>Todo mês há uma reunião. A aba <b>Reunião</b> lista todas, da mais recente para a mais antiga; cada cartão
+    mostra os atos daquele mês e os encaminhamentos combinados. <b>Abrir a reunião</b> abre em outra aba.</p>
+  <ol class="g-passos">
+    {% call passo('1', 'Atos e anexos') %}<p>A reunião é contada em <b>atos</b>, cada um respondendo uma pergunta
+      (de onde viemos, o que já está vendido, o mês, o resultado…). O que não entra nos atos fica nos
+      <b>anexos</b>, no fim — sem repetir nada do que os atos já mostraram. O menu lateral leva a cada ato e a cada
+      anexo; ☰ recolhe e abre o menu.</p>{% endcall %}
+    {% if pode_g('recurso:apresentar') %}{% call passo('2', 'Modo Apresentar') %}<p><b>Apresentar</b>, no rodapé do
+      menu lateral, põe a reunião em tela cheia, um quadro por vez. <b>→</b>, <b>↓</b>, <b>Page Down</b> ou
+      <b>espaço</b> avançam; <b>←</b>, <b>↑</b> e <b>Page Up</b> voltam; <b>L</b> liga o laser; <b>Esc</b> sai.</p>{% endcall %}{% endif %}
+    {% call passo('3', 'O que você vê') %}<p>{% if secoes|length == 0 %}Sem seções liberadas, a reunião aparece
+      com os atos marcados como conteúdo restrito.{% else %}Você vê os gráficos que o seu perfil enxerga; um ato sem
+      nenhum deles aparece como <b>conteúdo restrito</b>, para a reunião ter a mesma forma para todos.{% endif %}</p>{% endcall %}
+    {% if pode_g('recurso:exportar') %}{% call passo('4', 'Levar o arquivo') %}<p>Na lista de reuniões,
+      <b>Baixar o HTML</b> gera o arquivo da reunião para abrir sem a aplicação (sem o painel de
+      encaminhamentos).</p>{% endcall %}{% endif %}
+  </ol>
+</section>
+
+{# ------------------------------------------------------------------ comentar #}
+{% if 'comentar' in tem %}
+<section id="comentar" class="g-cap">
+  <h2><span>{{ tem.index('comentar') + 1 }}</span> Comentar um gráfico pela sua área</h2>
+  <p>O comentário mora em cima do dado: é no próprio gráfico que a área explica o número. Enquanto o mês está
+    aberto às áreas (há um prazo), cada gráfico e cada tabela que você vê tem o botão para comentar.</p>
+  <ol class="g-passos">
+    {% call passo('1', 'Abrir o painel') %}<p>Clique em <b>Comentar</b>, ao lado do título do gráfico (ou no botão
+      pequeno no canto de cada figura ou tabela). O painel abre à direita, com o gráfico à vista.</p>{% endcall %}
+    {% call passo('2', 'Escrever e salvar') %}<p>Escreva o que explica o número — o porquê, não a repetição dele — e
+      clique em <b>Salvar</b>. Fica como <b>rascunho</b>: só a sua área vê.</p>{% endcall %}
+    {% call passo('3', 'O botão diz em que pé está') %}<p><b>Comentar</b> (nada escrito) · <b>Rascunho</b> (salvo,
+      não enviado) · <b>Enviado</b> (a Controladoria está lendo) · <b>Devolvido</b> (voltou com um motivo) ·
+      <b>Pediram informação</b> (alguém perguntou algo à sua área sobre esse gráfico).</p>{% endcall %}
+    {% call passo('4', 'Editar') %}<p>Até a Controladoria aprovar, dá para mudar o texto — inclusive depois de
+      enviado (<b>Salvar alteração</b>). A troca fica no histórico. Depois de aprovado, só se ela devolver.</p>{% endcall %}
+    {% call passo('5', 'Devolvido') %}<p>Veio com o motivo escrito pela Controladoria. Ajuste e envie de novo.
+      Os devolvidos aparecem em <b>Pendências</b>.</p>{% endcall %}
+    {% if not pode_g('recurso:consolidar') %}{% call passo('6', 'Quem envia') %}<p>O seu perfil escreve; quem envia
+      à Controladoria é o responsável da área (quem tem a permissão <i>Enviar o comentário da área</i>).</p>{% endcall %}{% endif %}
+  </ol>
+  <p class="g-dica">O comentário aprovado aparece abaixo do título do gráfico para todos; os que a Controladoria
+    escolher também entram na reunião.</p>
+</section>
+{% endif %}
+
+{% if 'enviar' in tem %}
+<section id="enviar" class="g-cap">
+  <h2><span>{{ tem.index('enviar') + 1 }}</span> Enviar o comentário à Controladoria</h2>
+  <ol class="g-passos">
+    {% call passo('1', 'Revisar') %}<p>Em <b>Pendências → Rascunhos para enviar</b>, cada item leva ao gráfico.
+      Leia o texto da área no painel e ajuste se precisar.</p>{% endcall %}
+    {% call passo('2', 'Enviar') %}<p><b>Enviar à Controladoria</b> e confirme. Até ela aprovar, o texto ainda pode
+      ser editado.</p>{% endcall %}
+  </ol>
+</section>
+{% endif %}
+
+{% if 'solicitar' in tem %}
+<section id="solicitar" class="g-cap">
+  <h2><span>{{ tem.index('solicitar') + 1 }}</span> Pedir e responder informação</h2>
+  <ol class="g-passos">
+    {% call passo('1', 'Pedir') %}<p>No painel de qualquer gráfico, em <b>Solicitar informação</b>, escolha
+      <b>Para quem</b> (a Controladoria ou outra área que também vê aquele gráfico), escreva <b>o que você quer
+      saber</b> e clique em <b>Solicitar</b>. Também dá para pedir em <b>Pendências → Solicitar informação</b>,
+      escolhendo o gráfico na lista.</p>{% endcall %}
+    {% call passo('2', 'Acompanhar') %}<p>Em <b>Pendências → Solicitar informação</b>, cada pedido mostra a
+      situação: aguardando a área, em resposta ou respondida. <b>Cancelar</b> retira o pedido.</p>{% endcall %}
+    {% call passo('3', 'Responder') %}<p>Quando perguntam à sua área, o botão do gráfico fica em destaque
+      (<b>Pediram informação</b>) e o pedido aparece em <b>Pendências → Pediram informação à sua área</b>, com quem
+      perguntou e o quê. A resposta é o próprio comentário no gráfico.</p>{% endcall %}
+  </ol>
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------------ encaminhamentos (responsável) #}
+<section id="encaminhamentos" class="g-cap">
+  <h2><span>{{ tem.index('encaminhamentos') + 1 }}</span> Seus encaminhamentos</h2>
+  <p>Na reunião, o que fica combinado vira um <b>encaminhamento</b> com um responsável, um prazo e o gráfico a
+    que se refere. Quando o responsável é você:</p>
+  <ol class="g-passos">
+    {% call passo('1', 'Onde aparece') %}<p>Em <b>Pendências → Seus encaminhamentos</b>, e no número ao lado de
+      Pendências.</p>{% endcall %}
+    {% call passo('2', 'Concluir') %}<p>Escreva <b>o que foi feito</b> e clique em <b>Feito</b>. Só você, o
+      responsável, pode marcar. A Controladoria confirma — ou reabre, se faltar algo.</p>{% endcall %}
+    {% call passo('3', 'Prazo') %}<p>Passado o prazo sem o Feito, chega um e-mail por dia até a conclusão. O
+      que não for confirmado volta como <b>retomada</b> na reunião do mês seguinte.</p>{% endcall %}
+  </ol>
+</section>
+
+{# ------------------------------------------------------------------ curadoria #}
+{% if 'curadoria' in tem %}
+<section id="curadoria" class="g-cap">
+  <h2><span>{{ tem.index('curadoria') + 1 }}</span> Curar os comentários das áreas</h2>
+  <ol class="g-passos">
+    {% call passo('1', 'O que chegou') %}<p><b>Pendências → Para curar</b> lista o que as áreas enviaram; cada item
+      leva ao gráfico, com o painel aberto. No gráfico, o botão mostra <b>N para curar</b>.</p>{% endcall %}
+    {% call passo('2', 'Decidir') %}<p>Na seção <b>Curadoria</b> do painel: <b>Aprovar</b> (se mudar o texto antes,
+      vira “aprovado com ajuste”, e a área é avisada), <b>Recusar</b> ou <b>Devolver para reescrever</b> — os dois
+      pedem o motivo, que a área lê.</p>{% endcall %}
+    {% call passo('3', 'Levar à reunião') %}<p>Ao aprovar, marque <b>Entra na apresentação do mês</b> para o comentário
+      aparecer na reunião, sob o título do gráfico. Dá para ligar e desligar depois pela página de pilotar.</p>{% endcall %}
+    {% call passo('4', 'Quem já enviou') %}<p>O fim de Pendências mostra, por área, o que está em rascunho,
+      enviado, aprovado e recusado — e o que foi pedido e ainda não respondido.</p>{% endcall %}
+    {% call passo('5', 'Histórico') %}<p>Cada comentário guarda quem escreveu, enviou, editou e decidiu, e quando.
+      Ações feitas no “ver como” aparecem com o perfil simulado.</p>{% endcall %}
+  </ol>
+</section>
+
+<section id="conduzir" class="g-cap">
+  <h2><span>{{ tem.index('conduzir') + 1 }}</span> Registrar encaminhamentos na reunião</h2>
+  <ol class="g-passos">
+    {% call passo('1', 'Sem sair da apresentação') %}<p>Com a reunião aberta, o botão <b>Encaminhamentos</b>, no
+      canto inferior direito, abre o painel lateral.</p>{% endcall %}
+    {% call passo('2', 'Registrar') %}<p>Em <b>Registre a pendência da reunião aqui</b>, escreva o combinado.
+      Escolha o <b>Responsável</b> (a pessoa, com nome e login), o <b>Prazo</b> e <b>Onde</b>: o gráfico que está na
+      tela já vem marcado; dá para trocar por outro gráfico do ato ou pelo ato inteiro.</p>{% endcall %}
+    {% call passo('3', 'Acompanhar') %}<p>No mesmo painel: <b>Confirmar</b> o que o responsável marcou como feito,
+      <b>Reabrir</b> ou <b>Cancelar</b>. A lista também está em <b>Reunião → Encaminhamentos</b> de cada mês, com a
+      retomada dos meses anteriores.</p>{% endcall %}
+  </ol>
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------------ pilotar #}
+{% if 'pilotar' in tem %}
+<section id="pilotar" class="g-cap">
+  <h2><span>{{ tem.index('pilotar') + 1 }}</span> Montar a reunião (pilotar)</h2>
+  <p>Em <b>Reunião → Pilotar</b> (ou Administração → Apresentação do mês), cada mês tem o seu roteiro. Você mexe
+    num rascunho; a reunião só muda quando você <b>gera</b>.</p>
+  <ol class="g-passos">
+    {% call passo('1', 'Os atos') %}<p>Em cada ato: título, a pergunta que ele responde, o tempo, <b>Abrir com
+      cortina</b> (a cortina escura com o logo, como no Sumário) e <b>Entra na reunião</b>. O Ato 6 nasce desligado
+      — é o que você monta mês a mês com o que for importante. <b>+ Novo ato</b> cria outro; ↑ ↓ mudam a ordem.</p>{% endcall %}
+    {% call passo('2', 'O que entra em cada ato') %}<p><b>+ Adicionar ao ato…</b> lista todos os gráficos por seção
+      (os que já estão em outro ato aparecem como “mover”), além de subtítulos, dos filtros de uma seção e da
+      abertura de uma seção. Em cada item: ↑ ↓ para a ordem, <b>Mover…</b> para outro ato, ✕ para tirar (o gráfico
+      volta ao anexo).</p>{% endcall %}
+    {% call passo('3', 'Comentários de cada gráfico') %}<p><b>Comentários ▾</b> mostra o que está aprovado,
+      para curar e pedido. Ali você marca o que aparece na reunião, pede comentário a uma área e abre o gráfico
+      para comentar ou aprovar.</p>{% endcall %}
+    {% call passo('4', 'Salvar e gerar') %}<p><b>Salvar rascunho</b> guarda sem mudar a reunião. <b>Gerar
+      apresentação</b> faz a reunião seguir o roteiro. <b>Descartar rascunho</b> volta ao que está gerado;
+      <b>Voltar ao padrão</b> traz o roteiro original (vale quando gerar). Dá para alterar e gerar de novo a
+      qualquer momento.</p>{% endcall %}
+    {% call passo('5', 'Anexos') %}<p>São automáticos: o fim da página mostra o que vai sobrar em cada anexo. Nada
+      que está num ato se repete — nem gráfico, nem cartão de indicador.</p>{% endcall %}
+  </ol>
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------------ fechamento #}
+{% if 'fechamento' in tem %}
+<section id="fechamento" class="g-cap">
+  <h2><span>{{ tem.index('fechamento') + 1 }}</span> Fechar o mês</h2>
+  <p>Em <b>Fechamento</b>, cada mês passa por cinco etapas, mostradas no alto da página do mês:
+    <b>Bases → Processar → Publicar → Abrir às áreas → Fechar</b>.</p>
+  <ol class="g-passos">
+    {% call passo('1', 'Criar o mês') %}<p>Na página Fechamento, escolha o <b>Mês da nova competência</b> e clique em
+      <b>Criar competência</b>.</p>{% endcall %}
+    {% call passo('2', 'Subir as bases, aos poucos') %}<p>Cada base pede a planilha e a <b>posição dos números</b>
+      (o dia a que eles se referem). O arquivo fica guardado no mês: dá para subir uma hoje e as outras depois.
+      Mandar de novo uma base substitui o arquivo anterior. A base comercial e o Painel de Resultado são
+      obrigatórios.</p>{% endcall %}
+    {% call passo('3', 'O que não muda todo mês') %}<p>Metas, aportes, apelidos, designers, custos e Fábrica × Loja
+      vêm com <b>Usar a do mês anterior</b> marcado: o mês lê a planilha do mês anterior e o envio fica desligado.
+      Desmarque só quando houver uma planilha nova.</p>{% endcall %}
+    {% call passo('4', 'As duas carteiras') %}<p><b>Carteira — posição de fechamento</b>: a VENDAS LOJA do último
+      dia do mês (é a seção Carteira). <b>Carteira dinâmica — posição mais recente</b>: atualize quantas vezes
+      quiser, mesmo com o mês publicado ou fechado; o arquivo novo substitui o anterior e a carteira dinâmica muda
+      na hora, no relatório e na reunião.</p>{% endcall %}
+    {% call passo('5', 'Processar') %}<p>Libera quando as obrigatórias estão lá. Lê as planilhas com a mesma
+      leitura do relatório aprovado. Se um mês já publicado mudar, a aplicação avisa.</p>{% endcall %}
+    {% call passo('6', 'Conferir e publicar') %}<p><b>Ver o que mudou</b> compara com o mês anterior, gráfico a
+      gráfico. A publicação é por gráfico: marque e <b>Publicar os blocos marcados</b>. Se o passado mudou, a
+      justificativa é obrigatória.</p>{% endcall %}
+    {% call passo('7', 'Abrir às áreas') %}<p>Defina o <b>prazo</b> e clique em <b>Abrir às áreas</b>: as áreas passam a
+      comentar. <b>Salvar o prazo</b> muda o prazo depois.</p>{% endcall %}
+    {% call passo('8', 'Fechar') %}<p><b>Fechar o mês</b> encerra os comentários (os aprovados continuam no
+      relatório). Se precisar, <b>Reabrir às áreas</b>. Um rascunho que não serve pode ser descartado.</p>{% endcall %}
+  </ol>
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------------ administração #}
+{% if 'admin' in tem %}
+<section id="admin" class="g-cap">
+  <h2><span>{{ tem.index('admin') + 1 }}</span> Administração</h2>
+  <ol class="g-passos">
+    {% call passo('1', 'Usuários') %}<p><b>Novo usuário</b>: login, nome, e-mail e perfis. A senha provisória
+      aparece uma vez, para você repassar; a pessoa troca no primeiro acesso. <b>Resetar senha</b> gera outra e
+      tira a pessoa de todos os aparelhos. Usuário bloqueado por tentativas erradas se <b>desbloqueia</b> ali.
+      Desmarcar <b>Ativo</b> tira o acesso sem apagar o histórico.</p>{% endcall %}
+    {% call passo('2', 'Perfis e permissões') %}<p>Cada perfil libera gráficos (seção a seção, gráfico a gráfico) e
+      recursos, agrupados em <b>Leitura do relatório</b>, <b>Reunião do mês</b> (Modo Apresentar, Pilotar a
+      apresentação), <b>Comentário da área</b> (Comentar, Enviar, Curar) e <b>Fechamento do mês</b>. Uma pessoa
+      com mais de um perfil soma o que cada um libera. Este guia se ajusta sozinho às permissões.</p>{% endcall %}
+    {% call passo('3', 'Ver como um perfil') %}<p>Mostra a aplicação exatamente como o perfil vê. É o jeito de
+      testar uma área de ponta a ponta: no “ver como”, os comentários gravam como a área (e ficam no histórico
+      como feitos por você); o resto é só leitura. <b>Sair do modo</b>, na faixa amarela, volta.</p>{% endcall %}
+    {% call passo('4', 'Auditoria') %}<p>Tudo o que muda algo fica registrado: quem, quando, de onde e se foi no
+      “ver como”.</p>{% endcall %}
+    {% call passo('5', 'Backup') %}<p>Baixa o banco e os dados das competências num .zip (tudo ou um mês). Guarde
+      fora do GitHub.</p>{% endcall %}
+  </ol>
+</section>
+{% endif %}
+</div>
+</div>
+
+<style>
+.g-intro{max-width:720px}
+.g-ver{margin-top:14px;align-items:flex-end}
+.g-corpo{display:grid;grid-template-columns:220px 1fr;gap:40px;align-items:start;margin-top:10px}
+.g-indice{position:sticky;top:20px;font-size:.88rem}
+.g-indice p{margin:0 0 8px;font-family:var(--display);font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft)}
+.g-indice ol{margin:0;padding-left:18px;line-height:1.9}
+.g-indice a{color:var(--ink);text-decoration:none}
+.g-indice a:hover{color:var(--taupe-deep);text-decoration:underline}
+.g-texto{max-width:760px}
+.g-cap{padding:6px 0 30px;border-top:1px solid var(--line);scroll-margin-top:20px}
+.g-cap h2{display:flex;gap:12px;align-items:baseline;font-family:var(--serif);font-weight:400;font-size:1.6rem;margin:22px 0 10px}
+.g-cap h2 span{font-family:var(--display);font-size:.75rem;letter-spacing:.14em;color:var(--taupe)}
+.g-cap>p{line-height:1.65}
+.g-passos{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:14px;counter-reset:passo}
+.g-passos li{display:grid;grid-template-columns:30px 1fr;gap:12px}
+.g-n{width:28px;height:28px;border-radius:999px;background:var(--surface-warm);border:1px solid var(--line);
+  display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--taupe-deep)}
+.g-n::before{counter-increment:passo;content:counter(passo)}
+.g-passos b{font-weight:600}
+.g-passos li>div>b:first-child{display:block;margin:3px 0 2px}
+.g-passos p{margin:0;line-height:1.6;color:var(--ink-soft)}
+.g-passos p b{color:var(--ink)}
+.g-dica{margin-top:16px;padding:10px 14px;border-left:3px solid var(--sage);background:rgba(87,124,105,.07);font-size:.92rem}
+@media (max-width:860px){.g-corpo{grid-template-columns:1fr}.g-indice{position:static}}
+</style>
+{% endblock %}

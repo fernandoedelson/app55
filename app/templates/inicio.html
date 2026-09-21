@@ -5,6 +5,7 @@
   <div class="eyebrow">Sala de resultados{% if comp %} · competência {{ comp }}{% endif %}</div>
   <h1>Olá, <b>{{ usuario.nome }}</b></h1>
   {% if not comp %}<p class="muted">Ainda não há mês publicado.</p>{% endif %}
+  <p class="muted">Primeira vez aqui? O <a href="{{ url_for('inicio.como_usar') }}">Como usar</a> explica o que o seu perfil faz, passo a passo.</p>
 </div>
 
 {% if comp and grupos %}
