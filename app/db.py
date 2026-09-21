@@ -149,6 +149,14 @@ CREATE TABLE IF NOT EXISTS comentario_pedidos (
     origem TEXT NOT NULL DEFAULT '',              -- quem pediu: a área de quem solicitou, ou "Controladoria"
     PRIMARY KEY (competencia, bloco, area)
 );
+CREATE TABLE IF NOT EXISTS competencia_reuso (
+    competencia TEXT NOT NULL,
+    base TEXT NOT NULL,
+    usar INTEGER NOT NULL,                        -- 1 = lê a planilha do mês anterior; 0 = sobe a do mês
+    marcado_por TEXT NOT NULL DEFAULT '',
+    marcado_em TEXT NOT NULL,
+    PRIMARY KEY (competencia, base)
+);
 CREATE TABLE IF NOT EXISTS apresentacao_roteiro (
     competencia TEXT PRIMARY KEY,                 -- sem FK: a competência importada não está em competencias
     rascunho TEXT NOT NULL,                       -- o roteiro que está sendo pilotado (JSON)

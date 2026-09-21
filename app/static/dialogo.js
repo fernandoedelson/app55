@@ -66,7 +66,7 @@
     const ok = await window.app55Confirmar({
       titulo: quem.dataset.confirmarTitulo, texto: quem.dataset.confirmar,
       ok: quem.dataset.confirmarOk, cancelar: quem.dataset.confirmarCancelar, tom: quem.dataset.confirmarTom });
-    if (!ok) return;
+    if (!ok) { if (form.hasAttribute('data-confirmar-desfaz')) form.reset(); return; }   // a caixa marcada volta
     form.dataset.dlg55Ok = '1';
     if (form.requestSubmit) form.requestSubmit(ev.submitter || undefined);
     else form.submit();

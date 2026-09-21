@@ -53,11 +53,7 @@ def ver(codigo):
         abort(404)
     publicadas = servico.blocos_publicados(codigo)
     secoes = [dict(s, blocos=C.blocos_da_secao(s['id'])) for s in C.SECOES]
-    anteriores = {b: servico.anterior_com_base(codigo, b) for b, d in motor.BASES.items() if d.get('reaproveitavel')}
-    enviadas = {a['base'] for a in servico.arquivos(codigo)}
-    reusaveis = [b for b, de in anteriores.items() if de and b not in enviadas]
-    return render_template('fechamento/competencia.html', comp=comp, bases=motor.BASES, anteriores=anteriores,
-                           reusaveis=reusaveis,
+    return render_template('fechamento/competencia.html', comp=comp, bases=motor.BASES, reuso=servico.reuso(codigo),
                            arquivos=servico.arquivos(codigo), faltando=servico.faltando(codigo),
                            passado=servico.mudou_o_passado(codigo), secoes=secoes,
                            blocos_publicados=publicadas,
@@ -96,28 +92,21 @@ def upload(codigo):
     return redirect(url_for('competencias.ver', codigo=codigo) + '#bases')
 
 
-@bp.route('/<codigo>/reaproveitar', methods=['POST'])
-def reaproveitar(codigo):
-    """Usa a planilha do mês anterior (metas, apelidos, designers...) sem subir de novo."""
-    bases = [request.form.get('base')] if request.form.get('base') else \
-        [b for b in motor.BASES if motor.BASES[b].get('reaproveitavel')
-         and not any(a['base'] == b for a in servico.arquivos(codigo))]
-    feitos, erros = [], []
-    for base in bases:
-        if base not in motor.BASES or not U.pode(g.usuario, 'base:upload:' + base):
-            continue
-        try:
-            origem, n = servico.reaproveitar(codigo, base, g.usuario['login'])
-            feitos.append('%s (de %s)' % (motor.BASES[base]['titulo'], origem))
-            auditoria.registrar('competencia.reaproveitar', '%s · %s · de %s' % (codigo, base, origem))
-        except ValueError as e:
-            erros.append(str(e))
-    if feitos:
-        flash('Usando o do mês anterior: %s.' % '; '.join(feitos), 'ok')
-    for e in erros:
-        flash(e[:1].upper() + e[1:], 'erro')
-    if not feitos and not erros:
-        flash('Nada a trazer do mês anterior.', 'ok')
+@bp.route('/<codigo>/reuso', methods=['POST'])
+def reuso(codigo):
+    """Liga/desliga "usar o do mês anterior" numa base que não muda todo mês."""
+    base = request.form.get('base', '')
+    if base not in motor.BASES or not U.pode(g.usuario, 'base:upload:' + base):
+        abort(403)
+    usar = request.form.get('usar') == '1'
+    try:
+        servico.marcar_reuso(codigo, base, usar, g.usuario['login'])
+    except ValueError as e:
+        flash(str(e)[:1].upper() + str(e)[1:], 'erro')
+        return redirect(url_for('competencias.ver', codigo=codigo) + '#bases')
+    auditoria.registrar('competencia.reuso', '%s · %s · %s' % (codigo, base, 'usa o anterior' if usar else 'sobe o do mês'))
+    flash(('"%s" vai usar a planilha do mês anterior.' if usar else '"%s": suba a planilha deste mês.')
+          % motor.BASES[base]['titulo'], 'ok')
     return redirect(url_for('competencias.ver', codigo=codigo) + '#bases')
 
 

@@ -62,30 +62,40 @@
 {% else %}
 <p class="muted">Suba cada base quando ela estiver pronta: o arquivo fica guardado no mês e dá para voltar
   outro dia e subir as demais. <b>Processar</b> só libera quando as obrigatórias estiverem aqui. Mandar de novo
-  uma base substitui o arquivo anterior dela.</p>
-{% endif %}
-{% if reusaveis and comp.status != 'fechada' and not so_carteira %}
-<form method="post" action="{{ url_for('competencias.reaproveitar', codigo=comp.codigo) }}" class="actions">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button class="btn btn-sm" type="submit">Usar do mês anterior tudo o que não muda ({{ reusaveis|length }})</button>
-  <span class="muted">{% for b in reusaveis %}{{ bases[b].titulo }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
-</form>
+  uma base substitui o arquivo anterior dela. As bases que não mudam todo mês já vêm marcadas para usar a
+  planilha do mês anterior; desmarque só quando houver uma nova.</p>
 {% endif %}
 <table class="tbl">
   <thead><tr><th>Base</th><th>Arquivo</th><th>Posição</th><th>Enviado</th><th></th></tr></thead>
   <tbody>
   {% for bid, b in bases.items() if not so_carteira or bid == 'carteira' %}
     {% set envios = arquivos|selectattr('base','equalto',bid)|list %}
-    <tr>
+    {% set ru = reuso.get(bid) %}
+    {% set usa = ru and ru.usar %}
+    {% if usa %}{% set envios = ru.arquivos %}{% endif %}
+    <tr{% if usa %} class="reuso"{% endif %}>
       <td>{{ b.titulo }}{% if b.obrigatoria %} <span class="muted">(obrigatória)</span>{% endif %}
         {% if bid == 'carteira' %}<br><span class="muted">Atualize quantas vezes quiser, mesmo com o mês publicado ou fechado: o arquivo novo substitui o anterior e a carteira dinâmica muda na hora.</span>
         {% elif bid == 'carteira_fech' %}<br><span class="muted">A planilha VENDAS LOJA no último dia do mês: é a seção Carteira. Sem ela, a Carteira usa a dinâmica.</span>
-        {% elif b.reaproveitavel %}<br><span class="muted">Não muda todo mês: dá para usar a do mês anterior.</span>{% endif %}</td>
-      <td>{% for a in envios %}{{ a.arquivo }}<br>{% else %}<span class="muted">—</span>{% endfor %}</td>
+        {% endif %}
+        {% if ru and ru.origem and pode_upload.get(bid) and comp.status != 'fechada' %}
+        <form method="post" action="{{ url_for('competencias.reuso', codigo=comp.codigo) }}" class="reuso-flag"
+              {% if envios and not usa %}data-confirmar="O arquivo que você subiu para este mês sai, e o mês passa a ler a planilha de {{ ru.origem }}."
+              data-confirmar-titulo="Usar a do mês anterior?" data-confirmar-desfaz data-confirmar-ok="Usar a de {{ ru.origem }}"{% endif %}>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="base" value="{{ bid }}">
+          <input type="hidden" name="usar" value="{{ '0' if usa else '1' }}">
+          <label><input type="checkbox" {% if usa %}checked{% endif %} onchange="this.form.requestSubmit()">
+            Usar a do mês anterior ({{ ru.origem }})</label>
+        </form>
+        {% elif ru and not ru.origem %}<br><span class="muted">Não muda todo mês: a partir do próximo, dá para usar esta.</span>
+        {% endif %}</td>
+      <td>{% for a in envios %}{{ a.arquivo }}{% if usa %} <span class="muted">· de {{ ru.origem }}</span>{% endif %}<br>{% else %}<span class="muted">—</span>{% endfor %}</td>
       <td>{% for a in envios %}{{ a.data_posicao|data_br }}<br>{% endfor %}</td>
       <td>{% for a in envios %}<span class="muted">{{ a.enviado_por }} · {{ a.enviado_em|data_br }}</span><br>{% endfor %}</td>
       <td class="right">
-        {% if pode_upload.get(bid) and (comp.status != 'fechada' or bid == 'carteira') %}
+        {% if usa %}<span class="muted">Usando a planilha de {{ ru.origem }}. Para subir outra, desmarque a opção ao lado.</span>
+        {% elif pode_upload.get(bid) and (comp.status != 'fechada' or bid == 'carteira') %}
         <form method="post" action="{{ url_for('competencias.upload', codigo=comp.codigo) }}"
               enctype="multipart/form-data" class="actions">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -94,13 +104,6 @@
           <label class="campo">Posição dos números <input name="data_posicao" type="date" required></label>
           <button class="btn btn-sm" type="submit">{{ 'Atualizar' if bid == 'carteira' and envios else 'Enviar' }}</button>
         </form>
-        {% if b.reaproveitavel and anteriores.get(bid) and comp.status != 'fechada' %}
-        <form method="post" action="{{ url_for('competencias.reaproveitar', codigo=comp.codigo) }}" class="actions">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="base" value="{{ bid }}">
-          <button class="btn btn-sm" type="submit">{{ 'Trocar pelo' if envios else 'Usar o' }} de {{ anteriores[bid] }}</button>
-        </form>
-        {% endif %}
         {% else %}<span class="muted">sem permissão</span>{% endif %}
       </td>
     </tr>

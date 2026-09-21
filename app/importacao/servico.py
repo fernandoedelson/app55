@@ -170,14 +170,37 @@ def _tirar_anteriores(codigo, base, pasta):
 
 
 def anterior_com_base(codigo, base):
-    """O mês anterior mais próximo que tem arquivo desta base (para reaproveitar)."""
+    """O mês anterior mais próximo que tem arquivo desta base (para reaproveitar). Só conta arquivo
+    enviado de fato: um mês que também reaproveitou não tem linha aqui, então a busca desce até a origem."""
     r = get_db().execute('SELECT competencia FROM competencia_arquivos WHERE base=? AND competencia<? '
                          'ORDER BY competencia DESC LIMIT 1', (base, codigo)).fetchone()
     return r['competencia'] if r else None
 
 
-def reaproveitar(codigo, base, login):
-    """Copia para este mês os arquivos da base no mês anterior mais próximo — sem subir de novo."""
+def reuso(codigo):
+    """Para cada base que não muda todo mês: se este mês usa a planilha do mês anterior, e de qual.
+
+    Padrão: usa, quando há mês anterior com o arquivo e este mês não subiu o seu. A escolha de
+    quem fecha o mês (competencia_reuso) prevalece; subir um arquivo desliga o reaproveitamento."""
+    con = get_db()
+    escolhas = {r['base']: bool(r['usar']) for r in con.execute(
+        'SELECT base, usar FROM competencia_reuso WHERE competencia=?', (codigo,))}
+    proprios = {a['base'] for a in arquivos(codigo)}
+    saida = {}
+    for base, b in motor.BASES.items():
+        if not b.get('reaproveitavel'):
+            continue
+        origem = anterior_com_base(codigo, base)
+        usar = bool(origem) and base not in proprios and escolhas.get(base, True)
+        saida[base] = {'usar': usar, 'origem': origem,
+                       'arquivos': [dict(r) for r in con.execute(
+                           'SELECT * FROM competencia_arquivos WHERE competencia=? AND base=? ORDER BY arquivo',
+                           (origem, base))] if origem else []}
+    return saida
+
+
+def marcar_reuso(codigo, base, usar, login):
+    """Liga ou desliga o "usar o do mês anterior". Ligar descarta o arquivo que o mês tinha da base."""
     if not motor.BASES.get(base, {}).get('reaproveitavel'):
         raise ValueError('esta base muda todo mês: suba o arquivo do mês.')
     comp = obter(codigo)
@@ -185,27 +208,38 @@ def reaproveitar(codigo, base, login):
         raise ValueError('competência não encontrada.')
     if comp['status'] == 'fechada':
         raise ValueError('competência fechada: reabra antes de trocar as bases.')
-    origem = anterior_com_base(codigo, base)
-    if not origem:
+    if usar and not anterior_com_base(codigo, base):
         raise ValueError('nenhum mês anterior tem arquivo de "%s".' % motor.BASES[base]['titulo'])
-    sub = SUBPASTA.get(base, '')
-    de_dir, para_dir = os.path.join(pasta_fontes(origem), sub), os.path.join(pasta_fontes(codigo), sub)
-    os.makedirs(para_dir, exist_ok=True)
-    _tirar_anteriores(codigo, base, para_dir)
-    copiados = 0
-    for r in get_db().execute('SELECT * FROM competencia_arquivos WHERE competencia=? AND base=?',
-                              (origem, base)).fetchall():
-        org = os.path.join(de_dir, r['arquivo'])
-        if not os.path.isfile(org):
-            continue
-        shutil.copy2(org, os.path.join(para_dir, r['arquivo']))
-        with open(org, 'rb') as f:
-            dados = f.read()
-        _registrar_arquivo(codigo, base, r['arquivo'], dados, r['data_posicao'], '%s (de %s)' % (login, origem))
-        copiados += 1
-    if not copiados:
-        raise ValueError('os arquivos de %s não estão mais no servidor: suba de novo.' % origem)
-    return origem, copiados
+    if usar:
+        _tirar_anteriores(codigo, base, os.path.join(pasta_fontes(codigo), SUBPASTA.get(base, '')))
+    con = get_db()
+    con.execute('INSERT INTO competencia_reuso (competencia, base, usar, marcado_por, marcado_em) VALUES (?,?,?,?,?) '
+                'ON CONFLICT(competencia, base) DO UPDATE SET usar=excluded.usar, marcado_por=excluded.marcado_por, '
+                'marcado_em=excluded.marcado_em', (codigo, base, 1 if usar else 0, login, agora()))
+    con.commit()
+
+
+def _montar_fontes(codigo):
+    """A pasta que o motor lê: a do mês, mais as planilhas reaproveitadas, lidas de onde estão (a
+    montagem é temporária — nada é copiado para o mês)."""
+    import tempfile
+    usados = {b: r for b, r in reuso(codigo).items() if r['usar']}
+    if not usados:
+        return pasta_fontes(codigo), None
+    tmp = tempfile.mkdtemp(prefix='app55-fontes-', dir=current_app.config['DATA_DIR'])
+    if os.path.isdir(pasta_fontes(codigo)):
+        shutil.copytree(pasta_fontes(codigo), tmp, dirs_exist_ok=True)
+    for base, r in usados.items():
+        sub = SUBPASTA.get(base, '')
+        os.makedirs(os.path.join(tmp, sub), exist_ok=True)
+        for a in r['arquivos']:
+            org = os.path.join(pasta_fontes(r['origem']), sub, a['arquivo'])
+            if not os.path.isfile(org):
+                shutil.rmtree(tmp, ignore_errors=True)
+                raise ValueError('a planilha "%s" de %s não está mais no servidor: suba a deste mês.'
+                                 % (a['arquivo'], r['origem']))
+            shutil.copy2(org, os.path.join(tmp, sub, a['arquivo']))
+    return tmp, tmp
 
 
 def _data_br(d):
@@ -258,11 +292,15 @@ def processar(codigo, login, config_de=None):
     if faltando(codigo):
         raise ValueError('faltam bases obrigatórias: %s.'
                          % ', '.join(motor.BASES[b]['titulo'] for b in faltando(codigo)))
-    fontes = pasta_fontes(codigo)
+    fontes, temporaria = _montar_fontes(codigo)
     # config_apresentacao.json (carteira da apresentação, custo fixo, partes relacionadas, destaques):
     # vem da competência anterior enquanto não houver tela para editá-lo
     base_cfg = config_de or _config_anterior(codigo) or fontes
-    blobs = motor.processar(fontes, base=base_cfg)
+    try:
+        blobs = motor.processar(fontes, base=base_cfg)
+    finally:
+        if temporaria:
+            shutil.rmtree(temporaria, ignore_errors=True)
     for blob, base in (('CARTDIN', 'carteira'), ('CARTDIN_FECH', 'carteira_fech')):
         d = _data_declarada(codigo, base)
         if blobs.get(blob) and d:

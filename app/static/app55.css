@@ -92,3 +92,6 @@ a.pend:hover{border-color:var(--taupe);background:var(--surface-warm)}
 
 .enc-feito{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.enc-feito input{flex:1;min-width:200px}
 .enc-atrasado{border-left:3px solid var(--crit)}.enc-atrasado .pend-onde{color:var(--crit)}
+
+.reuso-flag{margin-top:8px}.reuso-flag label{display:inline-flex;gap:8px;align-items:center;font-size:.86rem;cursor:pointer}
+tr.reuso td{background:rgba(87,124,105,.05)}

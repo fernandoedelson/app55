@@ -112,21 +112,38 @@ def test_bases_sobem_aos_poucos_e_o_arquivo_novo_substitui_o_antigo(app, admin):
 
 
 def test_usar_do_mes_anterior(app, admin):
+    """Base que não muda todo mês: a opção vem ligada, o mês lê a planilha do anterior sem copiá-la e o
+    envio fica desabilitado; desligar libera o envio; ligar de novo descarta o arquivo do mês."""
     from app.importacao import servico
     post(admin, '/fechamento/nova', codigo='2026-08')
     _subir(admin, '2026-08', os.path.join(FONTES_KIT, 'Designers.xlsx'))
-    _subir(admin, '2026-08', os.path.join(FONTES_KIT, 'Apelidos.xlsx'))
     post(admin, '/fechamento/nova', codigo='2026-09')
     tela = admin.get('/fechamento/2026-09').get_data(as_text=True)
-    assert 'Usar do mês anterior tudo o que não muda (2)' in tela
-    r = admin.post('/fechamento/2026-09/reaproveitar', data={'csrf_token': csrf(admin)}, follow_redirects=True)
-    assert 'Usando o do mês anterior' in r.get_data(as_text=True)
+    assert 'Usar a do mês anterior (2026-08)' in tela and 'Usando a planilha de 2026-08' in tela
     with app.app_context():
-        setembro = {a['base']: a for a in servico.arquivos('2026-09')}
-        assert set(setembro) == {'designers', 'apelidos'} and '(de 2026-08)' in setembro['designers']['enviado_por']
-        assert os.path.isfile(os.path.join(servico.pasta_fontes('2026-09'), 'Designers.xlsx'))
-    # as bases que mudam todo mês não têm essa opção
-    r = admin.post('/fechamento/2026-09/reaproveitar', data={'csrf_token': csrf(admin), 'base': 'comercial'},
+        r = servico.reuso('2026-09')['designers']
+        assert r['usar'] and r['origem'] == '2026-08' and [a['arquivo'] for a in r['arquivos']] == ['Designers.xlsx']
+        assert servico.arquivos('2026-09') == []                                   # nada copiado
+        assert not os.path.exists(os.path.join(servico.pasta_fontes('2026-09'), 'Designers.xlsx'))
+        # o processamento monta as fontes com a planilha do mês anterior e depois a descarta
+        fontes, tmp = servico._montar_fontes('2026-09')
+        assert os.path.isfile(os.path.join(fontes, 'Designers.xlsx'))
+        import shutil as sh
+        sh.rmtree(tmp)
+        # a busca desce até o mês que tem o arquivo: outubro também lê o de agosto
+        servico.criar('2026-10', 'admin')
+        assert servico.reuso('2026-10')['designers']['origem'] == '2026-08'
+    # desligar: o envio volta
+    post(admin, '/fechamento/2026-09/reuso', base='designers', usar='0')
+    with app.app_context():
+        assert not servico.reuso('2026-09')['designers']['usar']
+    _subir(admin, '2026-09', os.path.join(FONTES_KIT, 'Designers.xlsx'))
+    # ligar de novo descarta o arquivo do mês
+    post(admin, '/fechamento/2026-09/reuso', base='designers', usar='1')
+    with app.app_context():
+        assert servico.reuso('2026-09')['designers']['usar'] and servico.arquivos('2026-09') == []
+    # base que muda todo mês não tem a opção
+    r = admin.post('/fechamento/2026-09/reuso', data={'csrf_token': csrf(admin), 'base': 'comercial', 'usar': '1'},
                    follow_redirects=True)
     assert 'muda todo mês' in r.get_data(as_text=True)
 
