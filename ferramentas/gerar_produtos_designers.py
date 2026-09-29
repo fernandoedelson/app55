@@ -59,8 +59,9 @@ def titulo(s):
 ACESSORIOS = {'ENCOSTO', 'KIT', 'CAPA', 'CAPAS', 'ALMOFADA', 'ALMOFADAS', 'PROTETOR', 'PROTETORA', 'REFIL'}
 # complementos de um sofá que são outra peça (a mesa e o puff do conjunto Bello)
 COMPLEMENTOS_SOFA = ('MESA', 'PUFF', 'APARADOR')
-SUFIXOS_DO_MODELO = {'II', 'III', 'IV', 'OUTDOOR', 'INDOOR'}           # fazem parte do nome
-MODELOS_COMPOSTOS = {'PAN': ['AM'], 'FORA': ['DA', 'CURVA'], 'MRS': ['SMITH']}
+SUFIXOS_DO_MODELO = {'OUTDOOR', 'INDOOR'}                             # fazem parte do nome
+ROMANOS = {'II', 'III', 'IV', 'V'}                                        # versões do mesmo modelo: somam (Max II = Max)
+MODELOS_COMPOSTOS = {'PAN': ['AM'], 'FORA': ['DA', 'CURVA'], 'MRS': ['SMITH'], 'JET': ['SET']}
 TIPOS_DE_MESA = {'DE', 'JANTAR', 'CENTRO', 'CABECEIRA', 'APOIO', 'LATERAL', 'AUXILIAR'}
 
 
@@ -76,14 +77,12 @@ def modelo(texto, familia):
             return None
         s = base
     tokens = [t.strip('.,;') for t in s.split() if t.strip('.,;')]
-    if familia == 'Cadeira' and tokens and tokens[0] == 'CADEIRA':
-        tokens = tokens[1:]
-    if familia == 'Sofá' and tokens and tokens[0] in ('SOFA', 'SOFÁ'):
-        tokens = tokens[1:]
+    if familia not in ('Mesa', 'Mesa de apoio') and tokens and sem_acento(tokens[0]) == sem_acento(familia).upper():
+        tokens = tokens[1:]              # CADEIRA MAX -> MAX; SOFA PAN AM -> PAN AM; POLTRONA SOFT -> SOFT
     if not tokens or tokens[0] in ACESSORIOS:
         return None
     nome, i = [], 0
-    if familia == 'Mesa':
+    if familia in ('Mesa', 'Mesa de apoio'):
         if tokens[0] == 'MESA':
             nome, i = ['MESA'], 1
         while i < len(tokens) and tokens[i] in TIPOS_DE_MESA and len(nome) < 4:
@@ -97,10 +96,23 @@ def modelo(texto, familia):
     if resto and tokens[i:i + len(resto)] == resto:
         nome += resto
         i += len(resto)
-    while i < len(tokens) and tokens[i] in SUFIXOS_DO_MODELO:
-        nome.append(tokens[i])
+    while i < len(tokens) and (tokens[i] in SUFIXOS_DO_MODELO or tokens[i] in ROMANOS):
+        if tokens[i] not in ROMANOS:
+            nome.append(tokens[i])
         i += 1
     return sem_acento(' '.join(nome)), titulo(' '.join(nome))
+
+
+def produto_do_designer(texto, familia):
+    """O produto para a abertura do designer: 'Cadeira Capincho', 'Sofá Pan Am', 'Mesa de Jantar Apache'.
+    Encostos, kits e capas viram um item só, para a soma do designer fechar."""
+    r = modelo(texto, familia)
+    if r is None:
+        return 'encostos-kits-capas', 'Encostos, kits, capas e complementos'
+    chave, exibir = r
+    if familia in ('Mesa', 'Mesa de apoio') or exibir.lower().startswith(sem_acento(familia).lower()):
+        return chave, exibir
+    return sem_acento(familia).upper() + ' ' + chave, familia + ' ' + exibir
 
 
 def agrupar(linhas, resolver):
@@ -131,7 +143,7 @@ def gerar(codigo=None, saida=None, raiz_dados=None):
 
     por_familia = collections.defaultdict(float)
     linhas = {'Cadeira': [], 'Mesa': [], 'Sofá': []}
-    designers = []
+    designers = []                        # (ym, designer, produto_chave, produto_nome, qtd)
     for r in d['rows']:
         ym, q, f = r[0], r[2], fam[r[4]]
         if cls[r[6]] in CLASSES_FORA or f in FAMILIAS_FORA:
@@ -140,7 +152,8 @@ def gerar(codigo=None, saida=None, raiz_dados=None):
         if f in linhas:
             linhas[f].append((ym, prod[r[17]], q))
         if r[7] >= 0:
-            designers.append((ym, ds[r[7]], q))
+            pk, pn = produto_do_designer(prod[r[17]], f)
+            designers.append((ym, ds[r[7]], pk, pn, q))
 
     yms = sorted({ym for ym, _ in por_familia})
     ym_idx = {ym: i for i, ym in enumerate(yms)}
@@ -153,8 +166,19 @@ def gerar(codigo=None, saida=None, raiz_dados=None):
         nomes, rows, fora = agrupar(linhas[familia], lambda t, f=familia: modelo(t, f))
         out[chave] = {'nomes': nomes, 'rows': ajustar(rows),
                       'fora': [[ym_idx[ym], q] for ym, q in fora if ym in ym_idx]}
-    nomes, rows, _ = agrupar(designers, lambda t: (sem_acento(t.upper().strip()), titulo(t)))
-    out['designers'] = {'nomes': nomes, 'rows': ajustar(rows), 'fora': []}
+    dchave = lambda t: sem_acento(t.upper().strip())
+    nomes, rows, _ = agrupar([(ym, t, q) for ym, t, _pk, _pn, q in designers], lambda t: (dchave(t), titulo(t)))
+    # a mesma chave do agrupar: o índice do designer é a posição na ordem alfabética das chaves
+    ordem = sorted({dchave(t) for _, t, *_ in designers})
+    dpos = {k: i for i, k in enumerate(ordem)}
+    pnomes, ppos, tot = [], {}, collections.defaultdict(float)
+    for ym, t, pk, pn, q in designers:
+        if pk not in ppos:
+            ppos[pk] = len(pnomes)
+            pnomes.append(pn)
+        tot[(ym, dpos[dchave(t)], ppos[pk])] += q
+    out['designers'] = {'nomes': nomes, 'rows': ajustar(rows), 'fora': [], 'prodNomes': pnomes,
+                        'prod': [[ym_idx[ym], di, pi, round(q, 2)] for (ym, di, pi), q in tot.items() if ym in ym_idx]}
     fams = sorted({f for _, f in por_familia})
     out['familias'] = {'nomes': fams, 'rows': ajustar([(ym, fams.index(f), round(q, 2)) for (ym, f), q in por_familia.items()])}
 
