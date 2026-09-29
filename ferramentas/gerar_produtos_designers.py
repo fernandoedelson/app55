@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import unicodedata
+from decimal import ROUND_HALF_UP, Decimal
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELO = os.path.join(RAIZ, 'ferramentas', 'produtos_designers.modelo.html')
@@ -146,8 +147,13 @@ def _nf(n):
     return '{:,}'.format(int(n + 0.5)).replace(',', '.')
 
 
+def _f1(x):
+    """Uma casa decimal como o toFixed(1) do JavaScript: empate arredonda para cima (6,25 -> 6,3)."""
+    return str(Decimal(x).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
+
+
 def _pc(x):
-    return ('%.1f' % x).replace('.', ',') + '%'
+    return _f1(x).replace('.', ',') + '%'
 
 
 def _un(q, s, p):
@@ -166,21 +172,27 @@ def _ordenar(m):
     return sorted([e for e in m.items() if e[1] > 0], key=lambda e: -e[1])
 
 
-def pre_renderizar(out, meses=24):
-    """O HTML do período padrão (últimos `meses`), igual ao que o script desenha ao abrir. A pré-visualização
-    do iPhone (WhatsApp, e-mail, Arquivos) não executa JavaScript: sem isto ela mostra a página vazia."""
+JANELA_MESES = 12          # intervalos mês a mês: os últimos 12 meses (cada combinação vira uma página pronta)
+
+
+def _fmt_var(v):
+    if v is None:
+        return '<span class="var-0">—</span>'
+    cl = 'var-up' if v > 0.05 else 'var-dn' if v < -0.05 else 'var-0'
+    return '<span class="%s">%s%s%%</span>' % (cl, '+' if v > 0 else '', _f1(v).replace('.', ','))
+
+
+def fragmentos(out, de, ate, vid):
+    """O HTML de cada slide para o período [de, ate] (posições em out['yms']), igual ao que o script
+    desenha, mais os controles que dispensam script (o painel de cada designer é um bloco pronto)."""
     yms = out['yms']
-    de, ate = max(0, len(yms) - meses), len(yms) - 1
     rot = lambda ym: '%s/%s' % (MES[ym % 100 - 1], str(ym // 100)[2:])
     rot_l = lambda ym: '%s/%d' % (MES[ym % 100 - 1], ym // 100)
-    f = {}
-    f['de'] = ''.join('<option value="%d"%s>%s</option>' % (i, ' selected' if i == de else '', rot_l(y)) for i, y in enumerate(yms))
-    f['ate'] = ''.join('<option value="%d"%s>%s</option>' % (i, ' selected' if i == ate else '', rot_l(y)) for i, y in enumerate(yms))
-    f['base'] = rot_l(yms[-1])
-    f['per-capa'] = '%s a %s · %d %s' % (rot_l(yms[de]), rot_l(yms[ate]), ate - de + 1, 'mês' if ate == de else 'meses')
-    f['per-resumo'] = '(%s a %s)' % (rot(yms[de]), rot(yms[ate]))
+    r = {}
+    r['capa'] = '%s a %s · %d %s' % (rot_l(yms[de]), rot_l(yms[ate]), ate - de + 1, 'mês' if ate == de else 'meses')
+    r['resumo_per'] = '(%s a %s)' % (rot(yms[de]), rot(yms[ate]))
 
-    # resumo
+    # ---- resumo
     n = ate - de + 1
     aP, bP = max(0, de - n), de - 1
     fam = out['familias']
@@ -190,18 +202,12 @@ def pre_renderizar(out, meses=24):
     tot_ant = sum(ant.values()) if ant is not None else None
     var = lambda a, b: (a / b - 1) * 100 if b else None
 
-    def fmt_var_(v):
-        if v is None:
-            return '<span class="var-0">—</span>'
-        cl = 'var-up' if v > 0.05 else 'var-dn' if v < -0.05 else 'var-0'
-        return '<span class="%s">%s%s%%</span>' % (cl, '+' if v > 0 else '', ('%.1f' % v).replace('.', ','))
-
     def cartao(rotulo, nome):
         q = atual.get(fam['nomes'].index(nome), 0) if nome in fam['nomes'] else 0
         return '<div class="card"><div class="l">%s</div><div class="v">%s</div><div class="d">unidades</div></div>' % (rotulo, _nf(q))
-    f['numeros'] = ('<div class="card"><div class="l">Peças vendidas</div><div class="v">%s</div><div class="d">%s</div></div>'
-                    % (_nf(total), 'sem período anterior' if tot_ant is None else fmt_var_(var(total, tot_ant)) + ' vs. anterior')
-                    + cartao('Cadeiras', 'Cadeira') + cartao('Mesas', 'Mesa') + cartao('Sofás', 'Sofá') + cartao('Poltronas', 'Poltrona'))
+    cards = ('<div class="numeros"><div class="card"><div class="l">Peças vendidas</div><div class="v">%s</div><div class="d">%s</div></div>'
+             % (_nf(total), 'sem período anterior' if tot_ant is None else _fmt_var(var(total, tot_ant)) + ' vs. anterior')
+             + cartao('Cadeiras', 'Cadeira') + cartao('Mesas', 'Mesa') + cartao('Sofás', 'Sofá') + cartao('Poltronas', 'Poltrona') + '</div>')
     lista = _ordenar(atual)
     mx = lista[0][1] if lista else 1
     TOPO = 7
@@ -210,74 +216,145 @@ def pre_renderizar(out, meses=24):
         a = ant.get(k, 0) if ant is not None else None
         return ('<tr><td>%s</td><td><i class="barra-mini" style="width:%dpx"></i>%s</td><td class="c-pct">%s</td><td class="c-ant">%s</td><td>%s</td></tr>'
                 % (_esc(fam['nomes'][k]), int(80 * q / mx + 0.5), _nf(q), _pc(100 * q / total), '—' if a is None else _nf(a),
-                   fmt_var_(None if a is None else var(q, a))))
+                   _fmt_var(None if a is None else var(q, a))))
     resto = lista[TOPO:]
     outras = ''
     if resto:
         q = sum(e[1] for e in resto)
         a = sum(ant.get(e[0], 0) for e in resto) if ant is not None else None
         outras = ('<tr class="outras"><td>Demais %d famílias</td><td>%s</td><td class="c-pct">%s</td><td class="c-ant">%s</td><td>%s</td></tr>'
-                  % (len(resto), _nf(q), _pc(100 * q / total), '—' if a is None else _nf(a), fmt_var_(None if a is None else var(q, a))))
-    f['tab-fam'] = ('<thead><tr><th>Família</th><th>Unidades</th><th class="c-pct">% do total</th><th class="c-ant">Período anterior</th><th>Variação</th></tr></thead><tbody>'
-                    + ''.join(linha(k, q) for k, q in lista[:TOPO]) + outras + '</tbody>')
-    f['sub-resumo'] = ('Comparado com %s a %s.' % (rot_l(yms[aP]), rot_l(yms[bP]))) if ant is not None else 'Não há meses anteriores para comparar.'
+                  % (len(resto), _nf(q), _pc(100 * q / total), '—' if a is None else _nf(a), _fmt_var(None if a is None else var(q, a))))
+    tabela = ('<div class="tab-rol"><table class="tbl"><thead><tr><th>Família</th><th>Unidades</th><th class="c-pct">% do total</th><th class="c-ant">Período anterior</th><th>Variação</th></tr></thead><tbody>'
+              + ''.join(linha(k, q) for k, q in lista[:TOPO]) + outras + '</tbody></table></div>')
+    r['resumo'] = cards + tabela
+    r['resumo_sub'] = ('Comparado com %s a %s.' % (rot_l(yms[aP]), rot_l(yms[bP]))) if ant is not None else 'Não há meses anteriores para comparar.'
 
-    # rankings
-    def ranking(id_, dados, unidade, artigo, limite, sel=None, com_destaque=True):
+    # ---- rankings de cadeiras, mesas e sofás
+    def ranking(dados, unidade, artigo, limite):
         lst = _ordenar(_somar(dados['rows'], de, ate))
+        if not lst:
+            return '<p class="vazio">Nenhuma venda neste período.</p>'
         tot = sum(e[1] for e in lst)
         fora = sum(q for i, q in dados.get('fora', []) if de <= i <= ate)
-        if id_ != 'des':
-            f['n-' + id_] = ('Não entram no ranking: %s %s de encostos, kits, capas, almofadas e complementos (mesa e puff do conjunto).'
-                             % (_nf(fora), _un(fora, 'peça', 'peças'))) if fora > 0 else ''
-        if not lst:
-            f['r-' + id_] = ''; f['m-' + id_] = ''
-            f['d-' + id_] = '<p class="vazio">Nenhuma venda neste período.</p>'
-            return lst
-        topo, mx_ = lst[0], lst[0][1]
-        if com_destaque:
-            emp = [e for e in lst if e[1] == mx_]
-            fem, plural = artigo == 'A', len(emp) > 1
-            frase = (('Empate entre as mais vendidas' if fem else 'Empate entre os mais vendidos') + ' do período:') if plural \
-                else artigo + ' mais vendid' + ('a' if fem else 'o') + ' do período:'
-            f['d-' + id_] = ('<div class="destaque"><span>%s</span> <b>%s</b> <span>%s %s%s</span></div>'
-                             % (frase, ' e '.join(_esc(dados['nomes'][e[0]]) for e in emp), _nf(mx_), _un(mx_, *unidade), ' cada' if plural else ''))
+        mx_ = lst[0][1]
+        emp = [e for e in lst if e[1] == mx_]
+        fem, plural = artigo == 'A', len(emp) > 1
+        frase = (('Empate entre as mais vendidas' if fem else 'Empate entre os mais vendidos') + ' do período:') if plural \
+            else artigo + ' mais vendid' + ('a' if fem else 'o') + ' do período:'
+        h = ('<div class="destaque"><span>%s</span> <b>%s</b> <span>%s %s%s</span></div>'
+             % (frase, ' e '.join(_esc(dados['nomes'][e[0]]) for e in emp), _nf(mx_), _un(mx_, *unidade), ' cada' if plural else ''))
         mostra = lst[:limite]
-        itens = []
+        h += '<ol class="rank dupla" style="--linhas:%d">' % ((len(mostra) + 1) // 2)
         for i, (k, q) in enumerate(mostra):
-            attrs = ''
-            if id_ == 'des':
-                attrs = ' data-i="%d" tabindex="0" role="button"' % k + (' class="sel" aria-pressed="true"' if k == sel else ' aria-pressed="false"')
-            itens.append('<li%s><span class="n">%d</span><span class="nome">%s</span><span class="fio"><i style="width:%s%%"></i></span>'
-                         '<span class="q"><b>%s</b> %s<small>%s</small></span></li>'
-                         % (attrs, i + 1, _esc(dados['nomes'][k]), ('%.1f' % (100 * q / mx_)), _nf(q), _un(q, *unidade), _pc(100 * q / tot)))
-        f['r-' + id_] = ''.join(itens)
-        f['m-' + id_] = '<button class="mais" type="button">Mostrar todos (%d)</button>' % len(lst) if len(lst) > limite else ''
-        return lst
+            h += ('<li><span class="n">%d</span><span class="nome">%s</span><span class="fio"><i style="width:%s%%"></i></span>'
+                  '<span class="q"><b>%s</b> %s<small>%s</small></span></li>'
+                  % (i + 1, _esc(dados['nomes'][k]), _f1(100 * q / mx_), _nf(q), _un(q, *unidade), _pc(100 * q / tot)))
+        h += '</ol>'
+        if len(lst) > limite:
+            h += _todos(lst[limite:], limite, dados['nomes'], unidade, 'Mostrar todos (%d)' % len(lst))
+        if fora > 0:
+            h += ('<p class="nota">Não entram no ranking: %s %s de encostos, kits, capas, almofadas e complementos (mesa e puff do conjunto).</p>'
+                  % (_nf(fora), _un(fora, 'peça', 'peças')))
+        return h
 
     for id_, chave, art in (('cad', 'cadeira', 'A'), ('mes', 'mesa', 'A'), ('sof', 'sofa', 'O')):
-        ranking(id_, out[chave], ('unidade', 'unidades'), art, 10)
-    des = out['designers']
-    ld = ranking('des', des, ('peça', 'peças'), 'O', 8, sel=_somar(des['rows'], de, ate) and _ordenar(_somar(des['rows'], de, ate))[0][0], com_destaque=False)
+        r[id_] = ranking(out[chave], ('unidade', 'unidades'), art, 10)
 
-    # painel do primeiro designer
-    if ld:
-        sel, total_d = ld[0]
-        por = collections.OrderedDict()
-        for i, d, k, q in des['prod']:
-            if d == sel and de <= i <= ate:
-                por[k] = por.get(k, 0) + q
-        prod = _ordenar(por)
+    # ---- designers: a lista à esquerda e, ao tocar, o painel com os produtos dele
+    des = out['designers']
+    lst = _ordenar(_somar(des['rows'], de, ate))
+    if not lst:
+        r['des'] = '<p class="vazio">Nenhuma venda neste período.</p>'
+        return r
+    tot = sum(e[1] for e in lst)
+    mx_ = lst[0][1]
+    vis, sobra = lst[:8], lst[8:]
+    por = collections.defaultdict(collections.OrderedDict)
+    for i, d, k, q in des['prod']:
+        if de <= i <= ate:
+            por[d][k] = por[d].get(k, 0) + q
+
+    def painel(d, total_d):
+        prod = _ordenar(por[d])
         mxp, TOP = (prod[0][1] if prod else 1), 12
-        vistos, sobra = prod[:TOP], sum(e[1] for e in prod[TOP:])
-        f['p-des'] = ('<h3>%s<small>%s %s em %d %s</small></h3><ul class="prod">%s%s</ul>'
-                      % (_esc(des['nomes'][sel]), _nf(total_d), _un(total_d, 'peça', 'peças'), len(prod), _un(len(prod), 'produto', 'produtos'),
-                         ''.join('<li><span>%s</span><span class="fio"><i style="width:%s%%"></i></span><span class="q"><b>%s</b> · %s</span></li>'
-                                 % (_esc(des['prodNomes'][k]), '%.1f' % (100 * q / mxp), _nf(q), _pc(100 * q / total_d)) for k, q in vistos),
-                         ('<li class="outros"><span>Outros %d produtos</span><span></span><span class="q">%s</span></li>' % (len(prod) - TOP, _nf(sobra))) if sobra > 0 else ''))
-    else:
-        f['p-des'] = ''
-    return f
+        vistos, resto_p = prod[:TOP], sum(e[1] for e in prod[TOP:])
+        return ('<aside class="painel"><h3>%s<small>%s %s em %d %s</small></h3><ul class="prod">%s%s</ul></aside>'
+                % (_esc(des['nomes'][d]), _nf(total_d), _un(total_d, 'peça', 'peças'), len(prod), _un(len(prod), 'produto', 'produtos'),
+                   ''.join('<li><span>%s</span><span class="fio"><i style="width:%s%%"></i></span><span class="q"><b>%s</b> · %s</span></li>'
+                           % (_esc(des['prodNomes'][k]), _f1(100 * q / mxp), _nf(q), _pc(100 * q / total_d)) for k, q in vistos),
+                   ('<li class="outros"><span>Outros %d produtos</span><span></span><span class="q">%s</span></li>' % (len(prod) - TOP, _nf(resto_p))) if resto_p > 0 else ''))
+    radios = ''.join('<input type="radio" class="rd" name="d-%s" id="d-%s-%d"%s>' % (vid, vid, k, ' checked' if k == 0 else '') for k in range(len(vis)))
+    itens = ''.join(
+        '<li><label class="lin" for="d-%s-%d"><span class="n">%d</span><span class="nome">%s</span><span class="fio"><i style="width:%s%%"></i></span>'
+        '<span class="q"><b>%s</b> %s<small>%s</small></span></label>%s</li>'
+        % (vid, k, k + 1, _esc(des['nomes'][d]), _f1(100 * q / mx_), _nf(q), _un(q, 'peça', 'peças'), _pc(100 * q / tot), painel(d, q))
+        for k, (d, q) in enumerate(vis))
+    r['des'] = ('<div class="mestre-css">' + radios + '<ol class="rank grade">' + itens + '</ol>'
+                + (_todos(sobra, 8, des['nomes'], ('peça', 'peças'), 'Mostrar os demais (%d)' % len(sobra)) if sobra else '') + '</div>')
+    return r
+
+
+def _todos(resto, primeiro, nomes, unidade, rotulo):
+    """Os demais itens de um ranking, numa lista compacta que abre e fecha sem script (<details>)."""
+    return ('<details class="todos"><summary>%s</summary><ol class="rank compacto" start="%d">%s</ol></details>'
+            % (rotulo, primeiro + 1, ''.join('<li><span class="n">%d</span><span class="nome">%s</span><span class="q"><b>%s</b> %s</span></li>'
+                                              % (primeiro + i + 1, _esc(nomes[k]), _nf(q), _un(q, *unidade)) for i, (k, q) in enumerate(resto))))
+
+
+def montar_estatico(out):
+    """Todas as versões da página e o CSS que escolhe uma delas: {marcador: html}, css, radios, chips."""
+    yms = out['yms']
+    ult = len(yms) - 1
+    rot_l = lambda ym: '%s/%d' % (MES[ym % 100 - 1], ym // 100)
+    rot_c = lambda ym: '%s/%s' % (MES[ym % 100 - 1], str(ym // 100)[2:])
+    w0 = max(0, ult - JANELA_MESES + 1)
+    var = []                                                # (id, de, ate)
+    for i in range(w0, ult + 1):
+        for j in range(i, ult + 1):
+            var.append(('%d-%d' % (i, j), i, j))
+    extras = [('p24', max(0, len(yms) - 24), ult, 'Últimos 24 meses'), ('ptudo', 0, ult, 'Tudo')]
+    ano_atual = yms[-1] // 100
+    anos = []
+    for y in sorted({ym // 100 for ym in yms}):
+        if y < ano_atual:
+            idx = [i for i, ym in enumerate(yms) if ym // 100 == y]
+            anos.append(('y%d' % y, idx[0], idx[-1], str(y) + ('*' if len(idx) < 12 else '')))
+    todas = var + [(v, a, b) for v, a, b, _ in extras + anos]
+
+    blocos = collections.defaultdict(list)
+    for vid, a, b in todas:
+        f = fragmentos(out, a, b, vid)
+        for chave, html in f.items():
+            inline = chave in ('capa', 'resumo_per', 'resumo_sub')
+            cl = 'vi' if inline else 'vb'      # 'vb' e não 'v': .card .v já é o número dos cartões
+            blocos[chave].append('<%s class="%s %s-%s">%s</%s>' % ('span' if inline else 'div', cl, cl, vid, html, 'span' if inline else 'div'))
+    est = {chave: ''.join(v) for chave, v in blocos.items()}
+    # ---- botões (rótulos dos rádios) e regras que escolhem a versão
+    radios = ''.join('<input type="radio" class="rp" name="per" id="v-%s"%s>' % (vid, ' checked' if vid == 'p24' else '') for vid, _, _ in todas)
+    lab = lambda vid, cls, texto: '<label class="chip %s" for="v-%s">%s</label>' % (cls, vid, texto)
+    i_ano = next((i for i, ym in enumerate(yms) if ym // 100 == ano_atual), None)
+    presets = lab('p24', 'pc-p24', 'Últimos 24 meses') + lab('%d-%d' % (w0, ult), 'pc-%d-%d' % (w0, ult), 'Últimos %d meses' % (ult - w0 + 1))
+    if i_ano is not None and i_ano >= w0:
+        presets += lab('%d-%d' % (i_ano, ult), 'pc-%d-%d' % (i_ano, ult), 'Ano corrente')
+    presets += lab('ptudo', 'pc-ptudo', 'Tudo') + ''.join(lab(v, 'pc-' + v, t) for v, _, _, t in reversed(anos))
+    de_chips = ''.join(lab('%d-%d' % (i, ult), 'dc-%d' % i, rot_c(yms[i])) for i in range(w0, ult + 1))
+    ates = ''.join('<div class="linha-chips ates ates-%d"><span class="rot">Até</span>%s</div>'
+                   % (i, ''.join(lab('%d-%d' % (i, j), 'ac-%d-%d' % (i, j), rot_c(yms[j])) for j in range(i, ult + 1))) for i in range(w0, ult + 1))
+    chips = ('<div class="linha-chips"><span class="rot">Período</span>%s</div>' % presets
+             + '<div class="linha-chips"><span class="rot">De</span>%s</div>' % de_chips + ates
+             + '<p class="dica">Para um intervalo, toque no mês inicial e depois no final (últimos %d meses). Outros intervalos: abra o arquivo no navegador.</p>' % (ult - w0 + 1))
+    on = 'background:var(--esp);border-color:var(--esp);color:#f2eee4'
+    css = []
+    for vid, a, b in todas:
+        css.append('#v-%s:checked~main .vb-%s{display:block}#v-%s:checked~main .vi-%s{display:inline}' % (vid, vid, vid, vid))
+    for i in range(w0, ult + 1):
+        css.append(','.join('#v-%d-%d:checked~header .ates-%d' % (i, j, i) for j in range(i, ult + 1)) + '{display:flex}')
+        css.append(','.join('#v-%d-%d:checked~header .dc-%d' % (i, j, i) for j in range(i, ult + 1)) + '{%s}' % on)
+        for j in range(i, ult + 1):
+            css.append('#v-%d-%d:checked~header .ac-%d-%d,#v-%d-%d:checked~header .pc-%d-%d{%s}' % (i, j, i, j, i, j, i, j, on))
+    for vid, _a, _b, _t in extras + anos:
+        css.append('#v-%s:checked~header .pc-%s{%s}' % (vid, vid, on))
+    return est, '\n'.join(css), radios, chips
 
 
 def gerar(codigo=None, saida=None, raiz_dados=None):
@@ -332,11 +409,16 @@ def gerar(codigo=None, saida=None, raiz_dados=None):
     assert html.count('/*__DADOS__*/null') == 1 and html.count('__LOGO__') == 1
     html = html.replace('/*__DADOS__*/null', json.dumps(out, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/'))
     html = html.replace('__LOGO__', logo)
-    for chave, trecho in pre_renderizar(out).items():
-        marca = '<!--SSR:%s-->' % chave
+    est, css_var, radios, chips = montar_estatico(out)
+    for chave, trecho in est.items():
+        marca = '<!--EST:%s-->' % chave
         assert html.count(marca) == 1, chave
         html = html.replace(marca, trecho)
-    assert '<!--SSR:' not in html
+    for marca, trecho in (('/*__CSS_VARIANTES__*/', css_var), ('<!--RADIOS-->', radios), ('<!--CHIPS_CSS-->', chips),
+                          ('<!--SSR:base-->', '%s/%d' % (MES[out['yms'][-1] % 100 - 1], out['yms'][-1] // 100))):
+        assert html.count(marca) == 1, marca
+        html = html.replace(marca, trecho)
+    assert '<!--EST:' not in html and '<!--SSR:' not in html
     saida = saida or os.path.join(SAIDA_PADRAO, 'Produtos_e_Designers_%s.html' % codigo)
     os.makedirs(os.path.dirname(saida), exist_ok=True)
     io.open(saida, 'w', encoding='utf-8', newline='').write(html)
