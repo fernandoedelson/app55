@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="sem-js">
 <head>
 <meta charset="utf-8">
+<script>document.documentElement.classList.remove("sem-js")</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="format-detection" content="telephone=no">
 <title>Produtos e designers · +55 Design</title>
@@ -123,6 +124,10 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
   .painel{padding:10px 16px;max-height:calc(100vh - var(--bh) - 150px);max-height:calc(100dvh - var(--bh) - 150px)}
   .mestre{margin-top:6px}
 }
+.semjs{display:none;margin:0;flex:1 1 220px;font-size:.85rem;color:var(--soft)}
+.sem-js .semjs{display:block}
+.sem-js .periodo,.sem-js .mais,.sem-js .pontos{display:none}
+.sem-js .sub.clique{display:none}
 @media (max-width:820px){
   html{scroll-snap-type:none}
   .barra{position:static}
@@ -148,11 +153,12 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
 <body>
 <header class="barra" id="barra"><div class="in">
   <img src="__LOGO__" alt="+55 Design">
+  <p class="semjs">Pré-visualização do período padrão (últimos 24 meses). Para filtrar por outras datas e abrir os produtos de cada designer, abra o arquivo no navegador.</p>
   <div class="periodo" role="group" aria-label="Período">
-    <label>De <select id="de"></select></label>
-    <label>Até <select id="ate"></select></label>
+    <label>De <select id="de"><!--SSR:de--></select></label>
+    <label>Até <select id="ate"><!--SSR:ate--></select></label>
     <div class="chips" id="chips">
-      <button class="chip" data-p="24">Últimos 24 meses</button>
+      <button class="chip on" data-p="24">Últimos 24 meses</button>
       <button class="chip" data-p="12">Últimos 12 meses</button>
       <button class="chip" data-p="ano">Ano corrente</button>
       <button class="chip" data-p="tudo">Tudo</button>
@@ -165,18 +171,18 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
 
 <main>
 <section class="slide capa" id="s0"><div class="in">
-  <p class="k">Base até <span id="base"></span></p>
+  <p class="k">Base até <span id="base"><!--SSR:base--></span></p>
   <h1>Produtos e designers<br><em>mais vendidos</em></h1>
   <p class="sub">Em unidades vendidas: as cadeiras, as mesas, os sofás e os designers que mais saem — no período que você escolher.</p>
-  <span class="per" id="per-capa"></span>
+  <span class="per" id="per-capa"><!--SSR:per-capa--></span>
 </div></section>
 
 <section class="slide" id="s1"><div class="in">
   <p class="k">Resumo</p>
-  <h2>O que se vendeu <em id="per-resumo"></em></h2>
-  <p class="sub" id="sub-resumo"></p>
-  <div class="numeros" id="numeros"></div>
-  <div class="tab-rol"><table class="tbl" id="tab-fam"></table></div>
+  <h2>O que se vendeu <em id="per-resumo"><!--SSR:per-resumo--></em></h2>
+  <p class="sub" id="sub-resumo"><!--SSR:sub-resumo--></p>
+  <div class="numeros" id="numeros"><!--SSR:numeros--></div>
+  <div class="tab-rol"><table class="tbl" id="tab-fam"><!--SSR:tab-fam--></table></div>
   <p class="nota">Unidades vendidas por família de produto. A variação compara com o período imediatamente anterior, do mesmo tamanho.
     Não inclui frete/serviço nem pedidos cancelados.</p>
 </div></section>
@@ -184,29 +190,29 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
 <section class="slide" id="s2"><div class="in">
   <p class="k">Cadeiras</p>
   <h2>As cadeiras <em>mais vendidas</em></h2>
-  <div id="d-cad"></div><ol class="rank dupla" id="r-cad"></ol><div id="m-cad"></div><p class="nota" id="n-cad"></p>
+  <div id="d-cad"><!--SSR:d-cad--></div><ol class="rank dupla" id="r-cad" style="--linhas:5"><!--SSR:r-cad--></ol><div id="m-cad"><!--SSR:m-cad--></div><p class="nota" id="n-cad"><!--SSR:n-cad--></p>
 </div></section>
 
 <section class="slide" id="s3"><div class="in">
   <p class="k">Mesas</p>
   <h2>As mesas <em>mais vendidas</em></h2>
-  <div id="d-mes"></div><ol class="rank dupla" id="r-mes"></ol><div id="m-mes"></div><p class="nota" id="n-mes"></p>
+  <div id="d-mes"><!--SSR:d-mes--></div><ol class="rank dupla" id="r-mes" style="--linhas:5"><!--SSR:r-mes--></ol><div id="m-mes"><!--SSR:m-mes--></div><p class="nota" id="n-mes"><!--SSR:n-mes--></p>
 </div></section>
 
 <section class="slide" id="s4"><div class="in">
   <p class="k">Sofás</p>
   <h2>Os sofás <em>por linha</em></h2>
   <p class="sub">As variações de cada linha (duplo, triplo, individual, medidas) somam na mesma linha.</p>
-  <div id="d-sof"></div><ol class="rank dupla" id="r-sof"></ol><div id="m-sof"></div><p class="nota" id="n-sof"></p>
+  <div id="d-sof"><!--SSR:d-sof--></div><ol class="rank dupla" id="r-sof" style="--linhas:5"><!--SSR:r-sof--></ol><div id="m-sof"><!--SSR:m-sof--></div><p class="nota" id="n-sof"><!--SSR:n-sof--></p>
 </div></section>
 
 <section class="slide" id="s5"><div class="in">
   <p class="k">Designers</p>
   <h2>Os designers que <em>mais vendem</em></h2>
-  <p class="sub">Clique em um designer para ver os produtos dele.</p>
+  <p class="sub clique">Clique em um designer para ver os produtos dele.</p>
   <div class="mestre">
-    <div><ol class="rank" id="r-des"></ol><div id="m-des"></div></div>
-    <aside class="painel" id="p-des" aria-live="polite"></aside>
+    <div><ol class="rank" id="r-des"><!--SSR:r-des--></ol><div id="m-des"><!--SSR:m-des--></div></div>
+    <aside class="painel" id="p-des" aria-live="polite"><!--SSR:p-des--></aside>
   </div>
 </div></section>
 </main>
@@ -327,6 +333,9 @@ const D = /*__DADOS__*/null;
     ranking('cad', D.cadeira.nomes, D.cadeira.rows, ['unidade', 'unidades'], 'A', D.cadeira.fora, 10);
     ranking('mes', D.mesa.nomes, D.mesa.rows, ['unidade', 'unidades'], 'A', D.mesa.fora, 10);
     ranking('sof', D.sofa.nomes, D.sofa.rows, ['unidade', 'unidades'], 'O', D.sofa.fora, 10);
+    // o designer escolhido (ou o primeiro) já vai marcado na lista
+    const ordDes = ordenar(somar(D.designers.rows, iDe, iAte));
+    if (ordDes.length && (selDes === null || !ordDes.some(e => e[0] === selDes))) selDes = ordDes[0][0];
     const ld = ranking('des', D.designers.nomes, D.designers.rows, ['peça', 'peças'], 'O', [], 8);
     painelDesigner(ld);
     const n = iAte - iDe + 1, ult = yms.length;
