@@ -172,7 +172,7 @@ def _ordenar(m):
     return sorted([e for e in m.items() if e[1] > 0], key=lambda e: -e[1])
 
 
-JANELA_MESES = 12          # intervalos mês a mês: os últimos 12 meses (cada combinação vira uma página pronta)
+JANELA_MESES = 9           # intervalos mês a mês: os últimos N meses (cada combinação vira uma página pronta)
 
 
 def _fmt_var(v):
@@ -229,7 +229,7 @@ def fragmentos(out, de, ate, vid):
     r['resumo'] = cards + tabela
     r['resumo_sub'] = ('Comparado com %s a %s.' % (rot_l(yms[aP]), rot_l(yms[bP]))) if ant is not None else 'Não há meses anteriores para comparar.'
 
-    # ---- rankings de cadeiras, mesas e sofás
+    # ---- rankings de cadeiras, mesas e sofás (marcação enxuta: a barra é um pseudo-elemento, --w é a largura)
     def ranking(dados, unidade, artigo, limite):
         lst = _ordenar(_somar(dados['rows'], de, ate))
         if not lst:
@@ -244,23 +244,23 @@ def fragmentos(out, de, ate, vid):
         h = ('<div class="destaque"><span>%s</span> <b>%s</b> <span>%s %s%s</span></div>'
              % (frase, ' e '.join(_esc(dados['nomes'][e[0]]) for e in emp), _nf(mx_), _un(mx_, *unidade), ' cada' if plural else ''))
         mostra = lst[:limite]
-        h += '<ol class="rank dupla" style="--linhas:%d">' % ((len(mostra) + 1) // 2)
+        h += '<ol class="rank est dupla" style="--linhas:%d">' % ((len(mostra) + 1) // 2)
         for i, (k, q) in enumerate(mostra):
-            h += ('<li><span class="n">%d</span><span class="nome">%s</span><span class="fio"><i style="width:%s%%"></i></span>'
-                  '<span class="q"><b>%s</b> %s<small>%s</small></span></li>'
-                  % (i + 1, _esc(dados['nomes'][k]), _f1(100 * q / mx_), _nf(q), _un(q, *unidade), _pc(100 * q / tot)))
+            h += ('<li style="--w:%s%%"><span class="n">%d</span><span class="nome">%s</span><span class="q"><b>%s</b> %s<small>%s</small></span></li>'
+                  % (_f1(100 * q / mx_), i + 1, _esc(dados['nomes'][k]), _nf(q), _un(q, *unidade), _pc(100 * q / tot)))
         h += '</ol>'
-        if len(lst) > limite:
-            h += _todos(lst[limite:], limite, dados['nomes'], unidade, 'Mostrar todos (%d)' % len(lst))
-        if fora > 0:
-            h += ('<p class="nota">Não entram no ranking: %s %s de encostos, kits, capas, almofadas e complementos (mesa e puff do conjunto).</p>'
-                  % (_nf(fora), _un(fora, 'peça', 'peças')))
+        extra = len(lst) - limite
+        if fora > 0 or extra > 0:
+            h += '<p class="nota">%s%s</p>' % (
+                ('Os %d primeiros de %d; a lista completa está na versão aberta no navegador. ' % (limite, len(lst))) if extra > 0 else '',
+                ('Não entram no ranking: %s %s de encostos, kits, capas, almofadas e complementos (mesa e puff do conjunto).'
+                 % (_nf(fora), _un(fora, 'peça', 'peças'))) if fora > 0 else '')
         return h
 
     for id_, chave, art in (('cad', 'cadeira', 'A'), ('mes', 'mesa', 'A'), ('sof', 'sofa', 'O')):
         r[id_] = ranking(out[chave], ('unidade', 'unidades'), art, 10)
 
-    # ---- designers: a lista à esquerda e, ao tocar, o painel com os produtos dele
+    # ---- designers: um acordeão nativo (<details>): tocar no designer abre os produtos dele
     des = out['designers']
     lst = _ordenar(_somar(des['rows'], de, ate))
     if not lst:
@@ -268,37 +268,28 @@ def fragmentos(out, de, ate, vid):
         return r
     tot = sum(e[1] for e in lst)
     mx_ = lst[0][1]
-    vis, sobra = lst[:8], lst[8:]
+    vis = lst[:8]
     por = collections.defaultdict(collections.OrderedDict)
     for i, d, k, q in des['prod']:
         if de <= i <= ate:
             por[d][k] = por[d].get(k, 0) + q
-
-    def painel(d, total_d):
+    itens = []
+    for n_, (d, q) in enumerate(vis):
         prod = _ordenar(por[d])
-        mxp, TOP = (prod[0][1] if prod else 1), 12
-        vistos, resto_p = prod[:TOP], sum(e[1] for e in prod[TOP:])
-        return ('<aside class="painel"><h3>%s<small>%s %s em %d %s</small></h3><ul class="prod">%s%s</ul></aside>'
-                % (_esc(des['nomes'][d]), _nf(total_d), _un(total_d, 'peça', 'peças'), len(prod), _un(len(prod), 'produto', 'produtos'),
-                   ''.join('<li><span>%s</span><span class="fio"><i style="width:%s%%"></i></span><span class="q"><b>%s</b> · %s</span></li>'
-                           % (_esc(des['prodNomes'][k]), _f1(100 * q / mxp), _nf(q), _pc(100 * q / total_d)) for k, q in vistos),
-                   ('<li class="outros"><span>Outros %d produtos</span><span></span><span class="q">%s</span></li>' % (len(prod) - TOP, _nf(resto_p))) if resto_p > 0 else ''))
-    radios = ''.join('<input type="radio" class="rd" name="d-%s" id="d-%s-%d"%s>' % (vid, vid, k, ' checked' if k == 0 else '') for k in range(len(vis)))
-    itens = ''.join(
-        '<li><label class="lin" for="d-%s-%d"><span class="n">%d</span><span class="nome">%s</span><span class="fio"><i style="width:%s%%"></i></span>'
-        '<span class="q"><b>%s</b> %s<small>%s</small></span></label>%s</li>'
-        % (vid, k, k + 1, _esc(des['nomes'][d]), _f1(100 * q / mx_), _nf(q), _un(q, 'peça', 'peças'), _pc(100 * q / tot), painel(d, q))
-        for k, (d, q) in enumerate(vis))
-    r['des'] = ('<div class="mestre-css">' + radios + '<ol class="rank grade">' + itens + '</ol>'
-                + (_todos(sobra, 8, des['nomes'], ('peça', 'peças'), 'Mostrar os demais (%d)' % len(sobra)) if sobra else '') + '</div>')
+        mxp, TOP = (prod[0][1] if prod else 1), 8
+        linhas = ''.join('<li style="--w:%s%%"><span>%s</span><b>%s · %s</b></li>'
+                         % (_f1(100 * pq / mxp), _esc(des['prodNomes'][k]), _nf(pq), _pc(100 * pq / q)) for k, pq in prod[:TOP])
+        resto_p = sum(e[1] for e in prod[TOP:])
+        if resto_p > 0:
+            linhas += '<li class="outros"><span>Outros %d produtos</span><b>%s</b></li>' % (len(prod) - TOP, _nf(resto_p))
+        itens.append('<details%s name="d-%s"><summary style="--w:%s%%"><span class="n">%d</span><span class="nome">%s</span>'
+                     '<span class="q"><b>%s</b> %s</span></summary><p class="resumo-d">%s do total · %d %s</p><ul class="prod est">%s</ul></details>'
+                     % (' open' if n_ == 0 else '', vid, _f1(100 * q / mx_), n_ + 1, _esc(des['nomes'][d]), _nf(q), _un(q, 'peça', 'peças'),
+                        _pc(100 * q / tot), len(prod), _un(len(prod), 'produto', 'produtos'), linhas))
+    extra = len(lst) - len(vis)
+    r['des'] = '<div class="acord">' + ''.join(itens) + '</div>' + (
+        '<p class="nota">Os 8 primeiros de %d designers; a lista completa está na versão aberta no navegador.</p>' % len(lst) if extra > 0 else '')
     return r
-
-
-def _todos(resto, primeiro, nomes, unidade, rotulo):
-    """Os demais itens de um ranking, numa lista compacta que abre e fecha sem script (<details>)."""
-    return ('<details class="todos"><summary>%s</summary><ol class="rank compacto" start="%d">%s</ol></details>'
-            % (rotulo, primeiro + 1, ''.join('<li><span class="n">%d</span><span class="nome">%s</span><span class="q"><b>%s</b> %s</span></li>'
-                                              % (primeiro + i + 1, _esc(nomes[k]), _nf(q), _un(q, *unidade)) for i, (k, q) in enumerate(resto))))
 
 
 def montar_estatico(out):

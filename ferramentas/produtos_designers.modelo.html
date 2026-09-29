@@ -161,42 +161,31 @@ html:not(.sem-js) .estatico,html:not(.sem-js) .periodo-css,html:not(.sem-js) .rp
 label.chip{display:inline-flex;align-items:center;flex:none;white-space:nowrap;cursor:pointer;-webkit-user-select:none;user-select:none}
 .ates{display:none}
 .dica{margin:4px 0 0;font-size:.78rem;color:var(--faint)}
-.todos{margin-top:10px}
-.todos summary{display:inline-block;min-height:36px;padding:7px 18px;border:1px solid var(--line2);border-radius:999px;cursor:pointer;font-size:13px;color:var(--soft);list-style:none}
-.todos summary::-webkit-details-marker{display:none}
-.todos[open] summary{border-color:var(--taupe);color:var(--ink)}
-.rank.compacto{margin-top:8px}
-.rank.compacto li{grid-template-columns:34px 1fr auto;padding:5px 12px}
-.mestre-css{margin-top:clamp(8px,1.6vh,16px)}
-.grade{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 22px;align-items:start}
-.grade>li{display:contents}
-.grade .lin{grid-column:1;display:grid;grid-template-columns:26px minmax(90px,1fr) 1fr auto;gap:10px;align-items:center;padding:6px 12px;
-  background:var(--surface);border:1px solid var(--line);border-radius:8px;cursor:pointer}
-.grade .painel{display:none;grid-column:2;grid-row:1/span 8;max-height:none}
-.grade .lin .n{font-family:var(--serif);font-size:1.1rem;color:var(--taupe);text-align:center}
-.grade .lin .nome{font-weight:500;line-height:1.2}
-.grade .lin .fio{height:10px;border-radius:5px;background:var(--warm);overflow:hidden}
-.grade .lin .fio i{display:block;height:100%;border-radius:5px;background:var(--taupe)}
-.grade .lin .q{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-.grade .lin .q b{font-size:1.1rem}.grade .lin .q small{display:block;font-size:.74rem;line-height:1.1;color:var(--faint)}
-@media (max-width:900px){.grade{grid-template-columns:1fr}.grade .painel{grid-column:1;grid-row:auto}
-  .grade .lin{grid-template-columns:26px 1fr auto}.grade .lin .fio{grid-column:2/4;order:4}}
-.rd:nth-of-type(1):checked~.grade>li:nth-child(1)>.painel{display:block}
-.rd:nth-of-type(1):checked~.grade>li:nth-child(1)>.lin{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
-.rd:nth-of-type(2):checked~.grade>li:nth-child(2)>.painel{display:block}
-.rd:nth-of-type(2):checked~.grade>li:nth-child(2)>.lin{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
-.rd:nth-of-type(3):checked~.grade>li:nth-child(3)>.painel{display:block}
-.rd:nth-of-type(3):checked~.grade>li:nth-child(3)>.lin{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
-.rd:nth-of-type(4):checked~.grade>li:nth-child(4)>.painel{display:block}
-.rd:nth-of-type(4):checked~.grade>li:nth-child(4)>.lin{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
-.rd:nth-of-type(5):checked~.grade>li:nth-child(5)>.painel{display:block}
-.rd:nth-of-type(5):checked~.grade>li:nth-child(5)>.lin{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
-.rd:nth-of-type(6):checked~.grade>li:nth-child(6)>.painel{display:block}
-.rd:nth-of-type(6):checked~.grade>li:nth-child(6)>.lin{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
-.rd:nth-of-type(7):checked~.grade>li:nth-child(7)>.painel{display:block}
-.rd:nth-of-type(7):checked~.grade>li:nth-child(7)>.lin{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
-.rd:nth-of-type(8):checked~.grade>li:nth-child(8)>.painel{display:block}
-.rd:nth-of-type(8):checked~.grade>li:nth-child(8)>.lin{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
+/* ---- listas leves da versão sem script: a barra é um pseudo-elemento (--w = largura), não um elemento a mais */
+.rank.est li{position:relative;grid-template-columns:28px minmax(110px,1.1fr) 1.2fr auto}
+.rank.est li::after{content:"";grid-column:3;grid-row:1;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--taupe) var(--w),var(--warm) var(--w))}
+.rank.est li:first-child::after{background:linear-gradient(90deg,var(--taupe-deep) var(--w),var(--warm) var(--w))}
+.rank.est .n{grid-column:1;grid-row:1}.rank.est .nome{grid-column:2;grid-row:1}.rank.est .q{grid-column:4;grid-row:1}
+.acord{display:grid;gap:8px;margin-top:clamp(8px,1.6vh,16px);max-width:760px}
+.acord details{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.acord details[open]{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.14)}
+.acord summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:6px 10px;align-items:center;padding:8px 12px}
+.acord summary::-webkit-details-marker{display:none}
+.acord summary::after{content:"";grid-column:2/4;grid-row:2;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--taupe) var(--w),var(--ground-2) var(--w))}
+.acord details[open] summary::after{background:linear-gradient(90deg,var(--taupe-deep) var(--w),var(--surface) var(--w))}
+.acord .n{font-family:var(--serif);font-size:1.1rem;color:var(--taupe);text-align:center}
+.acord .nome{font-weight:500;line-height:1.2}
+.acord .q{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.acord .q b{font-size:1.1rem}
+.acord .q::after{content:" \25BE";color:var(--faint)}
+.acord details[open] .q::after{content:" \25B4"}
+.acord .resumo-d{margin:0 14px;font-size:.8rem;color:var(--faint)}
+.prod.est{margin:6px 12px 12px;padding:0;list-style:none;display:grid;gap:2px}
+.prod.est li{display:flex;justify-content:space-between;gap:10px;padding:5px 8px;border-radius:4px;font-size:.92rem;
+  background:linear-gradient(90deg,rgba(87,124,105,.20) var(--w),transparent var(--w))}
+.prod.est li.outros{color:var(--faint);font-style:italic;background:none}
+.prod.est b{white-space:nowrap;font-variant-numeric:tabular-nums}
+@media (max-width:820px){.rank.est li{grid-template-columns:26px 1fr auto}.rank.est li::after{grid-column:2/4;grid-row:2}.rank.est .q{grid-column:3}}
 /*__CSS_VARIANTES__*/
 @media print{.barra,.pontos,.mais{display:none}.slide{min-height:0;page-break-after:always}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.rank .fio i{transition:none}}
