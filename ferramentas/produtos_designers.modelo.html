@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
 <title>Produtos e designers · +55 Design</title>
 <style>
 :root{--ground:#fbf9f4;--ground-2:#f1ece1;--surface:#fff;--warm:#f7f2e8;--ink:#2a211b;--soft:#6b5d52;--faint:#9c8e80;
@@ -11,29 +12,33 @@
   --sans:'Jost','Avenir Next','Futura','Century Gothic','Segoe UI',system-ui,sans-serif;--ease:cubic-bezier(.22,.61,.36,1);
   --bh:58px}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-snap-type:y proximity}
+html{scroll-behavior:smooth;scroll-snap-type:y proximity;-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--ground);color:var(--ink);font:400 16px/1.5 var(--sans)}
 button,select{font:inherit;color:inherit}
+button{-webkit-appearance:none;appearance:none}
 :focus-visible{outline:2px solid var(--taupe);outline-offset:2px}
 
 /* barra fixa: marca, filtro de período, apresentar */
-.barra{position:sticky;top:0;z-index:20;background:rgba(251,249,244,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.barra .in{max-width:1240px;margin:0 auto;padding:8px 24px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.barra{position:-webkit-sticky;position:sticky;top:0;z-index:20;background:rgba(251,249,244,.95);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.barra .in{max-width:1240px;margin:0 auto;padding:8px max(24px,env(safe-area-inset-right)) 8px max(24px,env(safe-area-inset-left));display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
 .barra img{height:30px;display:block}
 .periodo{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-left:auto}
 .periodo label{display:flex;gap:8px;align-items:center;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
-.periodo select{min-height:34px;padding:4px 10px;border:1px solid var(--line2);border-radius:6px;background:var(--surface);font-size:14px;letter-spacing:0;text-transform:none}
+.periodo select{min-height:34px;padding:4px 30px 4px 10px;border:1px solid var(--line2);border-radius:6px;font-size:14px;letter-spacing:0;text-transform:none;
+  -webkit-appearance:none;appearance:none;
+  background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236b5d52' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 11px center/10px 6px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{min-height:32px;padding:4px 13px;border:1px solid var(--line2);border-radius:999px;background:transparent;cursor:pointer;
   font-size:12.5px;letter-spacing:.03em;color:var(--soft);transition:.18s var(--ease)}
-.chip:hover{border-color:var(--taupe);color:var(--ink)}
+@media (hover:hover){.chip:hover{border-color:var(--taupe);color:var(--ink)}}
 .chip.on{background:var(--esp);border-color:var(--esp);color:#f2eee4}
 .apresentar{min-height:34px;padding:4px 16px;border-radius:999px;border:1px solid var(--taupe);background:var(--taupe);color:#fff;
   cursor:pointer;font-size:12.5px;font-weight:500;letter-spacing:.06em}
-.apresentar:hover{background:var(--taupe-deep);border-color:var(--taupe-deep)}
+@media (hover:hover){.apresentar:hover{background:var(--taupe-deep);border-color:var(--taupe-deep)}}
 
 /* cada slide cabe na tela: o conteúdo é compacto e se organiza em colunas */
-.slide{min-height:calc(100vh - var(--bh));scroll-snap-align:start;scroll-margin-top:var(--bh);display:flex;align-items:center;padding:clamp(14px,3vh,34px) 24px}
+.slide{min-height:calc(100vh - var(--bh));min-height:calc(100dvh - var(--bh));scroll-snap-align:start;scroll-margin-top:var(--bh);display:flex;align-items:center;
+  padding:clamp(14px,3vh,34px) max(24px,env(safe-area-inset-right)) clamp(14px,3vh,34px) max(24px,env(safe-area-inset-left))}
 .slide>.in{width:100%;max-width:1240px;margin:0 auto}
 .k{display:flex;align-items:center;gap:12px;margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--taupe)}
 .k::before{content:"";width:34px;height:1px;background:var(--taupe)}
@@ -52,6 +57,7 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
 .card .l{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--soft)}
 .card .v{font-family:var(--serif);font-size:clamp(1.7rem,4.6vh,2.2rem);line-height:1.1;margin:4px 0 0}
 .card .d{font-size:.82rem;color:var(--faint)}
+.tab-rol{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
 .tbl{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .tbl th,.tbl td{padding:clamp(4px,.9vh,9px) 14px;text-align:right;border-bottom:1px solid var(--line);font-size:.92rem}
 .tbl th:first-child,.tbl td:first-child{text-align:left}
@@ -78,7 +84,7 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
 .rank .q b{font-size:1.1rem}.rank .q small{display:block;font-size:.74rem;line-height:1.1;color:var(--faint)}
 @media (min-width:980px){.rank.dupla{grid-template-columns:1fr 1fr;grid-auto-flow:column;grid-template-rows:repeat(var(--linhas,5),auto)}}
 .mais{margin-top:12px;min-height:36px;padding:6px 18px;border:1px solid var(--line2);border-radius:999px;background:transparent;cursor:pointer;font-size:13px;color:var(--soft)}
-.mais:hover{border-color:var(--taupe);color:var(--ink)}
+@media (hover:hover){.mais:hover{border-color:var(--taupe);color:var(--ink)}}
 .vazio{margin:20px 0;padding:20px;border:1px dashed var(--line2);border-radius:10px;color:var(--faint);font-style:italic}
 .nota{margin:10px 0 0;font-size:.82rem;color:var(--faint);max-width:760px}
 .nota:empty{display:none}
@@ -87,11 +93,11 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
 .mestre{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start;margin-top:clamp(8px,1.6vh,16px)}
 .mestre .rank{gap:clamp(4px,.8vh,8px)}
 .mestre .rank li{grid-template-columns:26px minmax(90px,1fr) 1fr auto;cursor:pointer;transition:border-color .15s,background .15s}
-.mestre .rank li:hover{border-color:var(--taupe)}
+@media (hover:hover){.mestre .rank li:hover{border-color:var(--taupe)}}
 .mestre .rank li.sel{border-color:var(--taupe);background:var(--warm);box-shadow:0 0 0 3px rgba(146,112,93,.16)}
 .mestre .rank li:first-child:not(.sel){box-shadow:none;border-color:var(--line)}
 .painel{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--taupe);border-radius:10px;padding:14px 18px;
-  max-height:calc(100vh - var(--bh) - 190px);min-height:200px;overflow:auto}
+  max-height:calc(100vh - var(--bh) - 190px);max-height:calc(100dvh - var(--bh) - 190px);min-height:200px;overflow:auto;-webkit-overflow-scrolling:touch}
 .painel h3{margin:0;font-family:var(--serif);font-weight:400;font-size:1.35rem}
 .painel h3 small{display:block;font-family:var(--sans);font-size:.82rem;color:var(--faint);margin-top:2px}
 .painel .dica{margin:0 0 8px;font-size:.8rem;color:var(--faint)}
@@ -114,8 +120,26 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
   .sub{margin-top:4px;font-size:.92rem}
   .destaque{margin:6px 0}
   .card{padding:8px 14px}
-  .painel{padding:10px 16px;max-height:calc(100vh - var(--bh) - 150px)}
+  .painel{padding:10px 16px;max-height:calc(100vh - var(--bh) - 150px);max-height:calc(100dvh - var(--bh) - 150px)}
   .mestre{margin-top:6px}
+}
+@media (max-width:820px){
+  html{scroll-snap-type:none}
+  .barra{position:static}
+  .barra .in{gap:6px 12px}
+  .periodo{width:100%;gap:8px}
+  .periodo label{flex:1 1 42%}
+  .periodo select{flex:1;min-width:0;font-size:16px}               /* 16px: o iOS não dá zoom ao tocar */
+  .chips{flex-wrap:nowrap;overflow-x:auto;width:100%;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .chip{flex:none;white-space:nowrap;min-height:38px}
+  .apresentar{min-height:38px}
+  .slide{padding-top:22px;padding-bottom:22px}
+  .c-pct,.c-ant{display:none}
+  .tbl th,.tbl td{padding:8px 10px;font-size:.88rem}
+  .tbl .barra-mini{display:none}
+  .mestre .rank li{min-height:48px}
+  .painel{scroll-margin-top:12px}
+  h1{font-size:clamp(2rem,9vw,2.6rem)}
 }
 @media print{.barra,.pontos,.mais{display:none}.slide{min-height:0;page-break-after:always}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.rank .fio i{transition:none}}
@@ -152,7 +176,7 @@ h2{font-size:clamp(1.5rem,4.4vh,2.4rem);line-height:1.15}
   <h2>O que se vendeu <em id="per-resumo"></em></h2>
   <p class="sub" id="sub-resumo"></p>
   <div class="numeros" id="numeros"></div>
-  <table class="tbl" id="tab-fam"></table>
+  <div class="tab-rol"><table class="tbl" id="tab-fam"></table></div>
   <p class="nota">Unidades vendidas por família de produto. A variação compara com o período imediatamente anterior, do mesmo tamanho.
     Não inclui frete/serviço nem pedidos cancelados.</p>
 </div></section>
@@ -204,7 +228,7 @@ const D = /*__DADOS__*/null;
   const aberto = {};                       // rankings expandidos
 
   // a altura da barra muda quando o filtro quebra em duas linhas: os slides acompanham
-  const ajustarBarra = () => document.documentElement.style.setProperty('--bh', $('#barra').offsetHeight + 'px');
+  const ajustarBarra = () => { const b = $('#barra'); document.documentElement.style.setProperty('--bh', (/sticky/.test(getComputedStyle(b).position) ? b.offsetHeight : 0) + 'px'); };
 
   function somar(linhas, a, b) {                       // linhas: [mês, item, quantidade]
     const m = new Map();
@@ -281,16 +305,16 @@ const D = /*__DADOS__*/null;
     const linha = ([k, q]) => {
       const a = ant ? (ant.get(k) || 0) : null;
       return '<tr><td>' + esc(D.familias.nomes[k]) + '</td><td><i class="barra-mini" style="width:' + (80 * q / max).toFixed(0) + 'px"></i>' + nf(q) +
-        '</td><td>' + pc(100 * q / total) + '</td><td>' + (a === null ? '—' : nf(a)) + '</td><td>' + fmtVar(a === null ? null : var_(q, a)) + '</td></tr>';
+        '</td><td class="c-pct">' + pc(100 * q / total) + '</td><td class="c-ant">' + (a === null ? '—' : nf(a)) + '</td><td>' + fmtVar(a === null ? null : var_(q, a)) + '</td></tr>';
     };
     const resto = lista.slice(TOPO);
     let outras = '';
     if (resto.length) {
       const q = resto.reduce((s, e) => s + e[1], 0), a = ant ? resto.reduce((s, e) => s + (ant.get(e[0]) || 0), 0) : null;
-      outras = '<tr class="outras"><td>Demais ' + resto.length + ' famílias</td><td>' + nf(q) + '</td><td>' + pc(100 * q / total) + '</td><td>' + (a === null ? '—' : nf(a)) +
+      outras = '<tr class="outras"><td>Demais ' + resto.length + ' famílias</td><td>' + nf(q) + '</td><td class="c-pct">' + pc(100 * q / total) + '</td><td class="c-ant">' + (a === null ? '—' : nf(a)) +
         '</td><td>' + fmtVar(a === null ? null : var_(q, a)) + '</td></tr>';
     }
-    $('#tab-fam').innerHTML = '<thead><tr><th>Família</th><th>Unidades</th><th>% do total</th><th>Período anterior</th><th>Variação</th></tr></thead><tbody>' +
+    $('#tab-fam').innerHTML = '<thead><tr><th>Família</th><th>Unidades</th><th class="c-pct">% do total</th><th class="c-ant">Período anterior</th><th>Variação</th></tr></thead><tbody>' +
       lista.slice(0, TOPO).map(linha).join('') + outras + '</tbody>';
     $('#sub-resumo').textContent = ant ? 'Comparado com ' + rotLongo(yms[aP]) + ' a ' + rotLongo(yms[bP]) + '.' : 'Não há meses anteriores para comparar.';
   }
@@ -331,7 +355,11 @@ const D = /*__DADOS__*/null;
     render();
   };
   // designer: clique (ou Enter/espaço) abre os produtos dele
-  const escolher = li => { if (!li) return; selDes = +li.dataset.i; render(); };
+  const escolher = li => {
+    if (!li) return; selDes = +li.dataset.i; render();
+    // no celular o painel fica abaixo do ranking: leva o leitor até ele
+    if (window.matchMedia && matchMedia('(max-width:900px)').matches) setTimeout(() => $('#p-des').scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
   $('#r-des').addEventListener('click', e => escolher(e.target.closest('li')));
   $('#r-des').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); escolher(e.target.closest('li')); } });
   // abre nos dois últimos anos
@@ -351,14 +379,16 @@ const D = /*__DADOS__*/null;
     if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); ir(atual() + 1); }
     else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); ir(atual() - 1); }
   });
-  $('#apresentar').onclick = () => {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
-  };
-  document.addEventListener('fullscreenchange', () => {
-    $('#apresentar').textContent = document.fullscreenElement ? 'Sair' : 'Apresentar';
-    setTimeout(ajustarBarra, 100);
-  });
+  // tela cheia: o Safari do iPad usa o prefixo webkit e o do iPhone não tem — nele o botão nem aparece
+  const de_ = document.documentElement;
+  const pedirTela = de_.requestFullscreen || de_.webkitRequestFullscreen;
+  const sairTela = document.exitFullscreen || document.webkitExitFullscreen;
+  const emTela = () => document.fullscreenElement || document.webkitFullscreenElement;
+  if (!pedirTela) $('#apresentar').hidden = true;
+  $('#apresentar').onclick = () => { if (emTela()) sairTela.call(document); else if (pedirTela) pedirTela.call(de_); };
+  const aoMudarTela = () => { $('#apresentar').textContent = emTela() ? 'Sair' : 'Apresentar'; setTimeout(ajustarBarra, 100); };
+  document.addEventListener('fullscreenchange', aoMudarTela);
+  document.addEventListener('webkitfullscreenchange', aoMudarTela);
   addEventListener('resize', ajustarBarra);
   render();
 })();
