@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Produtos e designers · +55 Design</title>
+<style>
+:root{--ground:#fbf9f4;--ground-2:#f1ece1;--surface:#fff;--warm:#f7f2e8;--ink:#2a211b;--soft:#6b5d52;--faint:#9c8e80;
+  --line:#e7dfd0;--line2:#d0c4b0;--taupe:#92705d;--taupe-deep:#614b3e;--sage:#577c69;--bad:#a8493c;--esp:#211a14;
+  --serif:'Playfair Display',Georgia,'Times New Roman',serif;
+  --sans:'Jost','Avenir Next','Futura','Century Gothic','Segoe UI',system-ui,sans-serif;--ease:cubic-bezier(.22,.61,.36,1)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-snap-type:y proximity}
+body{margin:0;background:var(--ground);color:var(--ink);font:400 16px/1.55 var(--sans)}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--taupe);outline-offset:2px}
+
+/* barra fixa: marca, filtro de período, apresentar */
+.barra{position:sticky;top:0;z-index:20;background:rgba(251,249,244,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.barra .in{max-width:1180px;margin:0 auto;padding:10px 24px;display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+.barra img{height:34px;display:block}
+.periodo{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-left:auto}
+.periodo label{display:flex;gap:8px;align-items:center;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.periodo select{min-height:36px;padding:6px 10px;border:1px solid var(--line2);border-radius:6px;background:var(--surface);
+  font-size:14px;letter-spacing:0;text-transform:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-height:34px;padding:6px 14px;border:1px solid var(--line2);border-radius:999px;background:transparent;cursor:pointer;
+  font-size:12.5px;letter-spacing:.03em;color:var(--soft);transition:.18s var(--ease)}
+.chip:hover{border-color:var(--taupe);color:var(--ink)}
+.chip.on{background:var(--esp);border-color:var(--esp);color:#f2eee4}
+.apresentar{min-height:36px;padding:6px 16px;border-radius:999px;border:1px solid var(--taupe);background:var(--taupe);color:#fff;
+  cursor:pointer;font-size:12.5px;font-weight:500;letter-spacing:.06em}
+.apresentar:hover{background:var(--taupe-deep);border-color:var(--taupe-deep)}
+
+/* slides */
+.slide{min-height:calc(100vh - 58px);scroll-snap-align:start;scroll-margin-top:58px;display:flex;align-items:center;padding:36px 24px}
+.slide>.in{width:100%;max-width:1180px;margin:0 auto}
+.k{display:flex;align-items:center;gap:12px;margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--taupe)}
+.k::before{content:"";width:34px;height:1px;background:var(--taupe)}
+h1,h2{font-family:var(--serif);font-weight:400;margin:0;color:var(--ink)}
+h1{font-size:clamp(2.2rem,5vw,3.6rem);line-height:1.1}
+h1 em,h2 em{font-style:italic;color:var(--taupe-deep)}
+h2{font-size:clamp(1.7rem,3.2vw,2.5rem);line-height:1.15}
+.sub{max-width:720px;margin:12px 0 0;color:var(--soft);font-size:1.02rem}
+.capa{background:linear-gradient(180deg,var(--ground),var(--ground-2));text-align:left}
+.capa .per{margin-top:22px;display:inline-block;padding:8px 18px;border:1px solid var(--line2);border-radius:999px;font-size:.95rem;color:var(--taupe-deep);background:var(--surface)}
+
+/* resumo */
+.numeros{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:26px 0 24px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.card .l{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--soft)}
+.card .v{font-family:var(--serif);font-size:2.3rem;line-height:1.1;margin:6px 0 2px}
+.card .d{font-size:.85rem;color:var(--faint)}
+.tbl{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tbl th,.tbl td{padding:10px 14px;text-align:right;border-bottom:1px solid var(--line);font-size:.95rem}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl th{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);background:var(--warm)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .barra-mini{display:inline-block;height:8px;border-radius:4px;background:var(--taupe);vertical-align:middle;margin-right:8px;opacity:.75}
+.var-up{color:var(--sage);font-weight:600}.var-dn{color:var(--bad);font-weight:600}.var-0{color:var(--faint)}
+
+/* ranking */
+.destaque{display:inline-flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin:18px 0 6px;padding:10px 18px;border-left:3px solid var(--sage);
+  background:rgba(87,124,105,.08);font-size:1.02rem}
+.destaque b{font-family:var(--serif);font-weight:400;font-size:1.35rem}
+.rank{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:8px}
+.rank li{display:grid;grid-template-columns:34px minmax(150px,290px) 1fr 120px;gap:14px;align-items:center;padding:8px 12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.rank li:first-child{border-color:var(--taupe);box-shadow:0 0 0 3px rgba(146,112,93,.14)}
+.rank .n{font-family:var(--serif);font-size:1.2rem;color:var(--taupe);text-align:center}
+.rank .nome{font-weight:500;line-height:1.25}
+.rank .fio{height:12px;border-radius:6px;background:var(--warm);overflow:hidden}
+.rank .fio i{display:block;height:100%;border-radius:6px;background:var(--taupe);transition:width .45s var(--ease)}
+.rank li:first-child .fio i{background:var(--taupe-deep)}
+.rank .q{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rank .q b{font-size:1.15rem}.rank .q small{display:block;font-size:.78rem;color:var(--faint)}
+.mais{margin-top:14px;min-height:38px;padding:8px 18px;border:1px solid var(--line2);border-radius:999px;background:transparent;cursor:pointer;
+  font-size:13px;color:var(--soft)}.mais:hover{border-color:var(--taupe);color:var(--ink)}
+.vazio{margin:26px 0;padding:22px;border:1px dashed var(--line2);border-radius:10px;color:var(--faint);font-style:italic}
+.nota{margin-top:18px;font-size:.84rem;color:var(--faint);max-width:760px}
+.pontos{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:15;display:grid;gap:10px}
+.pontos a{width:10px;height:10px;border-radius:50%;background:var(--line2);display:block;transition:.2s var(--ease)}
+.pontos a.on{background:var(--taupe);transform:scale(1.35)}
+@media (max-width:820px){.rank li{grid-template-columns:28px 1fr 84px}.rank .fio{grid-column:2/4;order:4}.pontos{display:none}
+  .periodo{margin-left:0}.slide{min-height:0}}
+@media print{.barra,.pontos,.mais{display:none}.slide{min-height:0;page-break-after:always}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.rank .fio i{transition:none}}
+body.presentando .slide{padding-top:20px}
+</style>
+</head>
+<body>
+<header class="barra"><div class="in">
+  <img src="__LOGO__" alt="+55 Design">
+  <div class="periodo" role="group" aria-label="Período">
+    <label>De <select id="de"></select></label>
+    <label>Até <select id="ate"></select></label>
+    <div class="chips" id="chips">
+      <button class="chip" data-p="24">Últimos 24 meses</button>
+      <button class="chip" data-p="12">Últimos 12 meses</button>
+      <button class="chip" data-p="ano">Ano corrente</button>
+      <button class="chip" data-p="tudo">Tudo</button>
+    </div>
+    <button class="apresentar" id="apresentar" type="button">Apresentar</button>
+  </div>
+</div></header>
+
+<nav class="pontos" id="pontos" aria-label="Slides"></nav>
+
+<main>
+<section class="slide capa" id="s0"><div class="in">
+  <p class="k">Base até <span id="base"></span></p>
+  <h1>Produtos e designers<br><em>mais vendidos</em></h1>
+  <p class="sub">Em unidades vendidas: as cadeiras, as mesas, os sofás e os designers que mais saem — no período que você escolher.</p>
+  <span class="capa per" id="per-capa"></span>
+</div></section>
+
+<section class="slide" id="s1"><div class="in">
+  <p class="k">Resumo</p>
+  <h2>O que se vendeu <em id="per-resumo"></em></h2>
+  <p class="sub" id="sub-resumo"></p>
+  <div class="numeros" id="numeros"></div>
+  <table class="tbl" id="tab-fam"></table>
+  <p class="nota">Unidades vendidas por família de produto. A variação compara com o período imediatamente anterior, do mesmo tamanho.
+    Não inclui frete/serviço nem pedidos cancelados.</p>
+</div></section>
+
+<section class="slide" id="s2"><div class="in">
+  <p class="k">Cadeiras</p>
+  <h2>As cadeiras <em>mais vendidas</em></h2>
+  <div id="d-cad"></div><ol class="rank" id="r-cad"></ol><div id="m-cad"></div><p class="nota" id="n-cad"></p>
+</div></section>
+
+<section class="slide" id="s3"><div class="in">
+  <p class="k">Mesas</p>
+  <h2>As mesas <em>mais vendidas</em></h2>
+  <div id="d-mes"></div><ol class="rank" id="r-mes"></ol><div id="m-mes"></div><p class="nota" id="n-mes"></p>
+</div></section>
+
+<section class="slide" id="s4"><div class="in">
+  <p class="k">Sofás</p>
+  <h2>Os sofás <em>por linha</em></h2>
+  <p class="sub">As variações de cada linha (duplo, triplo, individual, medidas) somam na mesma linha.</p>
+  <div id="d-sof"></div><ol class="rank" id="r-sof"></ol><div id="m-sof"></div><p class="nota" id="n-sof"></p>
+</div></section>
+
+<section class="slide" id="s5"><div class="in">
+  <p class="k">Designers</p>
+  <h2>Os designers que <em>mais vendem</em></h2>
+  <p class="sub">Unidades vendidas de peças assinadas, por designer.</p>
+  <div id="d-des"></div><ol class="rank" id="r-des"></ol><div id="m-des"></div>
+</div></section>
+</main>
+
+<script>
+const D = /*__DADOS__*/null;
+(function () {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const rot = ym => MES[(ym % 100) - 1] + '/' + String(Math.floor(ym / 100)).slice(2);
+  const rotLongo = ym => MES[(ym % 100) - 1] + '/' + Math.floor(ym / 100);
+  const nf = n => Math.round(n).toLocaleString('pt-BR');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const yms = D.yms;                       // meses com venda, em ordem
+  let iDe = 0, iAte = yms.length - 1;      // posições em yms
+  const aberto = {};                       // rankings expandidos
+
+  // soma de quantidade por índice de item, entre duas posições de mês
+  function somar(linhas, a, b) {
+    const m = new Map();
+    for (const [i, k, q] of linhas) if (i >= a && i <= b) m.set(k, (m.get(k) || 0) + q);
+    return m;
+  }
+  const ordenar = m => [...m.entries()].filter(e => e[1] > 0).sort((x, y) => y[1] - x[1]);
+
+  function ranking(id, nomes, linhas, unidade, artigo, fora) {
+    const lista = ordenar(somar(linhas, iDe, iAte));
+    const total = lista.reduce((s, e) => s + e[1], 0);
+    const ol = $('#r-' + id), dest = $('#d-' + id), mais = $('#m-' + id), nota = $('#n-' + id);
+    if (nota) {
+      const f = (fora || []).reduce((s, [i, q]) => s + (i >= iDe && i <= iAte ? q : 0), 0);
+      nota.textContent = f > 0 ? 'Não entram no ranking: ' + nf(f) + ' ' + (f === 1 ? 'peça' : 'peças') + ' de encostos, kits, capas, almofadas e complementos (mesa e puff do conjunto).' : '';
+    }
+    if (!lista.length) {
+      ol.innerHTML = ''; mais.innerHTML = '';
+      dest.innerHTML = '<p class="vazio">Nenhuma venda neste período.</p>'; return;
+    }
+    const topo = lista[0], empate = lista.filter(e => e[1] === topo[1]);
+    const fem = artigo === 'A', plural = empate.length > 1;
+    dest.innerHTML = '<div class="destaque"><span>' + (plural ? (fem ? 'Empate entre as mais vendidas' : 'Empate entre os mais vendidos') + ' do período:'
+      : artigo + ' mais vendid' + (fem ? 'a' : 'o') + ' do período:') + '</span> <b>' +
+      empate.map(e => esc(nomes[e[0]])).join(' e ') + '</b> <span>' + nf(topo[1]) + ' ' + (topo[1] === 1 ? unidade[0] : unidade[1]) +
+      (plural ? ' cada' : '') + '</span></div>';
+    const limite = aberto[id] ? lista.length : 10, max = topo[1];
+    ol.innerHTML = lista.slice(0, limite).map((e, i) =>
+      '<li><span class="n">' + (i + 1) + '</span><span class="nome">' + esc(nomes[e[0]]) + '</span>' +
+      '<span class="fio"><i style="width:' + (100 * e[1] / max).toFixed(1) + '%"></i></span>' +
+      '<span class="q"><b>' + nf(e[1]) + '</b> ' + (e[1] === 1 ? unidade[0] : unidade[1]) + '<small>' + (100 * e[1] / total).toFixed(1).replace('.', ',') + '% do total</small></span></li>').join('');
+    mais.innerHTML = lista.length > 10 ? '<button class="mais" type="button">' + (aberto[id] ? 'Mostrar só os 10 primeiros' : 'Mostrar todos (' + lista.length + ')') + '</button>' : '';
+    const bt = mais.querySelector('button'); if (bt) bt.onclick = () => { aberto[id] = !aberto[id]; render(); };
+  }
+
+  function resumo() {
+    const n = iAte - iDe + 1, aP = Math.max(0, iDe - n), bP = iDe - 1;
+    const atual = somar(D.familias.rows, iDe, iAte), ant = bP >= 0 ? somar(D.familias.rows, aP, bP) : null;
+    const total = [...atual.values()].reduce((s, q) => s + q, 0);
+    const totAnt = ant ? [...ant.values()].reduce((s, q) => s + q, 0) : null;
+    const var_ = (a, b) => b ? ((a / b - 1) * 100) : null;
+    const fmtVar = v => v === null ? '<span class="var-0">—</span>' :
+      '<span class="' + (v > 0.05 ? 'var-up' : v < -0.05 ? 'var-dn' : 'var-0') + '">' + (v > 0 ? '+' : '') + v.toFixed(1).replace('.', ',') + '%</span>';
+    const idx = nome => D.familias.nomes.indexOf(nome);
+    const cartao = (rot_, nome) => {
+      const q = atual.get(idx(nome)) || 0;
+      return '<div class="card"><div class="l">' + rot_ + '</div><div class="v">' + nf(q) + '</div><div class="d">unidades</div></div>';
+    };
+    $('#numeros').innerHTML = '<div class="card"><div class="l">Peças vendidas</div><div class="v">' + nf(total) + '</div><div class="d">' +
+      (totAnt === null ? 'sem período anterior para comparar' : fmtVar(var_(total, totAnt)) + ' vs. período anterior') + '</div></div>' +
+      cartao('Cadeiras', 'Cadeira') + cartao('Mesas', 'Mesa') + cartao('Sofás', 'Sofá') + cartao('Poltronas', 'Poltrona');
+    const lista = ordenar(atual), max = lista.length ? lista[0][1] : 1;
+    $('#tab-fam').innerHTML = '<thead><tr><th>Família</th><th>Unidades</th><th>% do total</th><th>Período anterior</th><th>Variação</th></tr></thead><tbody>' +
+      lista.map(([k, q]) => {
+        const a = ant ? (ant.get(k) || 0) : null;
+        return '<tr><td>' + esc(D.familias.nomes[k]) + '</td><td><i class="barra-mini" style="width:' + (90 * q / max).toFixed(0) + 'px"></i>' + nf(q) +
+          '</td><td>' + (100 * q / total).toFixed(1).replace('.', ',') + '%</td><td>' + (a === null ? '—' : nf(a)) + '</td><td>' + fmtVar(a === null ? null : var_(q, a)) + '</td></tr>';
+      }).join('') + '</tbody>';
+    $('#sub-resumo').textContent = ant ? 'Comparado com ' + rotLongo(yms[aP]) + ' a ' + rotLongo(yms[bP]) + '.' : 'Não há meses anteriores para comparar.';
+  }
+
+  function render() {
+    const per = rotLongo(yms[iDe]) + ' a ' + rotLongo(yms[iAte]) + ' · ' + (iAte - iDe + 1) + (iAte === iDe ? ' mês' : ' meses');
+    $('#per-capa').textContent = per; $('#per-resumo').textContent = '(' + rot(yms[iDe]) + ' a ' + rot(yms[iAte]) + ')';
+    $('#de').value = iDe; $('#ate').value = iAte;
+    resumo();
+    ranking('cad', D.cadeira.nomes, D.cadeira.rows, ['unidade', 'unidades'], 'A', D.cadeira.fora);
+    ranking('mes', D.mesa.nomes, D.mesa.rows, ['unidade', 'unidades'], 'A', D.mesa.fora);
+    ranking('sof', D.sofa.nomes, D.sofa.rows, ['unidade', 'unidades'], 'O', D.sofa.fora);
+    ranking('des', D.designers.nomes, D.designers.rows, ['peça', 'peças'], 'O');
+    const n = iAte - iDe + 1, ult = yms.length;
+    document.querySelectorAll('#chips .chip').forEach(c => {
+      const p = c.dataset.p;
+      const on = (p === 'tudo' && iDe === 0 && iAte === ult - 1) || (p === 'ano' && iAte === ult - 1 && Math.floor(yms[iDe] / 100) === Math.floor(yms[ult - 1] / 100) && yms[iDe] % 100 === 1) ||
+        (/^\d+$/.test(p) && iAte === ult - 1 && n === +p && iDe === Math.max(0, ult - +p));
+      c.classList.toggle('on', !!on);
+    });
+  }
+
+  // controles do período
+  const opts = yms.map((y, i) => '<option value="' + i + '">' + rotLongo(y) + '</option>').join('');
+  $('#de').innerHTML = opts; $('#ate').innerHTML = opts;
+  $('#base').textContent = rotLongo(yms[yms.length - 1]);
+  $('#de').onchange = e => { iDe = +e.target.value; if (iDe > iAte) iAte = iDe; render(); };
+  $('#ate').onchange = e => { iAte = +e.target.value; if (iAte < iDe) iDe = iAte; render(); };
+  $('#chips').onclick = e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const ult = yms.length - 1, p = b.dataset.p;
+    iAte = ult;
+    if (p === 'tudo') iDe = 0;
+    else if (p === 'ano') { const a = Math.floor(yms[ult] / 100) * 100 + 1; iDe = Math.max(0, yms.findIndex(y => y >= a)); }
+    else iDe = Math.max(0, ult - (+p - 1));
+    render();
+  };
+  // abre nos dois últimos anos
+  iDe = Math.max(0, yms.length - 24);
+
+  // navegação entre slides
+  const slides = [...document.querySelectorAll('.slide')], pontos = $('#pontos');
+  pontos.innerHTML = slides.map((s, i) => '<a href="#' + s.id + '" aria-label="Slide ' + (i + 1) + '"></a>').join('');
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) [...pontos.children].forEach((a, i) => a.classList.toggle('on', slides[i] === e.target));
+  }), { threshold: .55 });
+  slides.forEach(s => io.observe(s));
+  const atual = () => { let k = 0; slides.forEach((s, i) => { if (s.getBoundingClientRect().top <= innerHeight * .4) k = i; }); return k; };
+  const ir = i => slides[Math.max(0, Math.min(slides.length - 1, i))].scrollIntoView({ behavior: 'smooth' });
+  document.addEventListener('keydown', e => {
+    if (/^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); ir(atual() + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); ir(atual() - 1); }
+  });
+  $('#apresentar').onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  };
+  document.addEventListener('fullscreenchange', () => {
+    document.body.classList.toggle('presentando', !!document.fullscreenElement);
+    $('#apresentar').textContent = document.fullscreenElement ? 'Sair' : 'Apresentar';
+  });
+  render();
+})();
+</script>
+</body>
+</html>
