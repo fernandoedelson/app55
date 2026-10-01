@@ -1,0 +1,3 @@
+# Os arquivos copiados do Kit congelado nunca podem ter o fim de linha convertido: o MANIFESTO.json
+# confere o sha256 de cada um e a reunião se recusa a gerar se mudar (clone no Windows com autocrlf=true quebrava).
+app/kit_congelado/** -text
