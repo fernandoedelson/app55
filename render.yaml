@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: starter
     region: virginia           # a mais próxima do Brasil (a Render não tem São Paulo); não muda depois de criado
-    autoDeploy: false         # deploy manual: fora do expediente, nunca em dia de reunião
+    autoDeploy: true           # todo push na main publica sozinho (decisão do dono em 20/10/2026)
     healthCheckPath: /saude
     envVars:
       - key: APP55_SECRET_KEY
