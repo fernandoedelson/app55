@@ -65,6 +65,16 @@
   uma base substitui o arquivo anterior dela. As bases que não mudam todo mês já vêm marcadas para usar a
   planilha do mês anterior; desmarque só quando houver uma nova.</p>
 {% endif %}
+{# escolha os arquivos em cada linha e envie tudo de uma vez: nada se perde com a página recarregando #}
+<div class="envio-lote" id="envio-lote">
+  <div class="actions">
+    <label class="campo">Posição dos números, para quem ficar sem data
+      <input type="date" id="up-data-geral"></label>
+    <button class="btn btn-primary" type="button" id="up-todos" disabled>Enviar todos os escolhidos</button>
+  </div>
+  <div class="muted" id="up-progresso" role="status" aria-live="polite"></div>
+  <ul class="up-resultado" id="up-resultado"></ul>
+</div>
 <table class="tbl">
   <thead><tr><th>Base</th><th>Arquivo</th><th>Posição</th><th>Enviado</th><th></th></tr></thead>
   <tbody>
@@ -97,10 +107,10 @@
         {% if usa %}<span class="muted">Usando a planilha de {{ ru.origem }}. Para subir outra, desmarque a opção ao lado.</span>
         {% elif pode_upload.get(bid) and (comp.status != 'fechada' or bid == 'carteira') %}
         <form method="post" action="{{ url_for('competencias.upload', codigo=comp.codigo) }}"
-              enctype="multipart/form-data" class="actions">
+              enctype="multipart/form-data" class="actions upload-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="base" value="{{ bid }}">
-          <label class="campo">Planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" required></label>
+          <label class="campo">Planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" required{% if bid in bases_pasta %} multiple{% endif %}></label>
           <label class="campo">Posição dos números <input name="data_posicao" type="date" required></label>
           <button class="btn btn-sm" type="submit">{{ 'Atualizar' if bid == 'carteira' and envios else 'Enviar' }}</button>
         </form>
@@ -187,3 +197,4 @@
 </form>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='envio_lote.js') }}"></script>{% endblock %}

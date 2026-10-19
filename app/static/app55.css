@@ -100,3 +100,10 @@ a.pend:hover{border-color:var(--taupe);background:var(--surface-warm)}
 
 .reuso-flag{margin-top:8px}.reuso-flag label{display:inline-flex;gap:8px;align-items:center;font-size:.86rem;cursor:pointer}
 tr.reuso td{background:rgba(87,124,105,.05)}
+/* fechamento: envio de vários arquivos de uma vez */
+.envio-lote{margin:0 0 14px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface-warm)}
+.envio-lote .actions{align-items:flex-end;flex-wrap:wrap}
+.up-resultado{list-style:none;margin:8px 0 0;padding:0;font-size:.9rem;line-height:1.7}
+.up-resultado .up-ok{color:var(--sage-deep,#577c69)}
+.up-resultado .up-erro{color:var(--crit)}
+#up-progresso .btn{margin-left:8px}

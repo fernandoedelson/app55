@@ -54,6 +54,7 @@ def ver(codigo):
     publicadas = servico.blocos_publicados(codigo)
     secoes = [dict(s, blocos=C.blocos_da_secao(s['id'])) for s in C.SECOES]
     return render_template('fechamento/competencia.html', comp=comp, bases=motor.BASES, reuso=servico.reuso(codigo),
+                           bases_pasta=servico.BASES_PASTA,
                            arquivos=servico.arquivos(codigo), faltando=servico.faltando(codigo),
                            passado=servico.mudou_o_passado(codigo), secoes=secoes,
                            blocos_publicados=publicadas,
