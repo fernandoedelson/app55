@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: 55-design
+    name: mais55-design
     runtime: docker
     plan: starter
     region: virginia           # a mais próxima do Brasil (a Render não tem São Paulo); não muda depois de criado
