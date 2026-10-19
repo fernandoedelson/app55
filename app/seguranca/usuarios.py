@@ -14,6 +14,16 @@ def por_login(login):
     return get_db().execute('SELECT * FROM usuarios WHERE login=?', ((login or '').strip(),)).fetchone()
 
 
+def por_login_ou_email(identificador):
+    """Entrar pelo usuário ou pelo e-mail. Pelo e-mail só vale se ele for de UMA conta: com duas, é ambíguo."""
+    ident = (identificador or '').strip()
+    u = por_login(ident)
+    if u is not None or '@' not in ident:
+        return u
+    achados = get_db().execute('SELECT * FROM usuarios WHERE email=?', (ident.lower(),)).fetchall()
+    return achados[0] if len(achados) == 1 else None
+
+
 def por_id(uid):
     return get_db().execute('SELECT * FROM usuarios WHERE id=?', (uid,)).fetchone()
 
@@ -32,7 +42,7 @@ def autenticar(login, senha):
 
     Mesmo custo de tempo exista ou não o login (hash-isca). Conta desativada, bloqueada ou
     inexistente respondem a MESMA mensagem na tela — o motivo real só vai para a auditoria."""
-    u = por_login(login)
+    u = por_login_ou_email(login)
     if u is None:
         S.conferir(senha or '', S.HASH_ISCA)
         return None, 'invalido'

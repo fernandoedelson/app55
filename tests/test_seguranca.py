@@ -121,3 +121,52 @@ def test_token_de_reset_uso_unico(app, admin):
 def test_senha_gigante_nao_trava(client):
     r = entrar(client, 'admin', 'A' * 100000)
     assert r.status_code == 401
+
+
+# ---- entrar com o usuário OU com o e-mail ----
+def _usuario_com_senha_trocada(app, admin, login):
+    """Cria o usuário, faz ele trocar a senha provisória e devolve (login, senha_nova)."""
+    prov = criar_usuario(app, admin, login, ['gestao_comercial'])
+    c = app.test_client()
+    entrar(c, login, prov)
+    assert post(c, '/trocar-senha', new_password=SENHA_NOVA, confirm_password=SENHA_NOVA).status_code == 302
+    return login, SENHA_NOVA
+
+
+def test_entrar_pelo_email(app, admin):
+    login, senha = _usuario_com_senha_trocada(app, admin, 'ana.souza')
+    for ident in ('ana.souza@exemplo.com', 'ANA.Souza@Exemplo.com', '  ana.souza@exemplo.com '):
+        c = app.test_client()
+        assert entrar(c, ident, senha).status_code == 302, ident
+        assert c.get('/').status_code == 200
+    assert entrar(app.test_client(), login, senha).status_code == 302      # o usuário continua valendo
+
+
+def test_email_errado_ou_senha_errada_mesma_mensagem(app, admin):
+    login, senha = _usuario_com_senha_trocada(app, admin, 'ana.souza')
+    for ident, sn in (('ana.souza@exemplo.com', 'errada'), ('ninguem@exemplo.com', senha)):
+        r = entrar(app.test_client(), ident, sn)
+        assert r.status_code == 401 and 'Usuário ou senha inválidos' in r.get_data(as_text=True)
+
+
+def test_email_repetido_nao_entra(app, admin):
+    from app.db import get_db
+    _usuario_com_senha_trocada(app, admin, 'ana.souza')
+    login2, senha2 = _usuario_com_senha_trocada(app, admin, 'ana.souza2')
+    with app.app_context():
+        db = get_db()
+        db.execute("UPDATE usuarios SET email='ana.souza@exemplo.com' WHERE login='ana.souza2'")
+        db.commit()
+    # dois usuários com o mesmo e-mail: pelo e-mail ninguém entra (ambíguo); pelo usuário, sim
+    assert entrar(app.test_client(), 'ana.souza@exemplo.com', senha2).status_code == 401
+    assert entrar(app.test_client(), login2, senha2).status_code == 302
+
+
+def test_email_de_usuario_desativado_nao_entra(app, admin):
+    from app.db import get_db
+    login, senha = _usuario_com_senha_trocada(app, admin, 'ana.souza')
+    with app.app_context():
+        db = get_db()
+        db.execute("UPDATE usuarios SET ativo=0 WHERE login='ana.souza'")
+        db.commit()
+    assert entrar(app.test_client(), 'ana.souza@exemplo.com', senha).status_code == 401

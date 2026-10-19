@@ -64,7 +64,7 @@
       <form method="post" action="{{ url_for('auth.login') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="field">
-          <label for="username">Usuário</label>
+          <label for="username">Usuário ou e-mail</label>
           <input id="username" name="username" autocomplete="username" autofocus required>
         </div>
         <div class="field">

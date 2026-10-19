@@ -32,7 +32,7 @@ def login():
         registrar('login_limite_ip', {'login': request.form.get('username', '')[:64]})
         abort(429)
     W.registrar_tentativa('login')
-    login_informado = (request.form.get('username') or '').strip()[:64]
+    login_informado = (request.form.get('username') or '').strip()[:254]
     u, motivo = U.autenticar(login_informado, request.form.get('password') or '')
     if u is None:
         registrar('login_falhou', {'login': login_informado, 'motivo': motivo}, usuario_id=None, login=login_informado)
