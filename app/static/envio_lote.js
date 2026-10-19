@@ -1,7 +1,8 @@
 /* Fechamento: enviar vários arquivos de uma vez.
-   Cada linha continua sendo um formulário (base + planilha + posição). Aqui eles são enviados um a um,
-   em sequência, sem recarregar a página: escolher os arquivos de todas as bases e enviar tudo evita
-   perder o que já foi escolhido. O servidor é o mesmo de sempre (/upload, um arquivo por pedido). */
+   Cada linha continua sendo um formulário (base + planilha(s) ou pasta + posição). Aqui eles são enviados
+   um a um, em sequência, sem recarregar a página: escolher os arquivos de todas as bases e enviar tudo
+   evita perder o que já foi escolhido. O servidor é o mesmo de sempre (/upload, um arquivo por pedido).
+   O andamento aparece na própria linha (com a porcentagem do arquivo) e no quadro de cima. */
 'use strict';
 (function () {
   const forms = Array.from(document.querySelectorAll('form.upload-form'));
@@ -17,14 +18,23 @@
   const arquivos = f => entradas(f).flatMap(i => Array.from(i.files))
     .filter(a => /\.(xlsx|xlsm)$/i.test(a.name) && !a.name.startsWith('~$'));
   const rotulo = f => f.closest('tr').querySelector('td').childNodes[0].textContent.trim().replace(/\s+/g, ' ');
+  /* onde o andamento aparece na linha: o contador das bases de pasta, ou um aviso criado ao lado do botão */
+  function status(f) {
+    let q = f.querySelector('.up-qtd');
+    if (!q) { q = document.createElement('span'); q.className = 'muted up-qtd'; q.setAttribute('aria-live', 'polite'); f.appendChild(q); }
+    return q;
+  }
+  const mb = n => (n / 1048576).toFixed(1).replace('.', ',') + ' MB';
 
   function contar() {
     const n = forms.reduce((s, f) => s + arquivos(f).length, 0);
     botao.disabled = enviando || n === 0;
     botao.textContent = n ? 'Enviar todos os escolhidos (' + n + ')' : 'Enviar todos os escolhidos';
     forms.forEach(f => {
-      const q = f.querySelector('.up-qtd');
-      if (q) { const k = arquivos(f).length; q.textContent = k ? k + ' planilha(s) escolhida(s)' : ''; }
+      f.querySelector('button[type=submit]').disabled = enviando;
+      if (enviando) return;
+      const k = arquivos(f).length;
+      status(f).textContent = k ? k + ' planilha(s) escolhida(s)' : '';
     });
   }
 
@@ -35,20 +45,31 @@
     lista.appendChild(li);
   }
 
-  /* o servidor responde com um redirecionamento e uma mensagem: lê a mensagem da página devolvida */
-  async function enviarUm(form, arquivo, data) {
-    const fd = new FormData();
-    fd.append('csrf_token', form.querySelector('[name=csrf_token]').value);
-    fd.append('base', form.querySelector('[name=base]').value);
-    fd.append('data_posicao', data);
-    fd.append('arquivo', arquivo, arquivo.name);
-    const r = await fetch(form.action, { method: 'POST', body: fd, credentials: 'same-origin' });
-    if (!r.ok) return { ok: false, msg: 'o servidor recusou (erro ' + r.status + ')' };
-    const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
-    const msgs = Array.from(doc.querySelectorAll('.flash')).map(e => ({ ok: !/erro|bad/.test(e.className), t: e.textContent.trim() }));
-    const ruim = msgs.find(m => !m.ok);
-    if (ruim) return { ok: false, msg: ruim.t };
-    return { ok: true, msg: (msgs[0] || { t: arquivo.name + ' enviado.' }).t };
+  /* o servidor responde com um redirecionamento e uma mensagem: lê a mensagem da página devolvida.
+     XMLHttpRequest, e não fetch, para saber quantos bytes já subiram (a planilha comercial tem 9 MB). */
+  function enviarUm(form, arquivo, data, aoProgredir) {
+    return new Promise(resolve => {
+      const fd = new FormData();
+      fd.append('csrf_token', form.querySelector('[name=csrf_token]').value);
+      fd.append('base', form.querySelector('[name=base]').value);
+      fd.append('data_posicao', data);
+      fd.append('arquivo', arquivo, arquivo.name);
+      const x = new XMLHttpRequest();
+      x.open('POST', form.action);
+      x.timeout = 15 * 60 * 1000;
+      x.upload.onprogress = e => { if (e.lengthComputable) aoProgredir(e.loaded, e.total); };
+      x.onerror = () => resolve({ ok: false, msg: 'sem conexão com o servidor.' });
+      x.ontimeout = () => resolve({ ok: false, msg: 'o servidor demorou demais para responder.' });
+      x.onload = () => {
+        if (x.status < 200 || x.status >= 300) return resolve({ ok: false, msg: 'o servidor recusou (erro ' + x.status + ').' });
+        const doc = new DOMParser().parseFromString(x.responseText, 'text/html');
+        const msgs = Array.from(doc.querySelectorAll('.flash')).map(e => ({ ok: !/erro|bad/.test(e.className), t: e.textContent.trim() }));
+        const ruim = msgs.find(m => !m.ok);
+        if (ruim) return resolve({ ok: false, msg: ruim.t });
+        resolve({ ok: true, msg: (msgs[0] || { t: arquivo.name + ' enviado.' }).t });
+      };
+      x.send(fd);
+    });
   }
 
   async function enviar(lote) {
@@ -56,7 +77,7 @@
     lista.innerHTML = '';
     const sem = lote.filter(f => !(f.querySelector('[name=data_posicao]').value || (geral && geral.value)));
     if (sem.length) {
-      sem.forEach(f => linha('Falta a posição dos números: ' + rotulo(f) + '. Preencha a data da linha ou a de cima.', false));
+      sem.forEach(f => { linha('Falta a posição dos números: ' + rotulo(f) + '. Preencha a data da linha ou a de cima.', false); status(f).textContent = 'Falta a data.'; });
       progresso.textContent = 'Nada foi enviado.';
       return;
     }
@@ -65,16 +86,16 @@
     lote.forEach(f => arquivos(f).forEach(a => fila.push({ f: f, a: a })));
     let feitos = 0, falhas = 0;
     for (const item of fila) {
-      progresso.textContent = 'Enviando ' + (feitos + falhas + 1) + ' de ' + fila.length + ': ' + item.a.name + '…';
+      const n = feitos + falhas + 1;
+      const texto = pct => 'Enviando ' + n + ' de ' + fila.length + ': ' + item.a.name + ' (' + mb(item.a.size) + ')' + (pct == null ? '…' : ' — ' + pct + '%');
+      progresso.textContent = texto(null); status(item.f).textContent = texto(null);
       const data = item.f.querySelector('[name=data_posicao]').value || geral.value;
-      try {
-        const r = await enviarUm(item.f, item.a, data);
-        linha(item.a.name + ' — ' + r.msg, r.ok);
-        r.ok ? feitos++ : falhas++;
-      } catch (e) {
-        linha(item.a.name + ' — sem conexão com o servidor.', false);
-        falhas++;
-      }
+      const r = await enviarUm(item.f, item.a, data, (c, t) => {
+        const p = Math.round(100 * c / t);
+        progresso.textContent = texto(p); status(item.f).textContent = texto(p);
+      });
+      linha(item.a.name + ' — ' + r.msg, r.ok);
+      r.ok ? feitos++ : falhas++;
     }
     // o que foi enviado sai da escolha; o que falhou continua, para tentar de novo
     lote.forEach(f => {
@@ -83,17 +104,28 @@
       if (!falhou) entradas(f).forEach(i => { i.value = ''; });
     });
     enviando = false; contar();
+    lote.forEach(f => { if (!arquivos(f).length) status(f).textContent = '✓ enviado'; });
     progresso.textContent = feitos + ' enviado(s)' + (falhas ? ', ' + falhas + ' com problema' : '') + '. ';
+    const resta = forms.some(f => arquivos(f).length);
+    if (!falhas && !resta) {
+      progresso.textContent += 'Atualizando a página…';
+      setTimeout(() => { location.href = location.pathname + '#bases'; location.reload(); }, 1200);
+      return;
+    }
     const rec = document.createElement('button');
     rec.type = 'button'; rec.className = 'btn btn-sm'; rec.textContent = 'Atualizar a página para ver os arquivos';
     rec.addEventListener('click', () => { location.href = location.pathname + '#bases'; location.reload(); });
     progresso.appendChild(rec);
+    document.getElementById('envio-lote').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   forms.forEach(f => {
     entradas(f).forEach(i => i.addEventListener('change', contar));
     /* o "Enviar" da linha usa o mesmo caminho: não recarrega, então as outras escolhas ficam */
-    f.addEventListener('submit', ev => { ev.preventDefault(); if (arquivos(f).length) enviar([f]); });
+    f.addEventListener('submit', ev => {
+      ev.preventDefault();
+      if (arquivos(f).length) enviar([f]); else status(f).textContent = 'Escolha a planilha primeiro.';
+    });
   });
   botao.addEventListener('click', () => enviar(forms.filter(f => arquivos(f).length)));
   contar();
