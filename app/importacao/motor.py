@@ -58,6 +58,20 @@ def _config(base):
     return json.load(open(caminho, encoding='utf-8'))
 
 
+def _fabloja(fontes, base):
+    """O Modelo Fábrica × Loja sobe para a pasta de fontes do mês; o parser, porém, procura "ao lado" de
+    `base` (onde fica o config_apresentacao.json). Quando a configuração mora noutra pasta, o modelo
+    enviado não era achado e a seção "Estudos e Análises" saía em branco, sem aviso."""
+    subpasta = os.path.join('Modelo_Gerencial_Fabrica_Loja', 'Modelo_Gerencial_Fabrica_Loja.xlsx')
+    if base == fontes or not os.path.exists(os.path.join(fontes, subpasta)):
+        return K.parse_fabloja()
+    K.AQUI = fontes
+    try:
+        return K.parse_fabloja()
+    finally:
+        K.AQUI = base
+
+
 def processar(fontes, base=None, custos=None):
     """Lê as planilhas da pasta e devolve os blobs, na mesma ordem do gerador do Kit."""
     base = base or fontes
@@ -82,7 +96,7 @@ def processar(fontes, base=None, custos=None):
             'DATA': data, 'DRE': dre, 'DPNL': dpnl, 'DECK': cfg.get('carteira_apresentacao'),
             'CF': cf, 'CUSTOS': custos_blob, 'CARTDIN': cart_din, 'CFMENSAL': cf_mensal,
             'MAXYM_DRE': max_ym_dre, 'APORTES': K.parse_aportes(), 'METAS': K.parse_metas(),
-            'FABLOJA': K.parse_fabloja(),
+            'FABLOJA': _fabloja(fontes, base),
             'PARTES_RELACIONADAS': cfg.get('partes_relacionadas', []),
             'DESTAQUES_MANUAIS': cfg.get('destaques_manuais', {}),
             'CARTDIN_FECH': _carteira_em(os.path.join(fontes, PASTA_CARTEIRA_FECH), fontes, custos, base),

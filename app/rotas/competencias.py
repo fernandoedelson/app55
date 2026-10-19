@@ -4,6 +4,8 @@
 Quem entra aqui precisa de `recurso:fechamento`; cada base exige `base:upload:<id>`.
 Processar e publicar são da Controladoria (ou de quem o administrador autorizar)."""
 import os
+import threading
+import time
 
 from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, url_for
 
@@ -52,9 +54,13 @@ def ver(codigo):
     if not comp:
         abort(404)
     publicadas = servico.blocos_publicados(codigo)
+    ult = _ANDAMENTO.get(codigo) or {}
+    if ult.get('estado') in ('ok', 'erro') and not ult.get('mostrado'):
+        ult['mostrado'] = True
+        flash(ult['msg'], ult['tipo'])
     secoes = [dict(s, blocos=C.blocos_da_secao(s['id'])) for s in C.SECOES]
     return render_template('fechamento/competencia.html', comp=comp, bases=motor.BASES, reuso=servico.reuso(codigo),
-                           bases_pasta=servico.BASES_PASTA,
+                           bases_pasta=servico.BASES_PASTA, processando=ult.get('estado') == 'processando',
                            arquivos=servico.arquivos(codigo), faltando=servico.faltando(codigo),
                            passado=servico.mudou_o_passado(codigo), secoes=secoes,
                            blocos_publicados=publicadas,
@@ -111,25 +117,66 @@ def reuso(codigo):
     return redirect(url_for('competencias.ver', codigo=codigo) + '#bases')
 
 
+# Processar leva minutos (as planilhas são grandes e o plano Starter tem meia CPU). Uma requisição presa
+# esse tempo todo morre no proxy da empresa ou no balanceador ("Connection Timed Out"), então a leitura
+# roda numa thread do servidor e a tela consulta o andamento. O servidor roda com UM worker (SQLite),
+# por isso o estado em memória é o mesmo para todas as requisições.
+_ANDAMENTO = {}
+_TRAVA = threading.Lock()
+
+
+def _processar_em_segundo_plano(app, codigo, login):
+    with app.app_context():
+        try:
+            servico.processar(codigo, login)
+            auditoria.registrar('competencia.processar', codigo, login=login)
+            divergencias = servico.mudou_o_passado(codigo)
+            if divergencias:
+                fim = {'estado': 'ok', 'tipo': 'erro',
+                       'msg': 'Dados gerados, mas %d mês(es) já publicados mudaram — confira antes de publicar.'
+                              % len(divergencias)}
+            else:
+                fim = {'estado': 'ok', 'tipo': 'ok',
+                       'msg': 'Dados gerados. O passado continua igual ao da competência anterior.'}
+        except (ValueError, KeyError) as e:
+            fim = {'estado': 'erro', 'tipo': 'erro', 'msg': 'Não consegui processar: %s' % e}
+        except Exception as e:                  # erro de planilha: mostra em vez de perder no log
+            app.logger.exception('falha ao processar %s', codigo)
+            fim = {'estado': 'erro', 'tipo': 'erro', 'msg': 'Falha ao ler as planilhas: %s' % e}
+    with _TRAVA:
+        _ANDAMENTO[codigo] = dict(fim, fim=time.time(), mostrado=False)
+
+
 @bp.route('/<codigo>/processar', methods=['POST'])
 def processar(codigo):
-    try:
-        servico.processar(codigo, g.usuario['login'])
-    except (ValueError, KeyError) as e:
-        flash('Não consegui processar: %s' % e, 'erro')
+    comp = servico.obter(codigo)
+    if not comp:
+        flash('Não consegui processar: competência não encontrada.', 'erro')
+        return redirect(url_for('competencias.index'))
+    if comp['status'] == 'fechada':
+        flash('Não consegui processar: competência fechada: reabra antes de reprocessar.', 'erro')
         return redirect(url_for('competencias.ver', codigo=codigo))
-    except Exception as e:                      # erro de planilha: mostra em vez de 500
-        current_app.logger.exception('falha ao processar %s', codigo)
-        flash('Falha ao ler as planilhas: %s' % e, 'erro')
+    if servico.faltando(codigo):
+        flash('Não consegui processar: faltam bases obrigatórias: %s.'
+              % ', '.join(motor.BASES[b]['titulo'] for b in servico.faltando(codigo)), 'erro')
         return redirect(url_for('competencias.ver', codigo=codigo))
-    auditoria.registrar('competencia.processar', codigo)
-    divergencias = servico.mudou_o_passado(codigo)
-    if divergencias:
-        flash('Dados gerados, mas %d mês(es) já publicados mudaram — confira antes de publicar.'
-              % len(divergencias), 'erro')
-    else:
-        flash('Dados gerados. O passado continua igual ao da competência anterior.', 'ok')
-    return redirect(url_for('competencias.ver', codigo=codigo))
+    with _TRAVA:
+        if _ANDAMENTO.get(codigo, {}).get('estado') == 'processando':
+            flash('Este mês já está sendo processado: aguarde terminar.', 'ok')
+            return redirect(url_for('competencias.ver', codigo=codigo) + '#processar')
+        _ANDAMENTO[codigo] = {'estado': 'processando', 'inicio': time.time()}
+    threading.Thread(target=_processar_em_segundo_plano, daemon=True,
+                     args=(current_app._get_current_object(), codigo, g.usuario['login'])).start()
+    return redirect(url_for('competencias.ver', codigo=codigo) + '#processar')
+
+
+@bp.route('/<codigo>/processar/estado')
+def processar_estado(codigo):
+    """Andamento da leitura, para a tela consultar sem recarregar."""
+    e = _ANDAMENTO.get(codigo) or {}
+    if e.get('estado') == 'processando':
+        return {'estado': 'processando', 'segundos': int(time.time() - e['inicio'])}
+    return {'estado': e.get('estado', 'parado'), 'msg': e.get('msg', ''), 'tipo': e.get('tipo', '')}
 
 
 @bp.route('/<codigo>/mudancas')

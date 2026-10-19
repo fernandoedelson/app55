@@ -77,7 +77,14 @@ def test_ciclo_completo_reproduz_os_dados_da_competencia(app, admin, tmp_path):
         os.makedirs(cfg, exist_ok=True)
         shutil.copy2(os.path.join(KIT, 'config_apresentacao.json'), cfg)
     r = admin.post('/fechamento/2026-08/processar', data={'csrf_token': csrf(admin)}, follow_redirects=True)
-    assert 'Dados gerados' in r.get_data(as_text=True)
+    textos = [r.get_data(as_text=True)]
+    import time
+    for _ in range(1200):                         # a leitura roda em segundo plano: espera terminar
+        if admin.get('/fechamento/2026-08/processar/estado').get_json()['estado'] != 'processando':
+            break
+        time.sleep(0.5)
+    textos.append(admin.get('/fechamento/2026-08').get_data(as_text=True))
+    assert any('Dados gerados' in t for t in textos)
     import json
     gerado = json.load(open(os.path.join(str(tmp_path), 'competencias', '2026-08', 'DATA.json'), encoding='utf-8'))
     publicado = json.load(open(os.path.join(RAIZ, 'data', 'competencias', '2026-07', 'DATA.json'), encoding='utf-8'))

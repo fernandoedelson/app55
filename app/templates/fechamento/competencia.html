@@ -132,9 +132,13 @@
 <p class="muted">Lê as planilhas e gera os dados desta competência — é a mesma leitura que gerou o relatório aprovado.</p>
 <form method="post" action="{{ url_for('competencias.processar', codigo=comp.codigo) }}" class="actions">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button class="btn btn-primary" type="submit" {% if faltando %}disabled{% endif %}>Processar as bases</button>
+  <button class="btn btn-primary" type="submit" {% if faltando or processando %}disabled{% endif %}>Processar as bases</button>
   {% if comp.processada_em %}<span class="muted">última vez: {{ comp.processada_em|data_br }}</span>{% endif %}
 </form>
+<div class="aviso" id="proc-andamento" role="status" aria-live="polite"
+     data-url="{{ url_for('competencias.processar_estado', codigo=comp.codigo) }}"{% if processando %} data-ativo="1"{% else %} hidden{% endif %}>
+  Lendo as planilhas… <span id="proc-segundos">0</span> s. Leva alguns minutos: pode deixar esta página aberta
+  (ela atualiza sozinha) ou voltar depois.</div>
 {% endif %}
 
 {% if comp.processada_em and comp.criada_por != 'importação inicial' %}
@@ -203,4 +207,5 @@
 </form>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='envio_lote.js') }}"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='envio_lote.js') }}"></script>
+<script src="{{ url_for('static', filename='processar.js') }}"></script>{% endblock %}
