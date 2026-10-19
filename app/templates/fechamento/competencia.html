@@ -110,7 +110,13 @@
               enctype="multipart/form-data" class="actions upload-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="base" value="{{ bid }}">
-          <label class="campo">Planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" required{% if bid in bases_pasta %} multiple{% endif %}></label>
+          {% if bid in bases_pasta %}
+          <label class="campo">Planilhas (escolha uma ou várias) <input type="file" name="arquivo" accept=".xlsx,.xlsm" multiple></label>
+          <label class="campo">ou a pasta inteira <input type="file" class="up-pasta" webkitdirectory></label>
+          <span class="muted up-qtd" aria-live="polite"></span>
+          {% else %}
+          <label class="campo">Planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" required></label>
+          {% endif %}
           <label class="campo">Posição dos números <input name="data_posicao" type="date" required></label>
           <button class="btn btn-sm" type="submit">{{ 'Atualizar' if bid == 'carteira' and envios else 'Enviar' }}</button>
         </form>

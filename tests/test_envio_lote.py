@@ -12,6 +12,8 @@ def test_tela_tem_o_envio_em_lote(app, admin):
     assert n_bases >= 8                                  # uma linha de envio por base
     # as bases de pasta (Custos, Fábrica × Loja) aceitam vários arquivos na mesma escolha
     assert html.count(' multiple>') == 2
+    # e também permitem escolher a pasta inteira (a tela dizia "pasta" mas só pedia arquivo)
+    assert html.count('webkitdirectory') == 2
 
 
 def test_envio_um_a_um_continua_valendo(app, admin):

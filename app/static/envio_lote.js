@@ -12,14 +12,20 @@
   const lista = document.getElementById('up-resultado');
   let enviando = false;
 
-  const entrada = f => f.querySelector('input[type=file]');
-  const arquivos = f => Array.from(entrada(f).files);
+  const entradas = f => Array.from(f.querySelectorAll('input[type=file]'));
+  /* planilhas escolhidas uma a uma e/ou uma pasta inteira; da pasta só entram .xlsx/.xlsm (sem os temporários ~$) */
+  const arquivos = f => entradas(f).flatMap(i => Array.from(i.files))
+    .filter(a => /\.(xlsx|xlsm)$/i.test(a.name) && !a.name.startsWith('~$'));
   const rotulo = f => f.closest('tr').querySelector('td').childNodes[0].textContent.trim().replace(/\s+/g, ' ');
 
   function contar() {
     const n = forms.reduce((s, f) => s + arquivos(f).length, 0);
     botao.disabled = enviando || n === 0;
     botao.textContent = n ? 'Enviar todos os escolhidos (' + n + ')' : 'Enviar todos os escolhidos';
+    forms.forEach(f => {
+      const q = f.querySelector('.up-qtd');
+      if (q) { const k = arquivos(f).length; q.textContent = k ? k + ' planilha(s) escolhida(s)' : ''; }
+    });
   }
 
   function linha(texto, ok) {
@@ -74,7 +80,7 @@
     lote.forEach(f => {
       const falhou = Array.from(lista.children).some(li => li.className === 'up-erro' &&
         arquivos(f).some(a => li.textContent.indexOf(a.name) >= 0));
-      if (!falhou) entrada(f).value = '';
+      if (!falhou) entradas(f).forEach(i => { i.value = ''; });
     });
     enviando = false; contar();
     progresso.textContent = feitos + ' enviado(s)' + (falhas ? ', ' + falhas + ' com problema' : '') + '. ';
@@ -85,7 +91,7 @@
   }
 
   forms.forEach(f => {
-    entrada(f).addEventListener('change', contar);
+    entradas(f).forEach(i => i.addEventListener('change', contar));
     /* o "Enviar" da linha usa o mesmo caminho: não recarrega, então as outras escolhas ficam */
     f.addEventListener('submit', ev => { ev.preventDefault(); if (arquivos(f).length) enviar([f]); });
   });
