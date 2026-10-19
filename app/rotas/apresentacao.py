@@ -149,6 +149,7 @@ def _filtrada(comp):
     pessoas = [dict(r) for r in get_db().execute('SELECT login, nome FROM usuarios WHERE ativo=1 ORDER BY nome')]         if U.pode(g.usuario, 'recurso:curar_comentarios') else []
     return render_template('apresentacao/reuniao.html', comp=comp, roteiro=roteiro, payload=corpo,
                            cmt=cmt, pessoas=pessoas, nav=None,
+                           aberta_para_comentar=bool(M.competencia_aberta()) and U.pode(g.usuario, 'recurso:comentar'),
                            recursos=json.dumps(recursos), secoes=A.secoes_necessarias(roteiro),
                            notas=notas, titulo=C.BLOCO, anexos=A.ANEXOS, secao=C.SECAO,
                            encaminhamentos=E.da_competencia(comp), retomada=E.retomada(comp),

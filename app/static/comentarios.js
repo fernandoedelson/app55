@@ -81,6 +81,38 @@
       mostrarAprovados(alvo, bloco);
     });
     montarNosGraficos(raiz);
+    atualizarFaixa();
+  }
+
+  /* ---------- a faixa do topo: diz que aqui se comenta, quanto falta e leva ao próximo ----------
+     O botão por gráfico é pequeno; a faixa garante que ninguém precise caçá-lo. */
+  let faixaEl = null;
+  const meusBlocos = () => Object.keys(CFG.blocos).filter(b => CFG.areas.some(a => a.blocos.indexOf(b) >= 0));
+  const comentado = b => Object.keys(CFG.blocos[b].minhas || {}).length > 0;
+
+  function criarFaixa() {
+    const main = document.getElementById('main');
+    if (!main || !CFG.aberto || !meusBlocos().length) return;
+    faixaEl = document.createElement('div');
+    faixaEl.className = 'cmt-faixa';
+    faixaEl.setAttribute('role', 'region');
+    faixaEl.setAttribute('aria-label', 'Comentário da área');
+    faixaEl.innerHTML = '<div class="cmt-faixa-txt"><b>Esta página está aberta para o comentário da sua área.</b> ' +
+      'Clique em <b>Comentar</b> ao lado de um gráfico ou tabela. <span class="cmt-faixa-conta"></span></div>' +
+      '<button type="button" class="cmt-bt cmt-bt-primario cmt-faixa-prox">Ir para o próximo sem comentário</button>';
+    main.insertAdjacentElement('beforebegin', faixaEl);
+    faixaEl.querySelector('.cmt-faixa-prox').addEventListener('click', () => {
+      const proximo = Array.from(document.querySelectorAll('.cmt-btn[data-bloco]'))
+        .map(b => b.dataset.bloco).find(b => meusBlocos().indexOf(b) >= 0 && !comentado(b));
+      if (proximo) abrir(proximo, document.querySelector('.cmt-btn[data-bloco="' + proximo + '"]'));
+    });
+  }
+
+  function atualizarFaixa() {
+    if (!faixaEl) return;
+    const meus = meusBlocos(), feitos = meus.filter(comentado).length;
+    faixaEl.querySelector('.cmt-faixa-conta').textContent = 'Comentados: ' + feitos + ' de ' + meus.length + '.';
+    faixaEl.querySelector('.cmt-faixa-prox').hidden = feitos >= meus.length;
   }
 
   /* ---------- um botão em cada gráfico e em cada tabela ----------
@@ -399,6 +431,7 @@
 
   window.CMT = { montar: montar, abrir: abrir };
   function iniciar() {
+    criarFaixa();
     montar(document);
     vigiar();
     const pedido = new URL(location.href).searchParams.get('comentar');

@@ -8,6 +8,24 @@
   <p class="muted">Primeira vez aqui? O <a href="{{ url_for('inicio.como_usar') }}">Como usar</a> explica o que o seu perfil faz, passo a passo.</p>
 </div>
 
+{% if comp and grupos and pode_comentar and aberta %}
+{# o comentário não pode depender de achar um botão pequeno: o caminho inteiro está aqui, em três passos #}
+<div class="card comentar-faixa">
+  <div class="eyebrow">Comentário da área · {{ aberta }} aberto</div>
+  <h2>Comente os números do mês</h2>
+  <ol class="comentar-passos">
+    <li>Escolha a seção abaixo.</li>
+    <li>Clique em <b>Comentar</b>, no gráfico ou na tabela.</li>
+    <li>Escreva o que explica o número e salve.</li>
+  </ol>
+  <div class="comentar-secoes">
+    {% for grupo, secoes in grupos %}{% for s, n, tot in secoes %}
+    <a class="btn btn-primary btn-sm" href="{{ url_for('biblioteca.secao', secao=s.id) }}">{{ s.titulo }}</a>
+    {% endfor %}{% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if comp and grupos %}
 <div class="atalhos">
   <div class="card atalho atalho-principal">
@@ -24,8 +42,7 @@
   <a class="card atalho" href="{{ url_for('comentarios.index') }}">
     <div class="eyebrow">Pendências{% if n_pend %} · {{ n_pend }}{% endif %}</div>
     <h3>{% if aberta %}{{ aberta }} aberto para comentários{% else %}Comentário da área{% endif %}</h3>
-    <p class="muted">{% if aberta %}Abra qualquer gráfico abaixo e use o botão Comentar ao lado do título.
-      Aqui ficam os pedidos, os devolvidos e o que falta enviar.{% else %}Nenhum mês aberto para comentários agora.{% endif %}</p>
+    <p class="muted">{% if aberta %}Aqui ficam os pedidos, os devolvidos e o que falta enviar.{% else %}Nenhum mês aberto para comentários agora.{% endif %}</p>
   </a>
   {% endif %}
   {% if pode_fechamento %}

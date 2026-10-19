@@ -3,7 +3,8 @@ services:
     name: app55
     runtime: docker
     plan: starter
-    autoDeploy: false          # deploy manual: fora do expediente, nunca em dia de reunião
+    region: virginia           # a mais próxima do Brasil (a Render não tem São Paulo); não muda depois de criado
+    autoDeploy: false         # deploy manual: fora do expediente, nunca em dia de reunião
     healthCheckPath: /saude
     envVars:
       - key: APP55_SECRET_KEY
@@ -35,4 +36,4 @@ services:
     disk:
       name: app55-data
       mountPath: /app/data
-      sizeGB: 5
+      sizeGB: 2

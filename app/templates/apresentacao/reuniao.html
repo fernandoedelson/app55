@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/barra.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='dialogo.css') }}">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-{% if cmt %}<link rel="stylesheet" href="{{ url_for('static', filename='comentarios.css') }}">{% endif %}
+{% if cmt or aberta_para_comentar %}<link rel="stylesheet" href="{{ url_for('static', filename='comentarios.css') }}">{% endif %}
 </head>
 <body>
 {% set titulo_pagina = 'Reunião' %}
@@ -20,6 +20,11 @@
   <h1>A reunião de <b>{{ comp }}</b></h1>
   <div class="sub">Seis atos, na ordem em que o mês é contado. O que você não pode ver não aparece —
     e o ato que fica sem conteúdo diz isso em vez de sumir.</div>
+  {% if aberta_para_comentar %}
+  <div class="cmt-faixa" role="note"><div class="cmt-faixa-txt"><b>Quer comentar um número?</b>
+    O comentário da sua área é feito dentro de cada seção do relatório, no botão <b>Comentar</b> de cada gráfico.</div>
+    <a class="cmt-bt cmt-bt-primario" href="{{ url_for('inicio.index') }}">Escolher a seção para comentar</a></div>
+  {% endif %}
   <div class="reuniao-barra">
     {% if pode_apresentar %}<button class="btn" type="button" id="btn-apresentar">Apresentar</button>{% endif %}
     {% if pode_exportar %}<button class="btn" type="button" onclick="window.print()">Baixar (imprimir em PDF)</button>{% endif %}

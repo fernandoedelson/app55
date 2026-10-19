@@ -11,5 +11,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
-# 1 worker (SQLite + 512 MB do Starter) com threads; o processamento de bases roda em subprocesso
-CMD gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180
+# 1 worker (SQLite + 512 MB do Starter) com threads; o processamento de bases roda na própria
+# requisição (pico medido ~300 MB) e, com 0,5 CPU, pode levar minutos: daí o timeout de 600 s
+CMD gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 600
