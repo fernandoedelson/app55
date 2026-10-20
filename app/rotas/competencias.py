@@ -226,6 +226,21 @@ def situacao(codigo):
     return redirect(url_for('competencias.ver', codigo=codigo))
 
 
+@bp.route('/<codigo>/reconstruida', methods=['POST'])
+def reconstruida(codigo):
+    """Liga/desliga o recorte: as planilhas enviadas são de um mês posterior e valem só até o fim deste mês."""
+    ativo = request.form.get('ativo') == '1'
+    try:
+        servico.definir_reconstruida(codigo, ativo)
+    except ValueError as e:
+        flash(str(e), 'erro')
+        return redirect(url_for('competencias.ver', codigo=codigo))
+    auditoria.registrar('competencia.reconstruida', '%s · %s' % (codigo, 'recorte ligado' if ativo else 'recorte desligado'))
+    flash('Competência marcada como reconstruída: ao processar, as planilhas são recortadas no fim de %s.' % codigo
+          if ativo else 'Recorte desligado: ao processar, valem as planilhas inteiras.', 'ok')
+    return redirect(url_for('competencias.ver', codigo=codigo))
+
+
 @bp.route('/<codigo>/excluir', methods=['POST'])
 def excluir(codigo):
     """Exclui a competência em qualquer situação. Só o administrador, e só digitando o código do mês."""

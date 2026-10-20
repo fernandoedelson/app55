@@ -297,7 +297,8 @@ def processar(codigo, login, config_de=None):
     # vem da competência anterior enquanto não houver tela para editá-lo
     base_cfg = config_de or _config_anterior(codigo) or fontes
     try:
-        blobs = motor.processar(fontes, base=base_cfg)
+        ate_ym = int(codigo[:4]) * 100 + int(codigo[5:7]) if comp.get('reconstruida') else None
+        blobs = motor.processar(fontes, base=base_cfg, ate_ym=ate_ym)
     finally:
         if temporaria:
             shutil.rmtree(temporaria, ignore_errors=True)
@@ -367,6 +368,19 @@ def mudar_status(codigo, status, login, prazo=None):
         con.execute('UPDATE competencias SET %s=? WHERE codigo=?' % campos[status], (agora(), codigo))
     if prazo is not None:
         con.execute('UPDATE competencias SET prazo_comentarios=? WHERE codigo=?', (prazo or None, codigo))
+    con.commit()
+
+
+def definir_reconstruida(codigo, ativo):
+    """Marca a competência como reconstruída: as planilhas são de um mês posterior e o processamento as recorta
+    no fim deste mês (recorte.py). Só antes de fechar; vale a partir do próximo processamento."""
+    comp = obter(codigo)
+    if not comp:
+        raise ValueError('competência não encontrada.')
+    if comp['status'] == 'fechada':
+        raise ValueError('competência fechada: reabra antes de mudar.')
+    con = get_db()
+    con.execute('UPDATE competencias SET reconstruida=? WHERE codigo=?', (1 if ativo else 0, codigo))
     con.commit()
 
 

@@ -219,7 +219,7 @@ def carregar_designers():
     return mapa
 
 # ---------------- 1) BASE COMERCIAL ----------------
-def parse_vendas(path):
+def parse_vendas(path, ate_ym=None):
     print('  base comercial:', os.path.basename(path))
     designers = carregar_designers()
     apelidos = carregar_apelidos()
@@ -233,6 +233,18 @@ def parse_vendas(path):
     C=dict(focco=4,dsl=2,dsf=3,ped=5,prev=6,prod=10,classe=12,qnt=13,venda=14,nf=15,cli=18,vend=19,
            cpf=22,dsr=23,prem=25,vpj=33,cger=41,rp=46,cur=48,
            a1=60,a1v=55,a2=67,a2v=62,a3=74,a3v=69,a4=81,a4v=76,desg=88,roy=83)
+    if ate_ym:
+        # competência reconstruída: só o que existia no fim do mês (pedido feito até lá; NF emitida depois
+        # ainda não existia, então o pedido estava em carteira) — a carteira e o histórico saem desse corte
+        fim=datetime.date(ate_ym//100, ate_ym%100, calendar.monthrange(ate_ym//100, ate_ym%100)[1])
+        corte=[]
+        for r in data:
+            r=list(r); p=d_only(r[C['ped']])
+            if p is not None and p>fim: continue
+            nf=d_only(r[C['nf']])
+            if nf is not None and nf>fim: r[C['nf']]=None
+            corte.append(r)
+        data=corte
     # vendedor/cliente/arquiteto usam Enc com chave normalizada (espaço/acento/caixa) — camada 1
     # da auditoria de nomes (item 10.5). O de-para manual (apelido) roda antes, para casos de
     # julgamento como "Carla - Expo" que a normalização automática não resolve.

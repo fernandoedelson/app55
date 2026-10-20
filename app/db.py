@@ -256,6 +256,9 @@ def init_db(app):
                 SELECT a.como_perfil FROM auditoria a WHERE a.login = comentario_historico.quem
                    AND a.em = comentario_historico.em AND a.acao LIKE 'comentario.%' AND a.como_perfil <> ''
                  LIMIT 1), '')""")
+        colunas = {r[1] for r in con.execute('PRAGMA table_info(competencias)')}
+        if 'reconstruida' not in colunas:            # 1 = planilhas de mês posterior recortadas no fim deste mês
+            con.execute("ALTER TABLE competencias ADD COLUMN reconstruida INTEGER NOT NULL DEFAULT 0")
         _garantir_admin(con)
         con.commit()
     finally:

@@ -14,6 +14,7 @@ import os
 import threading
 
 from . import kit_parser as K
+from . import recorte
 
 _trava = threading.Lock()
 
@@ -72,8 +73,9 @@ def _fabloja(fontes, base):
         K.AQUI = base
 
 
-def processar(fontes, base=None, custos=None):
-    """Lê as planilhas da pasta e devolve os blobs, na mesma ordem do gerador do Kit."""
+def processar(fontes, base=None, custos=None, ate_ym=None):
+    """Lê as planilhas da pasta e devolve os blobs, na mesma ordem do gerador do Kit.
+    `ate_ym` (AAAAMM): competência reconstruída — recorta tudo no fim desse mês (ver recorte.py)."""
     base = base or fontes
     with _trava:
         K.definir_pastas(fontes, custos, base)
@@ -84,22 +86,23 @@ def processar(fontes, base=None, custos=None):
         if not painel:
             raise ValueError('não encontrei o Painel de Resultado (.xlsm) nas fontes.')
         cfg = _config(base)
-        data = K.parse_vendas(comercial)
-        dpnl = K.parse_dre(painel)
+        data = K.parse_vendas(comercial, ate_ym)
+        dpnl = recorte.dpnl(K.parse_dre(painel), ate_ym)
         dre = K.derivar_receita(dpnl)
-        custos_blob = K.carregar_custos()
-        cart_din = K.parse_carteira_dinamica()
-        cf_mensal = K.parse_custo_fixo_mensal(painel)
-        max_ym_dre = K.max_ym_bd2024(painel)
+        custos_blob = recorte.custos(K.carregar_custos(), ate_ym)
+        cart_din = recorte.sem_foto(K.parse_carteira_dinamica(), ate_ym)
+        cf_mensal = recorte.cf_mensal(K.parse_custo_fixo_mensal(painel), ate_ym)
+        max_ym_dre = recorte.teto(K.max_ym_bd2024(painel), ate_ym)
         cf = K.derivar_custo_fixo(cfg.get('custo_fixo'), cf_mensal, dpnl, max_ym_dre)
         return {
             'DATA': data, 'DRE': dre, 'DPNL': dpnl, 'DECK': cfg.get('carteira_apresentacao'),
             'CF': cf, 'CUSTOS': custos_blob, 'CARTDIN': cart_din, 'CFMENSAL': cf_mensal,
-            'MAXYM_DRE': max_ym_dre, 'APORTES': K.parse_aportes(), 'METAS': K.parse_metas(),
-            'FABLOJA': _fabloja(fontes, base),
+            'MAXYM_DRE': max_ym_dre, 'APORTES': recorte.aportes(K.parse_aportes(), ate_ym), 'METAS': K.parse_metas(),
+            'FABLOJA': recorte.sem_foto(_fabloja(fontes, base), ate_ym),
             'PARTES_RELACIONADAS': cfg.get('partes_relacionadas', []),
             'DESTAQUES_MANUAIS': cfg.get('destaques_manuais', {}),
-            'CARTDIN_FECH': _carteira_em(os.path.join(fontes, PASTA_CARTEIRA_FECH), fontes, custos, base),
+            'CARTDIN_FECH': recorte.sem_foto(
+                _carteira_em(os.path.join(fontes, PASTA_CARTEIRA_FECH), fontes, custos, base), ate_ym),
         }
 
 

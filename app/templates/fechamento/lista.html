@@ -19,7 +19,7 @@
   <tbody>
   {% for c in competencias %}
     <tr>
-      <td><b>{{ c.codigo }}</b>{% if not c.tem_dados %} <span class="muted">(sem dados)</span>{% endif %}</td>
+      <td><b>{{ c.codigo }}</b>{% if c.reconstruida %} <span class="muted">(reconstruída)</span>{% endif %}{% if not c.tem_dados %} <span class="muted">(sem dados)</span>{% endif %}</td>
       <td>{{ c.status|situacao }}</td>
       <td class="right">{{ c.arquivos if c.criada_por != 'importação inicial' else '—' }}</td>
       <td>{{ c.processada_em|data_br or '—' }}</td>

@@ -3,8 +3,27 @@
 {% block content %}
 <div class="page-head">
   <div class="eyebrow"><a href="{{ url_for('competencias.index') }}">Fechamento</a></div>
-  <h1>Competência <b>{{ comp.codigo }}</b></h1>
+  <h1>Competência <b>{{ comp.codigo }}</b>{% if comp.reconstruida %} <span class="muted">(reconstruída)</span>{% endif %}</h1>
 </div>
+
+{% if comp.reconstruida or (comp.status != 'fechada' and comp.criada_por != 'importação inicial') %}
+<div class="aviso">
+  {% if comp.reconstruida %}
+  <b>Competência reconstruída.</b> Não existe a foto das planilhas de {{ comp.codigo }}: envie as planilhas de um mês
+  posterior e o processamento as <b>recorta no fim de {{ comp.codigo }}</b> — vendas, DRE, custo fixo, custos e aportes até
+  esse mês, e a carteira refeita pela data da nota fiscal. Ficam de fora a carteira dinâmica e o modelo Fábrica × Loja
+  (são a foto de um dia). Os números de {{ comp.codigo }} refletem as planilhas de hoje, não o que foi apresentado na época.
+  {% else %}
+  Não tem as planilhas do fim de {{ comp.codigo }}? Marque como reconstruída e envie as de um mês posterior: o processamento
+  recorta tudo no fim de {{ comp.codigo }}.
+  {% endif %}
+  <form method="post" action="{{ url_for('competencias.reconstruida', codigo=comp.codigo) }}" class="actions mt-sm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="ativo" value="{{ '0' if comp.reconstruida else '1' }}">
+    <button class="btn btn-sm" type="submit">{{ 'Desligar o recorte' if comp.reconstruida else 'Marcar como reconstruída (recortar no fim do mês)' }}</button>
+  </form>
+</div>
+{% endif %}
 
 {# as etapas do mês, na ordem em que acontecem — cada uma diz em que pé está #}
 {% set importada = comp.criada_por == 'importação inicial' %}
