@@ -19,7 +19,13 @@ def montar_cf(C, params=None):
     cats = {c: cat[c] for c in CATS}
     yield ('cf-cat', [], categoria_contrafluxo(C, {'cats': cats, 'entidade': ent}))
     yield ('cf-cat', [], concentracao_cf(C, {'cats': cats, 'entidade': ent}))
-    yield ('cf-ent', [], composicao(C))
+    ent_cf = CF.get('entidade') or {}
+    fab, loj = ent_cf.get('Fábrica') or [], ent_cf.get('Loja') or []
+    yield ('cf-ent', [], composicao(C) or auto({
+        'itens': [{'name': m, 'v': (fab[i] if i < len(fab) else 0) or 0, 'q': (loj[i] if i < len(loj) else 0) or 0}
+                  for i, m in enumerate(CF.get('meses') or [])],
+        'escopo': 'mês', 'escopoPl': 'meses', 'universo': 'do custo fixo', 'id': 'cf-ent',
+        'preferir': ['relacao', 'divergencia']}))
 
 
 def montar_cfm(C, params=None):
@@ -35,7 +41,10 @@ def montar_cfm(C, params=None):
     ant, _ = _agg_mes(M, emp, prev, dim)
     rows = [[p, cur.get(p, 0), ant.get(p, 0), cur.get(p, 0) - ant.get(p, 0)] for p in PACOTES_CF]
     yield ('cfm-pacotes', [], pacote_variacao({'rows': rows, 'labAtual': ym_lab(ym), 'labPrev': ym_lab(prev),
-                                               'dim': dim}))
+                                               'dim': dim})
+           or auto({'itens': [{'name': r[0], 'v': r[1]} for r in rows], 'escopo': 'pacote',
+                    'escopoPl': 'pacotes', 'universo': 'do custo fixo do mês', 'id': 'cfm-pacotes',
+                    'tabela': True, 'preferir': ['estrutura', 'cauda']}))
 
 
 def montar_divida(C, params=None):

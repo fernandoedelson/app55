@@ -7,7 +7,7 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 
 | Fase | Situação |
 | --- | --- |
-| 0. Arrumar o Kit (datas, defeitos) | concluída — Kit na tag `gabarito-v1` |
+| 0. Arrumar o Kit (datas, defeitos) | concluída — Kit na tag `gabarito-v1`; a partir de 20/10/2026 na `gabarito-v2` (leituras novas dos Custos, vindas do Kit 8) |
 | 1. Gabarito | concluída — `C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design\_referencia\gabarito\2026-07` |
 | 2. Fundação (login, perfis, permissões, auditoria, ver como, catálogo) | concluída localmente |
 | 3. Cálculo no servidor (17 seções, 122 blocos) | concluída — igual ao gabarito bloco a bloco |
@@ -90,7 +90,7 @@ nesse processo de revisão.
 aprovado**: menu lateral que recolhe, fotos, capítulos, modo Apresentar, zoom com laser e tudo o mais.
 Não há reconstrução: `app/apresentacao/kit_atos.py` serializa os dados da competência como o
 `montar_html` do Kit e passa pelo `montar_doc` e pelo `gerar_html_atos.py` do próprio Kit, copiados
-literalmente da tag `gabarito-v1` para `app/kit_congelado/` (`ferramentas/extrair_kit_atos.py`, com
+literalmente da tag `gabarito-v2` para `app/kit_congelado/` (`ferramentas/extrair_kit_atos.py`, com
 MANIFESTO.json de hashes conferido antes de cada geração). O teste
 `tests/test_apresentacao_kit.py` compara a resposta da rota com `relatorio_atos.html` do gabarito.
 
@@ -157,3 +157,21 @@ catálogo. **Só essas checagens barram o deploy**; pytest, `/saude` e seções 
 - Backup: Administração → Backup. "Tudo" leva o banco (dump SQL) + competências + planilhas; por
   competência leva só aquele mês. A chave de sessão nunca entra no pacote. Guardar fora do git.
 - Restaurar: `sqlite3 data/app55.db < app55.sql` e copiar `competencias/` e `fontes/` de volta.
+
+## Quando o Kit ganha recurso novo
+
+O Kit continua evoluindo (foi assim com as leituras dos Custos, em 20/10/2026). O caminho para trazer a novidade,
+sem perder o que a aplicação já endureceu:
+
+1. **Fundir em 3 vias** no repositório do Kit (`git merge-file`): base = o commit "Kit +55 como aprovado", nossa =
+   a tag atual, deles = o Kit novo. Onde os dois resolveram a mesma coisa de jeitos diferentes (datas derivadas,
+   custo fixo reconciliado com a DRE), vale o endurecimento da aplicação.
+2. **Gravar o gabarito** dos meses de referência: `ferramentas/gravar_gabarito.py AAAA-MM` (no Kit) e marcar a tag
+   nova (`gabarito-v3`...).
+3. **Apontar as ferramentas** para a tag nova (constante `TAG` em `extrair_desenho.py`, `extrair_kit_atos.py`,
+   `extrair_parser.py`) e rodar as três: o kit congelado (documento completo da reunião), o parser da importação e
+   o desenho (`kit.js`, `leituras.js`, `style2.css`).
+4. **Levar os números ao servidor**: o desenho do Kit é copiado como está; o que ele calcula a partir da base
+   precisa chegar pronto do Python, no formato do Kit (`app/calculo/secoes/`).
+5. **Conferir**: `ferramentas/gabarito.py importar AAAA-MM` e `ferramentas/conferir_secao.py <seções> --comp AAAA-MM
+   --com-destaques` — todas as seções têm de sair "iguais ao gabarito" — e a suíte (`pytest`).

@@ -162,6 +162,9 @@ def leituras(ja_no_kit):
     if acrescidos:
         print('leituras.js — dependências acrescentadas: %s' % ', '.join(acrescidos))
     corpo = '\n\n'.join('\n'.join(linhas[a:b]).rstrip() for a, b in sorted({decl[n] for n in incluidos}))
+    # o trecho de uma declaração vai até a próxima: arrasta comandos soltos do Kit (aqui, o clique global dos Custos,
+    # que chama funções que não existem na aplicação e duplicaria o tratamento de cliques do desenho)
+    corpo = re.sub(r'^document\.addEventListener\(.*?^\}\);[ \t]*\n?', '', corpo, flags=re.S | re.M)
     cab = ('/* ===== +55 · motor de leitura dos Custos =====\n'
            '   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag %s.\n'
            '   Não editar à mão: é o mesmo código que escreveu o texto das leituras no gabarito. Os números\n'

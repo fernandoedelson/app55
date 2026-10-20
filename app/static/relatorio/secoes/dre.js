@@ -143,7 +143,7 @@ function _dreSnap(S){
   const rows=S.linhas.map(l=>{ const st=l[1]==='t'?'font-weight:700':(l[1]==='h'?'font-weight:600':''), v=l[2];
     return [`<span style="${st}">${esc(l[0])}</span>`,cel(v[0]),cel(v[1]),_dreVar(v[0],v[1]),cel(v[2]),cel(v[3]),_dreVar(v[2],v[3])]; });
   return H3('Demonstração de resultado — comparativo',S.nome,'dre-snap')
-    +table(headers,rows,['left','right','right','right','right','right','right'],null,ins('dreComparativoMotor','dre-comparativo-motor'))
+    +table(headers,rows,['left','right','right','right','right','right','right'],null,ins('dreComparativoMotor','dre-comparativo-motor')||ins('auto','auto-dre-comparativo'))
     +cap('A variação mostra quanto a própria linha mudou. A <b>cor</b> segue o efeito no resultado, não o sinal do número: '
       +'verde quando melhorou, vermelho quando piorou. Numa linha de custo isso se inverte — deduções caindo aparecem em '
       +'verde com percentual negativo. Onde o valor trocou de sinal entre os dois períodos, a variação percentual não é '

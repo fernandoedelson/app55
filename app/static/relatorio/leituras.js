@@ -431,29 +431,6 @@ function cxgResumoDrivers(groups){
 
 
 
-document.addEventListener('click', e=>{
-  const matCell=e.target.closest('#cx-mat-pie [data-cat]');
-  if(matCell){ drawCxMatDetail(matCell.dataset.cat); return; }
-  const toggleBtn=e.target.closest('#cx-grp-toggle');
-  if(toggleBtn){ cxGrpExpanded=!cxGrpExpanded; const wrap=document.getElementById('cx-grp-wrap'); if(wrap) wrap.innerHTML=renderCxGrpTable(); return; }
-  const driverCell=e.target.closest('.cxg-driver-cell');
-  if(driverCell){ drawCxgDriverDetail(driverCell.dataset.grp); return; }
-  const topCloseBtn=e.target.closest('#cx-topprod-close');
-  if(topCloseBtn){ const section=document.getElementById('cx-topprod-section'); if(section) section.classList.add('hidden-section'); return; }
-  const topCloseOp=e.target.closest('#topprod-close');
-  if(topCloseOp){ const section=document.getElementById('topprod-section'); if(section) section.classList.add('hidden-section'); return; }
-  const grpRowCell=e.target.closest('.cx-grp-row-cell');
-  if(grpRowCell){
-    const grp=grpRowCell.dataset.grp;
-    const section=document.getElementById('cx-topprod-section');
-    if(!section) return;
-    section.classList.remove('hidden-section');
-    const inp=document.getElementById('cx-prodsearch');
-    if(inp){ inp.value=grp; inp.dispatchEvent(new Event('input')); }
-    section.scrollIntoView({behavior:REDUCED?'auto':'smooth',block:'start'});
-    return;
-  }
-});
 
 /* ===== Leituras do Operacional (CPP): mesma régua do Executivo, agora sobre produção ===== */
 function cxCV(vs){ const n=vs.length; if(n<3) return null; const m=vs.reduce((s2,v)=>s2+v,0)/n; if(!m) return null; return Math.sqrt(vs.reduce((s2,v)=>s2+(v-m)*(v-m),0)/(n-1))/Math.abs(m); }

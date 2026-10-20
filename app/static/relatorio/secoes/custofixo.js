@@ -27,7 +27,7 @@ function _cfCorpo(P){
   const E=P['cf-ent'];
   if(E){ const nE=E.nE;
     s+=H3('Custo fixo total por entidade — Fábrica × Loja','','cf-ent');
-    s+=fig(line([['Fábrica',E.fabrica,SER[0]],['Loja',E.loja,SER[1]]],E.meses,{valfmt:v=>mi(v,1),w:980,h:270}),ins('cfComposicao','cf-composicao'));
+    s+=fig(line([['Fábrica',E.fabrica,SER[0]],['Loja',E.loja,SER[1]]],E.meses,{valfmt:v=>mi(v,1),w:980,h:270}),ins('cfComposicao','cf-composicao')||ins('auto','auto-cf-ent'));
     s+=table(['Entidade','Custo fixo '+nE+'m','Média/mês','% do total'],
       E.linhas.map(l=>[l[0],money(l[1]),money(l[2]),pct(l[3],1)]),
       ['left','right','right','right'],['Consolidado',money(E.total[0]),money(E.total[1]),'100,0%']);

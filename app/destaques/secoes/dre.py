@@ -72,4 +72,8 @@ def montar(C, params=None):
     cols = [[None, {k: s['linhas'][i][2][j] for i, (k, _, _) in enumerate(DRE_LINES)}] for j in range(4)]
     # no Kit há um fallback para dreLinhaQueMudou, que nunca dispara aqui: o ctx do comparativo
     # não tem os agregados que aquela regra exige
-    yield ('dre-snap', [], comparativo_motor({'cols': cols, 'linhas': DRE_LINES}))
+    yield ('dre-snap', [], comparativo_motor({'cols': cols, 'linhas': DRE_LINES}) or auto({
+        'itens': [{'name': rot, 'v': abs(cols[0][1][k]), 'q': abs(cols[1][1][k] or 0)}
+                  for k, rot, _ in DRE_LINES if cols[0][1][k]],
+        'escopo': 'linha', 'escopoPl': 'linhas do resultado', 'universo': 'do resultado do mês',
+        'id': 'dre-comparativo', 'tabela': True, 'preferir': ['divergencia', 'estrutura']}))
