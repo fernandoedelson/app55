@@ -1,11 +1,12 @@
 {
  "arquivos": {
-  "app.js": "8ff91c26360792feb045a7d5888d18e510169bcd0ff6a6c5a55aefdb30bbf784",
+  "app.js": "a01f19a3610766dd70eca98d7e785f2367a2f114a7627b4120ed60f8358ffb81",
   "atos.css": "016233a4ca921f0943919d324257074f50f4d15757e65805d7762a9522373016",
   "atos.js": "5ff5ca6fd645afd4aedecb8d909275b245d199ad9ed2a69c95b911e568023f5e",
   "atos_ajustes.js": "b44fc84a2739bc3efef1728a92818bb8b7a62454ba8495a1051d005dceb6d885",
-  "gerar_html_atos.py": "ceae59ad1ee8343ff1703b8c207e558d4976788931ee46b700215dfe3c5d0289",
-  "gerar_relatorio.py": "bedb7caa59396668d787e04b94ad7a0ef0fdf4a325724e344b45560a6d13c12a",
+  "dredin.js": "68d059d2834277e4e1eec3abf752cb34b30315116ccd98a7b859f3679938e8fa",
+  "gerar_html_atos.py": "1642d93484dbad101e7cb067cb7ec6f947b792469e6b09af48b43d44c42aaa0c",
+  "gerar_relatorio.py": "e971e0defd3c265fb515668ad7d5ce1e493d0c6da2dc9bcf5537907ed2b57840",
   "img/logo-chip.png": "5b193ee684af3be5690281018fa7cf44d06c7607937ade823c259c66c1a19061",
   "img/logo.png": "916ff1337eabb87e2834b1be4fe2e1c655972db3326b9ab403ee81c0618a53e9",
   "img/p1.jpg": "e490dfdd63519457bb2ca95f56eadbcceb3452ce3c650cd29caea32c76a42a80",
@@ -30,5 +31,5 @@
   "insights.js": "1fcf2cee47e66084fff6d5b4c062415d78beadc2b1e3dae131b259146e183a73",
   "style2.css": "baa877a3dc80cfd7dd96b020a50be8ef8d775b962f1cc1842415141d571c6378"
  },
- "tag": "gabarito-v5"
+ "tag": "gabarito-v9"
 }

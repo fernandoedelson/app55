@@ -8,14 +8,6 @@ function _drePeriodo(A,a,b){ if(a<=200001&&b>=300000)return 'histórico completo
   if(a===b) return ymLab(a).replace('/','/20'); const Y1=Math.floor(a/100),Y2=Math.floor(b/100);
   if(a%100===1&&b%100===12&&Y1===Y2) return 'ano '+Y1; return ymLab(a)+' – '+ymLab(b);}
 
-function _dreVar(cur,prev){
-  const mudo=v=>`<span style="color:${MUT}">—</span>`;
-  if(cur==null||prev==null||!isFinite(cur)||!isFinite(prev)||prev===0) return mudo();
-  if((cur<0)!==(prev<0)) return `<span style="color:${MUT}" title="Mudança de sinal entre os períodos — variação percentual não comparável">—</span>`;
-  const bom=cur>prev;
-  return `<span style="color:${bom?GOOD:BAD};font-weight:600" title="${bom?'melhorou':'piorou'}">${spct(cur/prev-1)}</span>`;
-}
-
 function _dreCorpo(P){
   let s='';
   const A=P['dre.abertura'];
@@ -42,13 +34,9 @@ function _dreCorpo(P){
       {label:'(+) Absorção/ñ op.',value:g.ajuste},
       {label:'Resultado Líquido',value:g.result_liq,type:'t'},
     ],{valfmt:v=>mi(v,1)}),ins('dreCustoFixoNivel','dre-cf-nivel')); }
-  const T=P['dre-tabela'];
-  if(T){
-    s+=H3('Demonstração de resultado (DRE)','','dre-tabela');
-    s+=table(['Linha','Valor','% ROL'],T.linhas.map(l=>{const t=l[1], v=l[2];
-        const st=t==='t'?'font-weight:700':(t==='h'?'font-weight:600':'');
-        return [`<span style="${st}">${esc(l[0])}</span>`, v<0?`<span style="color:${BAD}">${money(v)}</span>`:money(v), pct(l[3],1)];
-      }),['left','right','right'],null,ins('dreLinhaQueMudou','dre-linha-que-mudou')); }
+  if(P['dre-tabela']){
+    s+=H3('DRE — mês e acumulado','padrão da empresa','dre-tabela');
+    s+='<div class="dd-host" data-visao="mes"></div>'; }
   const BE=P['dre-breakeven'], MD=P['dre-minidre'];
   if(BE||MD){ const pe=BE?BE.pe:true;
     if(BE) s+=H3('Ponto de equilíbrio — '+BE.nome,'','dre-breakeven');
@@ -137,17 +125,7 @@ function _dreCorpo(P){
 }
 
 function _dreSnap(S){
-  const cols=[ymLab(S.ym),ymLab(S.prev),'YTD '+S.ano,'YTD '+(S.ano-1)];
-  const headers=['Linha',cols[0],cols[1],'Var. mês',cols[2],cols[3],'Var. YTD'];
-  const cel=v=>v<0?`<span style="color:${BAD}">${money(v)}</span>`:money(v);
-  const rows=S.linhas.map(l=>{ const st=l[1]==='t'?'font-weight:700':(l[1]==='h'?'font-weight:600':''), v=l[2];
-    return [`<span style="${st}">${esc(l[0])}</span>`,cel(v[0]),cel(v[1]),_dreVar(v[0],v[1]),cel(v[2]),cel(v[3]),_dreVar(v[2],v[3])]; });
-  return H3('Demonstração de resultado — comparativo',S.nome,'dre-snap')
-    +table(headers,rows,['left','right','right','right','right','right','right'],null,ins('dreComparativoMotor','dre-comparativo-motor')||ins('auto','auto-dre-comparativo'))
-    +cap('A variação mostra quanto a própria linha mudou. A <b>cor</b> segue o efeito no resultado, não o sinal do número: '
-      +'verde quando melhorou, vermelho quando piorou. Numa linha de custo isso se inverte — deduções caindo aparecem em '
-      +'verde com percentual negativo. Onde o valor trocou de sinal entre os dois períodos, a variação percentual não é '
-      +'comparável e sai como “—”.');
+  return H3('DRE — evolutivo mensal','padrão da empresa','dre-snap')+'<div class="dd-host" data-visao="evol"></div>';
 }
 
 DESENHO.dre=function(P){
@@ -170,29 +148,51 @@ DESENHO.dre=function(P){
   s+='<div id="dre-body">'+_dreCorpo(P)+'</div>';
   const S=P['dre-snap'];
   if(S){
-    s+=`<div class="sec-head" style="margin-top:10px"><div class="kick">DRE · dashboard mensal</div><h2>DRE — Comparativo mensal</h2>
-        <p class="lead">Mês selecionado × mês anterior × acumulado do ano (YTD) × mesmo acumulado do ano anterior.</p></div>
-      <div class="filterbar"><div class="fb-custom">
-        <span class="fb-t">Empresa:</span> <select id="dresnap-emp"><option value="CONSOLIDADO">Consolidado</option><option value="FABRICA">Fábrica</option><option value="DESIGN">Loja</option></select>
-        <span class="fb-t">Mês:</span> <select id="dresnap-mes">${S.meses.map(y=>`<option value="${y}">${ymLab(y)}</option>`).join('')}</select></div></div>
+    s+=`<div class="sec-head" style="margin-top:10px"><div class="kick">DRE · padrão da empresa</div><h2>DRE — Evolutivo mensal</h2>
+        <p class="lead">Janeiro a dezembro do ano selecionado, linha a linha, no mesmo formato da DRE da empresa. A unidade, o ano e o mês valem para as duas visões.</p></div>
       <div id="dresnap-body">${_dreSnap(S)}</div>`;
   }
   return s;
 };
 
 DESENHO_POS.dre=function(sec,ctx){
-  const A=ctx.payload['dre.abertura'], S=ctx.payload['dre-snap'];
-  const f={ent:A?A.ent:'CONSOLIDADO', de:A?A.a:null, ate:A?A.b:null, emp:S?S.emp:'CONSOLIDADO', ym:S?S.ym:null};
+  const A=ctx.payload['dre.abertura'];
+  const f={ent:A?A.ent:'CONSOLIDADO', de:A?A.a:null, ate:A?A.b:null};
+  let atual=ctx.payload;
   const marca=()=>{
     sec.querySelectorAll('.entb').forEach(e=>e.classList.toggle('on',e.dataset.e===f.ent));
     sec.querySelectorAll('.dpreset').forEach(e=>e.classList.toggle('on',+e.dataset.a===f.de&&+e.dataset.b===f.ate));
   };
   const params=()=>{ const p={}; Object.keys(f).forEach(k=>{ if(f[k]!=null) p[k]=f[k]; }); return p; };
+
+  /* DRE no padrão da empresa (dredin.js): os números de cada unidade e ano chegam do servidor sob demanda e ficam guardados;
+     o mês é só escolha da tela. Unidade, ano e mês valem para as duas visões (mês e acumulado | evolutivo). */
+  const guardado={}, pedidos=new Set();
+  const guardar=X=>{ if(!X||!X.dados) return;
+    Object.keys(X.dados).forEach(t=>Object.keys(X.dados[t]).forEach(a=>Object.keys(X.dados[t][a]).forEach(u=>{
+      guardado[t]=guardado[t]||{}; guardado[t][a]=guardado[t][a]||{}; guardado[t][a][u]=X.dados[t][a][u]; }))); };
+  const bloco=P=>P['dre-tabela']||P['dre-snap'];
+  const inicial=bloco(ctx.payload);
+  if(inicial&&!inicial.ausente){ guardar(inicial); pedidos.add(inicial.padrao.unidade+'|'+inicial.padrao.ano); }
+  const montar=()=>{
+    const X=bloco(atual); if(!X) return;
+    sec.querySelectorAll('.dd-host').forEach(h=>{
+      if(h.dataset.montado) return; h.dataset.montado='1';
+      if(X.ausente){ h.innerHTML='<p class="muted">A DRE no padrão da empresa ainda não existe para esta competência: processe as bases de novo.</p>'; return; }
+      DREDIN_UI.montar(h,{molde:X.molde,dados:guardado,unidades:X.unidades,anos:X.anos,padrao:X.padrao,visao:h.dataset.visao,
+        buscar:async sel=>{
+          const k=sel.unidade+'|'+sel.ano;
+          if(!pedidos.has(k)){ pedidos.add(k);
+            const P2=await ctx.buscar(Object.assign(params(),{dd_un:sel.unidade,dd_ano:sel.ano})); guardar(bloco(P2)); }
+          return guardado; }});
+    });
+  };
   async function corpo(){
     const P=await ctx.buscar(params());
+    atual=P;
     document.getElementById('dre-body').innerHTML=_dreCorpo(P);
     const lb=document.getElementById('dre-label'); if(lb&&A) lb.textContent='Período: '+_drePeriodo(A,f.de,f.ate);
-    marca(); ctx.remarcar();
+    marca(); montar(); ctx.remarcar();
   }
   if(A){
     const de=document.getElementById('d-de'), ate=document.getElementById('d-ate');
@@ -203,11 +203,5 @@ DESENHO_POS.dre=function(sec,ctx){
     de.value=f.de; ate.value=f.ate;
     marca();
   }
-  if(S){
-    const selEmp=document.getElementById('dresnap-emp'), selMes=document.getElementById('dresnap-mes');
-    selEmp.value=f.emp; selMes.value=f.ym;
-    const snap=async()=>{ const P=await ctx.buscar(params()); if(P['dre-snap']){ document.getElementById('dresnap-body').innerHTML=_dreSnap(P['dre-snap']); ctx.remarcar(); } };
-    selEmp.addEventListener('change',()=>{f.emp=selEmp.value; snap();});
-    selMes.addEventListener('change',()=>{f.ym=+selMes.value; snap();});
-  }
+  montar();
 };

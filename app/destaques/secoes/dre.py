@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Destaques da DRE — as chamadas de ins() de renderDreBody() e drawDreSnap() (app.js).
+"""Destaques da DRE — as chamadas de ins() de renderDreBody() (app.js). A DRE no padrão da empresa (dre-tabela e dre-snap) não tem destaque.
 O contexto `_dctx` do Kit é {dre: agregado do período, drePrev: janela anterior de mesmo tamanho}."""
 from ...calculo.datas import ym_shift
 from ...calculo.datas import ym_lab
-from ...calculo.dre import DRE_LINES, dre_agg, dre_monthly, dre_years
-from ...calculo.secoes.dre import _filtro, _meses, _minidre, _snap
+from ...calculo.dre import dre_agg, dre_monthly, dre_years
+from ...calculo.secoes.dre import _filtro, _meses, _minidre
 from ..genericas import auto
-from ..regras_dre import (comparativo_motor, custo_fixo_nivel, custo_fixo_rol, equilibrio_alavanca,
-                          equilibrio_bruta, fabrica_loja, juros_ebitda, linha_que_mudou, margem_volume)
+from ..regras_dre import (custo_fixo_nivel, custo_fixo_rol, equilibrio_alavanca,
+                          equilibrio_bruta, fabrica_loja, juros_ebitda, margem_volume)
 
 
 def montar(C, params=None):
@@ -21,7 +21,6 @@ def montar(C, params=None):
     g_prev = dre_agg(DPNL, ent, p_a, p_b)
     ctx = {'dre': g, 'drePrev': g_prev if g_prev['receita_liquida'] else None}
     yield ('dre-ponte', [], custo_fixo_nivel(ctx))
-    yield ('dre-tabela', [], linha_que_mudou(ctx))
     # ponto de equilíbrio: a leitura em receita bruta acompanha o gráfico; a alavanca, a mini-DRE
     rolv, mc, cf, vol = g['receita_liquida'], g['margem_contrib'], -g['despesas_op'], g['volume']
     mc_pct = mc / rolv if rolv > 0 else 0
@@ -68,12 +67,3 @@ def montar(C, params=None):
             'rotuloExtra': 'margem', 'id': 'dre-fabloja', 'tabela': True,
             'preferir': ['taxa', 'divergencia']}))
         yield ('dre-fabloja', [], custo_fixo_rol(ctx))
-    s = _snap(C, params)
-    cols = [[None, {k: s['linhas'][i][2][j] for i, (k, _, _) in enumerate(DRE_LINES)}] for j in range(4)]
-    # no Kit há um fallback para dreLinhaQueMudou, que nunca dispara aqui: o ctx do comparativo
-    # não tem os agregados que aquela regra exige
-    yield ('dre-snap', [], comparativo_motor({'cols': cols, 'linhas': DRE_LINES}) or auto({
-        'itens': [{'name': rot, 'v': abs(cols[0][1][k]), 'q': abs(cols[1][1][k] or 0)}
-                  for k, rot, _ in DRE_LINES if cols[0][1][k]],
-        'escopo': 'linha', 'escopoPl': 'linhas do resultado', 'universo': 'do resultado do mês',
-        'id': 'dre-comparativo', 'tabela': True, 'preferir': ['divergencia', 'estrutura']}))

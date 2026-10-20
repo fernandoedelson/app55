@@ -72,6 +72,24 @@ def custos(blob, ate_ym, onde_esta_o_mes=None):
     return out
 
 
+def dredin(blob, ate_ym):
+    """DRE no padrão da empresa: o REAL depois do corte some (anos seguintes saem, meses seguintes do ano do corte zeram);
+    o ORÇADO é plano, não realizado, e fica."""
+    if not ate_ym or not blob:
+        return blob
+    ano, mes = divmod(ate_ym, 100)
+    real = {}
+    for a, unidades in blob['dados']['REAL'].items():
+        if int(a) > ano:
+            continue
+        real[a] = {u: ({k: (v[:mes] + [0] * (12 - mes)) for k, v in contas.items()} if int(a) == ano else contas)
+                   for u, contas in unidades.items()}
+    out = dict(blob)
+    out['dados'] = {'REAL': real, 'ORÇADO': blob['dados']['ORÇADO']}
+    out['anos'] = [a for a in blob['anos'] if a <= ano]
+    return out
+
+
 def aportes(blob, ate_ym):
     """Saldo da dívida com o acionista no fim do mês (as séries já são acumuladas por mês)."""
     if not ate_ym or not blob:

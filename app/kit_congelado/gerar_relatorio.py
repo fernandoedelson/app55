@@ -404,6 +404,50 @@ def parse_dre(path):
     anos=sorted(dpnl.get('CONSOLIDADO',{}).keys())
     print('    entidades:', list(dpnl.keys()), '| anos consolidado:', anos)
     return dpnl
+def _molde_dre_din():
+    """Molde da DRE no padrão da empresa (layout da aba "DRE DINÂMICO"): fica ao lado do script, ou ao lado deste arquivo
+    quando o parser roda dentro da aplicação."""
+    for pasta in (AQUI, os.path.dirname(os.path.abspath(__file__))):
+        caminho = os.path.join(pasta, 'dre_dinamico_molde.json')
+        if os.path.exists(caminho):
+            return json.load(open(caminho, encoding='utf-8'))
+    return None
+
+DRE_DIN_UNIDADES = ('CONSOLIDADO', '55 FABRICA', '55 DESIGN')
+
+def parse_dre_din(path):
+    """Números por CONTA (coluna A) das abas "REAL <ano> - <unidade>" e "ORÇADO <ano> - <unidade>" do Painel de Resultado —
+    o que a aba "DRE DINÂMICO" busca por SUMIF. Só as contas que o molde usa. Devolve {molde, dados, unidades, anos} ou None."""
+    molde = _molde_dre_din()
+    if not molde:
+        print('  (dre_dinamico_molde.json não encontrado — a DRE no padrão da empresa não será gerada)')
+        return None
+    chave = lambda v: (str(int(round(v))) if isinstance(v, (int, float)) else str(v).strip().upper()) if v not in (None, '') else ''
+    contas = {chave(l['a']) for l in molde['linhas'] if 'a' in l and not isinstance(l['a'], dict)} - {''}
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    dados = {'REAL': {}, 'ORÇADO': {}}
+    for sh in wb.sheetnames:
+        m = re.fullmatch(r'(REAL|ORÇADO) (\d{4}) - (CONSOLIDADO|55 FABRICA|55 DESIGN)', sh.strip())
+        if not m:
+            continue
+        tipo, ano, un = m.groups()
+        contas_da_aba = {}
+        for lin in wb[sh].iter_rows(min_row=1, max_col=16, values_only=True):
+            k = chave(lin[0] if lin else None)
+            if not k or k not in contas:
+                continue
+            meses = [num(x) or 0 for x in (list(lin[4:16]) + [None] * 12)[:12]]
+            if k in contas_da_aba:                     # a planilha soma todas as linhas da mesma conta (SUMIF)
+                contas_da_aba[k] = [a + b for a, b in zip(contas_da_aba[k], meses)]
+            else:
+                contas_da_aba[k] = meses
+        contas_da_aba = {k: [round(x, 4) for x in v] for k, v in contas_da_aba.items() if any(v)}
+        dados[tipo].setdefault(ano, {})[un] = contas_da_aba
+    wb.close()
+    anos = sorted(dados['REAL'])
+    print('    DRE no padrão da empresa: %d contas do molde, anos REAL %s' % (len(contas), anos))
+    return {'molde': molde, 'dados': dados, 'unidades': list(DRE_DIN_UNIDADES), 'anos': [int(a) for a in anos]}
+
 def derivar_receita(dpnl):
     """DRE (receita bruta consolidada) para o gráfico da evolutiva."""
     DRE={}
@@ -1293,7 +1337,7 @@ def derivar_custo_fixo(cf_cfg, cf_mensal, dpnl, max_ym_dre):
     return out
 
 def montar_html(data, DRE, deck, dpnl, cf, custos, cart_din, cf_mensal, max_ym_dre,
-                aportes, metas, fabloja=None, partes_rel=None, destaques=None):
+                aportes, metas, fabloja=None, partes_rel=None, destaques=None, dredin=None):
     partes_rel = partes_rel or []
     destaques  = destaques  or {}
     j=lambda o: json.dumps(o,ensure_ascii=False,separators=(',',':'))
@@ -1303,7 +1347,7 @@ def montar_html(data, DRE, deck, dpnl, cf, custos, cart_din, cf_mensal, max_ym_d
           f"window.CF={j(cf)};window.CUSTOS={j(custos)};window.CARTDIN={j(cart_din)};"
           f"window.CFMENSAL={j(cf_mensal)};window.MAXYM_DRE={j(max_ym_dre)};window.APORTES={j(aportes)};"
           f"window.METAS={j(metas)};window.FABLOJA={j(fabloja)};window.PARTES_RELACIONADAS={j(partes_rel)};"
-          f"window.DESTAQUES_MANUAIS={j(destaques)};")
+          f"window.DESTAQUES_MANUAIS={j(destaques)};window.DREDIN={j(dredin)};")
     doc=montar_doc(blob, base_lab)
     open(SAIDA,'w',encoding='utf-8').write(doc)
     return len(doc)
@@ -1320,6 +1364,9 @@ def montar_doc(blob, base_lab):
     # camada de destaques: opcional — sem o arquivo o relatorio sai como antes
     ins_path=os.path.join(AQUI,'insights.js')
     insjs=open(ins_path,encoding='utf-8').read() if os.path.exists(ins_path) else ''
+    # DRE no padrão da empresa (molde + filtros + tela cheia): módulo próprio, como a camada de destaques
+    dd_path=os.path.join(AQUI,'dredin.js')
+    dredinjs=open(dd_path,encoding='utf-8').read() if os.path.exists(dd_path) else ''
     return f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>+55 Design · Análise de Vendas e DRE</title>
@@ -1351,6 +1398,7 @@ def montar_doc(blob, base_lab):
 <script>{blob}</script>
 <script>{appjs}</script>
 {('<script>'+insjs+'</script>') if insjs else ''}
+{('<script>'+dredinjs+'</script>') if dredinjs else ''}
 </body></html>"""
 
 def main():
@@ -1378,8 +1426,9 @@ def main():
     fabloja=parse_fabloja()
     partes_rel=cfg.get('partes_relacionadas',[])
     destaques =cfg.get('destaques_manuais',{})
+    dredin=parse_dre_din(dre)
     n=montar_html(data, DRE, deck, dpnl, cf, custos, cart_din, cf_mensal, max_ym_dre,
-                  aportes, metas, fabloja, partes_rel, destaques)
+                  aportes, metas, fabloja, partes_rel, destaques, dredin)
     print('  destaques: %d padroes de parte relacionada, %d textos manuais'
           % (len(partes_rel), len(destaques)))
     print('OK -> %s (%d KB)' % (os.path.basename(SAIDA), n//1024))

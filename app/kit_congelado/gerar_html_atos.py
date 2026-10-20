@@ -190,6 +190,8 @@ def main():
     css_atos = ler('atos.css')
     appjs = ler('app.js')
     insjs = ler('insights.js') if os.path.exists(os.path.join(AQUI, 'insights.js')) else ''
+    # DRE no padrao da empresa (dredin.js): sem ele os blocos dre-tabela e dre-snap ficam vazios no Atos
+    ddjs = ler('dredin.js') if os.path.exists(os.path.join(AQUI, 'dredin.js')) else ''
     # Os ajustes trocam line(), waterfall() e as regras de destaque; precisam estar
     # no lugar ANTES do init() do app.js, que e quem desenha. Por isso entram entre
     # o insights.js e o atos.js, e nao no fim do documento.
@@ -212,6 +214,7 @@ def main():
 <script>%(blob)s</script>
 <script>%(appjs)s</script>
 %(insjs)s
+%(ddjs)s
 <script>%(ajustesjs)s</script>
 <script>%(atosjs)s</script>
 </body></html>""" % {
@@ -219,6 +222,7 @@ def main():
         'blob': blob, 'appjs': appjs, 'atosjs': atosjs, 'ajustesjs': ajustesjs,
         'art_map': art_map,
         'insjs': ('<script>' + insjs + '</script>') if insjs else '',
+        'ddjs': ('<script>' + ddjs + '</script>') if ddjs else '',
     }
 
     if os.path.exists(SAIDA) and not os.environ.get('ATOS_SAIDA'):

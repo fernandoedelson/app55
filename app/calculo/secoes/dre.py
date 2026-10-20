@@ -2,7 +2,7 @@
 """DRE — porte de renderDreBody(), buildDreFilter() e drawDreSnap() (app.js).
 
 Parâmetros: ent (CONSOLIDADO|FABRICA|DESIGN), de/ate (AAAAMM; 200001/300000 = histórico) para o corpo;
-emp e ym para o comparativo mensal, que é independente do filtro de cima."""
+dd_un e dd_ano para a DRE no padrão da empresa (blocos dre-tabela e dre-snap), que é independente do filtro de cima."""
 from ..datas import ym_shift
 from ..dre import DRE_LINES, dre_agg, dre_monthly, dre_years
 
@@ -105,20 +105,24 @@ def _minidre(C, ent, a, b):
     return out
 
 
-def _snap(C, params):
-    DPNL = C.blob('DPNL')
-    maxym = C.maxym_dre
-    ano_atual, mes_atual = maxym // 100, maxym % 100
-    meses = [ano_atual * 100 + m for m in range(1, mes_atual + 1)]
-    emp = params.get('emp') if params.get('emp') in ENTS else 'CONSOLIDADO'
-    ym = _int(params.get('ym'), maxym)
-    if ym not in meses:
-        ym = maxym
-    prev, ano = ym_shift(ym, -1), ym // 100
-    aggs = [dre_agg(DPNL, emp, ym, ym), dre_agg(DPNL, emp, prev, prev),
-            dre_agg(DPNL, emp, ano * 100 + 1, ym), dre_agg(DPNL, emp, (ano - 1) * 100 + 1, ym - 100)]
-    return {'emp': emp, 'ym': ym, 'prev': prev, 'ano': ano, 'meses': meses,
-            'linhas': [[lab, tipo, [g[k] for g in aggs]] for k, lab, tipo in DRE_LINES]}
+def _din(C, params):
+    """DRE no padrão da empresa (aba DRE DINÂMICO): molde + só os números da unidade e do ano pedidos.
+    Unidade e ano vêm em dd_un/dd_ano; o mês é escolha da tela (os 12 meses já vão nos dados)."""
+    D = C.blob('DREDIN')
+    if not D:
+        return {'ausente': True}
+    un = params.get('dd_un') if params.get('dd_un') in D['unidades'] else 'CONSOLIDADO'
+    padrao_ano, padrao_mes = C.maxym_dre // 100, C.maxym_dre % 100
+    ano = _int(params.get('dd_ano'), padrao_ano)
+    if ano not in D['anos']:
+        ano = padrao_ano
+    dados = {}
+    for tipo, a in (('REAL', ano), ('REAL', ano - 1), ('ORÇADO', ano)):
+        conta = D['dados'].get(tipo, {}).get(str(a), {}).get(un)
+        if conta is not None:
+            dados.setdefault(tipo, {}).setdefault(str(a), {})[un] = conta
+    return {'molde': D['molde'], 'unidades': D['unidades'], 'anos': D['anos'],
+            'padrao': {'unidade': un, 'ano': ano, 'mes': padrao_mes if ano == padrao_ano else 12}, 'dados': dados}
 
 
 def calcular(C, params=None):
@@ -134,7 +138,7 @@ def calcular(C, params=None):
                          'presets': presets(C), 'minym_vendas': C.minym_vendas, 'maxym_vendas': C.maxym_vendas,
                          'nome': ENT_NOME[ent], 'g': sub(g)},
         'dre-ponte': {'g': sub(g)},
-        'dre-tabela': {'linhas': [[lab, tipo, g[k], g[k] / (g['receita_liquida'] or 1)] for k, lab, tipo in DRE_LINES]},
+        'dre-tabela': _din(C, params),
     }
     be = _breakeven(g)
     out['dre-breakeven'] = {'nome': ENT_NOME[ent], 'pe': be}
@@ -169,7 +173,5 @@ def calcular(C, params=None):
         out['dre-fabloja'] = {'f': sub(f), 'd': sub(d), 'g': sub(g), 'yms': [x[0] for x in rl_m],
                               'rl_f': [x[1] for x in dre_monthly(DPNL, 'FABRICA', a, b, 'receita_liquida')],
                               'rl_d': [x[1] for x in dre_monthly(DPNL, 'DESIGN', a, b, 'receita_liquida')]}
-    s = _snap(C, params)
-    s['nome'] = ENT_CURTO[s['emp']]
-    out['dre-snap'] = s
+    out['dre-snap'] = _din(C, params)
     return out

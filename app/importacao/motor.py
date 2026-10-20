@@ -48,7 +48,7 @@ BASES = {
 
 # blob -> arquivo json da competência (o cálculo lê por esses nomes)
 BLOBS = ['DATA', 'DRE', 'DPNL', 'DECK', 'CF', 'CUSTOS', 'CARTDIN', 'CFMENSAL', 'MAXYM_DRE', 'APORTES',
-         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH']
+         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH', 'DREDIN']
 PASTA_CARTEIRA_FECH = 'Carteira_Fechamento'
 
 
@@ -100,6 +100,7 @@ def processar(fontes, base=None, custos=None, ate_ym=None):
             'MAXYM_DRE': max_ym_dre, 'APORTES': recorte.aportes(K.parse_aportes(), ate_ym), 'METAS': K.parse_metas(),
             'FABLOJA': recorte.sem_foto(_fabloja(fontes, base), ate_ym),
             'PARTES_RELACIONADAS': cfg.get('partes_relacionadas', []),
+            'DREDIN': recorte.dredin(K.parse_dre_din(painel), ate_ym),     # DRE no padrão da empresa (aba DRE DINÂMICO)
             'DESTAQUES_MANUAIS': cfg.get('destaques_manuais', {}),
             'CARTDIN_FECH': recorte.sem_foto(
                 _carteira_em(os.path.join(fontes, PASTA_CARTEIRA_FECH), fontes, custos, base), ate_ym),

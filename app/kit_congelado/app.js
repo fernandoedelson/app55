@@ -1060,10 +1060,14 @@ function initCarteiraDinamica(){
   if(!window.CARTDIN) return;
   const box=document.getElementById('cartdin-status-fig'); if(!box) return;
   const bars=box.querySelectorAll('.par-bar');
-  bars.forEach(el=>el.addEventListener('click',()=>drawCartdinStatus(+el.dataset.i,bars)));
+  /* a lista de pedidos nasce recolhida: clicar numa barra (ou escolher o status) abre; clicar de novo na mesma barra recolhe */
+  bars.forEach(el=>el.addEventListener('click',()=>{ if(el.style.strokeWidth==='2.5') ocultarCartdinStatus(bars); else drawCartdinStatus(+el.dataset.i,bars); }));
   const sel=document.getElementById('cartdin-status-sel');
   if(sel) sel.addEventListener('change',()=>drawCartdinStatus(+sel.value,bars));
-  if(bars.length) drawCartdinStatus(0,bars);
+}
+function ocultarCartdinStatus(bars){
+  bars.forEach(b=>{b.style.stroke='';b.style.strokeWidth='';});
+  const box=document.getElementById('cartdin-status-detail'); if(box) box.innerHTML='';
 }
 function drawCartdinStatus(i,bars){
   bars.forEach(b=>{b.style.stroke='';b.style.strokeWidth='';});
@@ -4421,11 +4425,8 @@ function init(){
     } else if(id==='dre'){ html+=`<section id="dre"><div class="sec-head"><div class="kick">Resultado · DRE</div><h2>DRE — indicadores e resultado</h2>
       <p class="lead">Demonstração de resultado por entidade — Consolidado, Fábrica e Loja — com filtros de período, no espírito da apresentação de resultados. Receita, margens, EBITDA e resultado a partir do Painel de Resultado (abas REAL). Percentuais sobre a Receita Operacional Líquida (ROL).</p></div>
       ${buildDreFilter()}<div id="dre-body"></div>
-      <div class="sec-head" style="margin-top:10px"><div class="kick">DRE · dashboard mensal</div><h2>DRE — Comparativo mensal</h2>
-        <p class="lead">Mês selecionado × mês anterior × acumulado do ano (YTD) × mesmo acumulado do ano anterior.</p></div>
-      <div class="filterbar"><div class="fb-custom">
-        <span class="fb-t">Empresa:</span> <select id="dresnap-emp"><option value="CONSOLIDADO">Consolidado</option><option value="FABRICA">Fábrica</option><option value="DESIGN">Loja</option></select>
-        <span class="fb-t">Mês:</span> <select id="dresnap-mes"></select></div></div>
+      <div class="sec-head" style="margin-top:10px"><div class="kick">DRE · padrão da empresa</div><h2>DRE — Evolutivo mensal</h2>
+        <p class="lead">Janeiro a dezembro do ano selecionado, linha a linha, no mesmo formato da DRE da empresa. A unidade, o ano e o mês valem para as duas visões.</p></div>
       <div id="dresnap-body"></div></section>`;
     } else if(id==='custofixo'){ html+=`<section id="custofixo"><div class="sec-head"><div class="kick">Custo fixo</div><h2>Custo fixo — composição</h2>
       <p class="lead">Abertura do custo fixo por categoria e entidade nos últimos 12 meses (${_cfJanela()}), no estilo dos slides de custo fixo da apresentação.</p></div>
@@ -4572,18 +4573,9 @@ function renderDreBody(ent,a,b,label){
     {label:'Resultado Líquido',value:g.result_liq,type:'t'},
   ],{valfmt:v=>mi(v,1)}),
   ins('dreCustoFixoNivel',_dctx));
-  // P&L table
-  s+=H3('Demonstração de resultado (DRE)','','dre-tabela');
-  const rows=DRE_LINES.map(l=>{const v=l[0]==='ajuste'?g.ajuste:g[l[0]]; const av=g.receita_liquida?v/g.receita_liquida:0;
-    const cls=l[2]==='t'?' style="font-weight:700;background:#efe9dc"':(l[2]==='h'?' style="font-weight:600"':'');
-    const vcol=v<0?`<span style="color:${BAD}">${money(v)}</span>`:money(v);
-    return [`<span${cls.includes('style')?'':''}>${esc(l[1])}</span>`, vcol, pct(av,1)];
-  });
-  s+=table(['Linha','Valor','% ROL'],rows.map((r,i)=>{const t=DRE_LINES[i][2];
-      const st=t==='t'?'font-weight:700':(t==='h'?'font-weight:600':''); 
-      return [`<span style="${st}">${esc(DRE_LINES[i][1])}</span>`, (DRE_LINES[i][0]==='ajuste'?g.ajuste:g[DRE_LINES[i][0]])<0?`<span style="color:${BAD}">${money(DRE_LINES[i][0]==='ajuste'?g.ajuste:g[DRE_LINES[i][0]])}</span>`:money(DRE_LINES[i][0]==='ajuste'?g.ajuste:g[DRE_LINES[i][0]]), pct((DRE_LINES[i][0]==='ajuste'?g.ajuste:g[DRE_LINES[i][0]])/(g.receita_liquida||1),1)];
-    }),['left','right','right'],null,
-    ins('dreLinhaQueMudou',_dctx));
+  // DRE no padrão da empresa (aba "DRE DINÂMICO" do Painel de Resultado): mês e acumulado, com filtros próprios (dredin.js)
+  s+=H3('DRE — mês e acumulado','padrão da empresa','dre-tabela');
+  s+='<div class="dd-host" data-visao="mes"></div>';
   // ---- Ponto de equilíbrio ----
   s+=H3('Ponto de equilíbrio — '+entName,'','dre-breakeven');
   const rolv=g.receita_liquida, mc=g.margem_contrib, cf=-g.despesas_op, vol=g.volume;
@@ -5001,6 +4993,7 @@ function buildDreFilter(){
    <div id="dre-label" class="fb-label"></div></div>`;
 }
 function drawDre(){ document.getElementById('dre-body').innerHTML=renderDreBody(dEnt,dMin,dMax,'');
+  dreDinMontarTodos();
   document.getElementById('dre-label').textContent='Período: '+periodLabel(dMin,dMax);
   document.querySelectorAll('.entb').forEach(e=>e.classList.toggle('on',e.dataset.e===dEnt));
   document.querySelectorAll('.dpreset').forEach(e=>e.classList.toggle('on',+e.dataset.a===dMin&&+e.dataset.b===dMax));
@@ -5014,20 +5007,17 @@ function initDreFilter(){
   document.getElementById('d-de').value=dMin;document.getElementById('d-ate').value=dMax;
 }
 
-/* ---- DRE — dashboard mensal (independente do filtro/entidade acima) ---- */
-let dreSnapEmp='CONSOLIDADO', dreSnapYm=null;
-function initDreSnap(){
-  const selMes=document.getElementById('dresnap-mes'), selEmp=document.getElementById('dresnap-emp');
-  if(!selMes||!selEmp) return;
-  const anoAtual=Math.floor(MAXYM_DRE/100), mesAtual=MAXYM_DRE%100;
-  const yms=[]; for(let m=1;m<=mesAtual;m++) yms.push(anoAtual*100+m);
-  selMes.innerHTML=yms.map(y=>`<option value="${y}">${ymLab(y)}</option>`).join('');
-  dreSnapYm=MAXYM_DRE; selMes.value=dreSnapYm;
-  selEmp.value=dreSnapEmp;
-  selEmp.addEventListener('change',()=>{dreSnapEmp=selEmp.value; drawDreSnap();});
-  selMes.addEventListener('change',()=>{dreSnapYm=+selMes.value; drawDreSnap();});
-  drawDreSnap();
-}
+/* ---- DRE — evolutivo mensal: o componente da DRE no padrão da empresa (dredin.js) ---- */
+function initDreSnap(){ drawDreSnap(); }
+/* monta o componente em cada .dd-host da página (a tabela do corpo da DRE é redesenhada a cada filtro de período) */
+function dreDinMontarTodos(){ if(!window.DREDIN||!window.DREDIN_UI) return;
+  const D=window.DREDIN, ano=Math.floor(MAXYM_DRE/100), mes=MAXYM_DRE%100;
+  document.querySelectorAll('.dd-host').forEach(h=>{ if(h.dataset.montado) return; h.dataset.montado='1';
+    DREDIN_UI.montar(h,{molde:D.molde,dados:D.dados,unidades:D.unidades,anos:D.anos,padrao:{unidade:'CONSOLIDADO',ano:ano,mes:mes},visao:h.dataset.visao}); }); }
+function drawDreSnap(){
+  const box=document.getElementById('dresnap-body'); if(!box) return;
+  box.innerHTML=H3('DRE — evolutivo mensal','padrão da empresa','dre-snap')+'<div class="dd-host" data-visao="evol"></div>';
+  dreDinMontarTodos(); }
 /* Variação percentual entre duas células da DRE.
 
    Duas armadilhas tratadas aqui:
@@ -5042,35 +5032,6 @@ function dreVar(cur,prev){
   if((cur<0)!==(prev<0)) return `<span style="color:${MUT}" title="Mudança de sinal entre os períodos — variação percentual não comparável">—</span>`;
   const bom=cur>prev;
   return `<span style="color:${bom?GOOD:BAD};font-weight:600" title="${bom?'melhorou':'piorou'}">${spct(cur/prev-1)}</span>`;
-}
-function drawDreSnap(){
-  const box=document.getElementById('dresnap-body'); if(!box||!dreSnapYm) return;
-  const ym=dreSnapYm, ymPrev=ymShift(ym,-1), ano=Math.floor(ym/100);
-  const gM=dreAgg(dreSnapEmp,ym,ym), gMPrev=dreAgg(dreSnapEmp,ymPrev,ymPrev);
-  const gYtd=dreAgg(dreSnapEmp,ano*100+1,ym), gYtdPrev=dreAgg(dreSnapEmp,(ano-1)*100+1,ym-100);
-  const cols=[[ymLab(ym),gM],[ymLab(ymPrev),gMPrev],['YTD '+ano,gYtd],['YTD '+(ano-1),gYtdPrev]];
-  const entName={CONSOLIDADO:'Consolidado',FABRICA:'Fábrica',DESIGN:'Loja'}[dreSnapEmp];
-  let s=H3('Demonstração de resultado — comparativo',entName,'dre-snap');
-  const headers=['Linha',cols[0][0],cols[1][0],'Var. mês',cols[2][0],cols[3][0],'Var. YTD'];
-  const aligns=['left','right','right','right','right','right','right'];
-  const rows=DRE_LINES.map(l=>{
-    const st=l[2]==='t'?'font-weight:700':(l[2]==='h'?'font-weight:600':'');
-    const val=i=>cols[i][1][l[0]];
-    const cel=v=>v<0?`<span style="color:${BAD}">${money(v)}</span>`:money(v);
-    return [`<span style="${st}">${esc(l[1])}</span>`,
-      cel(val(0)),cel(val(1)),dreVar(val(0),val(1)),
-      cel(val(2)),cel(val(3)),dreVar(val(2),val(3))];
-  });
-  box.innerHTML=s+table(headers,rows,aligns,null,
-    ins('dreComparativoMotor',{cols:cols,linhas:DRE_LINES})
-    ||ins('dreLinhaQueMudou',{cols:cols,linhas:DRE_LINES})
-    ||ins('auto',{itens:DRE_LINES.filter(l=>cols[0][1][l[0]]).map(l=>({name:l[1],v:Math.abs(cols[0][1][l[0]]),q:Math.abs(cols[1][1][l[0]]||0)})),
-        escopo:'linha',escopoPl:'linhas do resultado',universo:'do resultado do mês',
-        id:'dre-comparativo',tabela:true,preferir:['divergencia','estrutura']}))
-    +cap('A variação mostra quanto a própria linha mudou. A <b>cor</b> segue o efeito no resultado, não o sinal do número: '
-      +'verde quando melhorou, vermelho quando piorou. Numa linha de custo isso se inverte — deduções caindo aparecem em '
-      +'verde com percentual negativo. Onde o valor trocou de sinal entre os dois períodos, a variação percentual não é '
-      +'comparável e sai como “—”.');
 }
 function drawCustoFixo(){ document.getElementById('cf-body').innerHTML=renderCustoFixoBody(cfEnt)+renderCustoFixoEntidade();
   document.querySelectorAll('.cfb').forEach(e=>e.classList.toggle('on',e.dataset.e===cfEnt));

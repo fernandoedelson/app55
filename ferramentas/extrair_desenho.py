@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Copia do Kit congelado (tag gabarito-v5) as funções de DESENHO e FORMATAÇÃO do app.js para
+Copia do Kit congelado (tag gabarito-v9) as funções de DESENHO e FORMATAÇÃO do app.js para
 app/static/relatorio/kit.js, o runtime da régua de destaques do insights.js para
 app/static/relatorio/destaques.js, e o style2.css para app/static/relatorio/style2.css.
 
@@ -15,7 +15,7 @@ import subprocess
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT = r'C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design'
-TAG = 'gabarito-v5'
+TAG = 'gabarito-v9'
 DESTINO = os.path.join(RAIZ, 'app', 'static', 'relatorio')
 
 NOMES = [
@@ -222,6 +222,11 @@ def main():
     css = css.replace("url('img/", "url('../img/")
     open(os.path.join(DESTINO, 'style2.css'), 'w', encoding='utf-8').write(css)
     print('kit.js: %d declarações, %d linhas | style2.css copiado' % (len(NOMES), corpo.count('\n') + 1))
+    # DRE no padrão da empresa: módulo próprio do Kit, copiado como está (avaliador + desenho + filtros)
+    dd = subprocess.run(['git', '-C', KIT, 'show', TAG + ':dredin.js'], capture_output=True, text=True,
+                        encoding='utf-8').stdout
+    open(os.path.join(DESTINO, 'dredin.js'), 'w', encoding='utf-8').write(
+        '/* GERADO por ferramentas/extrair_desenho.py a partir do dredin.js do Kit na tag ' + TAG + ' — não editar. */\n' + dd)
     destaques(incluidos)
     leituras(set(incluidos))
 
