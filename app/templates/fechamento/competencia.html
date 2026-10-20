@@ -150,6 +150,11 @@
     <label class="bloco">Justificativa (obrigatória porque o passado mudou)
       <textarea name="justificativa" rows="2" style="width:100%"></textarea></label>
   {% endif %}
+  <div class="actions marcar-blocos" id="marcar-blocos" hidden>
+    <button class="btn btn-sm" type="button" data-marcar="1">Marcar todos</button>
+    <button class="btn btn-sm" type="button" data-marcar="0">Desmarcar todos</button>
+    <span class="muted" id="marcar-conta" role="status" aria-live="polite"></span>
+  </div>
   {% for s in secoes %}
     <details class="bloco">
       <summary>{{ s.titulo }}</summary>
@@ -208,4 +213,5 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='envio_lote.js') }}"></script>
-<script src="{{ url_for('static', filename='processar.js') }}"></script>{% endblock %}
+<script src="{{ url_for('static', filename='processar.js') }}"></script>
+<script src="{{ url_for('static', filename='marcar_blocos.js') }}"></script>{% endblock %}
