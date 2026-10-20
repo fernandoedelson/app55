@@ -94,7 +94,7 @@
   <div class="muted" id="up-progresso" role="status" aria-live="polite"></div>
   <ul class="up-resultado" id="up-resultado"></ul>
 </div>
-<table class="tbl">
+<table class="tbl" id="tabela-bases">
   <thead><tr><th>Base</th><th>Arquivo</th><th>Posição</th><th>Enviado</th><th></th></tr></thead>
   <tbody>
   {% for bid, b in bases.items() if not so_carteira or bid == 'carteira' %}
@@ -130,11 +130,14 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="base" value="{{ bid }}">
           {% if bid in bases_pasta %}
-          <label class="campo">Planilhas (escolha uma ou várias) <input type="file" name="arquivo" accept=".xlsx,.xlsm" multiple></label>
-          <label class="campo">ou a pasta inteira <input type="file" class="up-pasta" webkitdirectory></label>
+          <span class="campo">Planilhas (escolha uma ou várias)
+            <label class="btn btn-sm btn-arquivo">Escolher planilhas <input type="file" name="arquivo" accept=".xlsx,.xlsm" multiple hidden></label></span>
+          <span class="campo">ou a pasta inteira
+            <label class="btn btn-sm btn-arquivo">Escolher pasta <input type="file" class="up-pasta" webkitdirectory hidden></label></span>
           <span class="muted up-qtd" aria-live="polite"></span>
           {% else %}
-          <label class="campo">Planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" required></label>
+          <span class="campo">Planilha
+            <label class="btn btn-sm btn-arquivo">Escolher planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" hidden></label></span>
           {% endif %}
           <label class="campo">Posição dos números <input name="data_posicao" type="date" required></label>
           <button class="btn btn-sm" type="submit">{{ 'Atualizar' if bid == 'carteira' and envios else 'Enviar' }}</button>
@@ -247,5 +250,6 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='envio_lote.js') }}"></script>
+<script src="{{ url_for('static', filename='reuso_inline.js') }}"></script>
 <script src="{{ url_for('static', filename='processar.js') }}"></script>
 <script src="{{ url_for('static', filename='marcar_blocos.js') }}"></script>{% endblock %}

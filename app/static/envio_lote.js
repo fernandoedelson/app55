@@ -5,9 +5,9 @@
    O andamento aparece na própria linha (com a porcentagem do arquivo) e no quadro de cima. */
 'use strict';
 (function () {
-  const forms = Array.from(document.querySelectorAll('form.upload-form'));
+  let forms = [];
   const botao = document.getElementById('up-todos');
-  if (!forms.length || !botao) return;
+  if (!botao) return;
   const geral = document.getElementById('up-data-geral');
   const progresso = document.getElementById('up-progresso');
   const lista = document.getElementById('up-resultado');
@@ -34,7 +34,7 @@
       f.querySelector('button[type=submit]').disabled = enviando;
       if (enviando) return;
       const k = arquivos(f).length;
-      status(f).textContent = k ? k + ' planilha(s) escolhida(s)' : '';
+      status(f).textContent = k === 1 ? arquivos(f)[0].name : k ? k + ' planilhas escolhidas' : '';
     });
   }
 
@@ -119,14 +119,22 @@
     document.getElementById('envio-lote').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  forms.forEach(f => {
-    entradas(f).forEach(i => i.addEventListener('change', contar));
-    /* o "Enviar" da linha usa o mesmo caminho: não recarrega, então as outras escolhas ficam */
-    f.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if (arquivos(f).length) enviar([f]); else status(f).textContent = 'Escolha a planilha primeiro.';
+  /* liga os formulários da página; chamado de novo quando uma linha é trocada sem recarregar */
+  function ligar() {
+    forms = Array.from(document.querySelectorAll('form.upload-form'));
+    forms.forEach(f => {
+      if (f.dataset.ligado) return;
+      f.dataset.ligado = '1';
+      entradas(f).forEach(i => i.addEventListener('change', contar));
+      /* o "Enviar" da linha usa o mesmo caminho: não recarrega, então as outras escolhas ficam */
+      f.addEventListener('submit', ev => {
+        ev.preventDefault();
+        if (arquivos(f).length) enviar([f]); else status(f).textContent = 'Escolha a planilha primeiro.';
+      });
     });
-  });
+    contar();
+  }
+  window.envioLoteLigar = ligar;
   botao.addEventListener('click', () => enviar(forms.filter(f => arquivos(f).length)));
-  contar();
+  ligar();
 })();
