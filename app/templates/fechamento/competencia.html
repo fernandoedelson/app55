@@ -131,13 +131,13 @@
           <input type="hidden" name="base" value="{{ bid }}">
           {% if bid in bases_pasta %}
           <span class="campo">Planilhas (escolha uma ou várias)
-            <label class="btn btn-sm btn-arquivo">Escolher planilhas <input type="file" name="arquivo" accept=".xlsx,.xlsm" multiple hidden></label></span>
+            <label class="btn btn-secondary btn-sm btn-arquivo">Escolher planilhas <input type="file" name="arquivo" accept=".xlsx,.xlsm" multiple hidden></label></span>
           <span class="campo">ou a pasta inteira
-            <label class="btn btn-sm btn-arquivo">Escolher pasta <input type="file" class="up-pasta" webkitdirectory hidden></label></span>
+            <label class="btn btn-secondary btn-sm btn-arquivo">Escolher pasta <input type="file" class="up-pasta" webkitdirectory hidden></label></span>
           <span class="muted up-qtd" aria-live="polite"></span>
           {% else %}
           <span class="campo">Planilha
-            <label class="btn btn-sm btn-arquivo">Escolher planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" hidden></label></span>
+            <label class="btn btn-secondary btn-sm btn-arquivo">Escolher planilha <input type="file" name="arquivo" accept=".xlsx,.xlsm" hidden></label></span>
           {% endif %}
           <label class="campo">Posição dos números <input name="data_posicao" type="date" required></label>
           <button class="btn btn-sm" type="submit">{{ 'Atualizar' if bid == 'carteira' and envios else 'Enviar' }}</button>

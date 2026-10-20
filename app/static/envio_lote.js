@@ -62,6 +62,7 @@
       x.ontimeout = () => resolve({ ok: false, msg: 'o servidor demorou demais para responder.' });
       x.onload = () => {
         if (x.status < 200 || x.status >= 300) return resolve({ ok: false, msg: 'o servidor recusou (erro ' + x.status + ').' });
+        if (/\/entrar/.test(x.responseURL || '')) return resolve({ ok: false, msg: 'sua sessão expirou: entre de novo (os arquivos escolhidos continuam aqui).' });
         const doc = new DOMParser().parseFromString(x.responseText, 'text/html');
         const msgs = Array.from(doc.querySelectorAll('.flash')).map(e => ({ ok: !/erro|bad/.test(e.className), t: e.textContent.trim() }));
         const ruim = msgs.find(m => !m.ok);

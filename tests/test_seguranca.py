@@ -68,7 +68,7 @@ def test_troca_de_senha_derruba_outros_aparelhos(app, admin):
 
 def test_inatividade_encerra_sessao(admin):
     with admin.session_transaction() as s:
-        s['la'] = (datetime.now() - timedelta(minutes=61)).isoformat(timespec='seconds')
+        s['la'] = (datetime.now() - timedelta(minutes=241)).isoformat(timespec='seconds')
     r = admin.get('/')
     assert r.status_code == 302 and '/entrar' in r.headers['Location']
 
@@ -170,3 +170,9 @@ def test_email_de_usuario_desativado_nao_entra(app, admin):
         db.execute("UPDATE usuarios SET ativo=0 WHERE login='ana.souza'")
         db.commit()
     assert entrar(app.test_client(), 'ana.souza@exemplo.com', senha).status_code == 401
+
+
+def test_tres_horas_parado_ainda_vale(admin):
+    with admin.session_transaction() as s:
+        s['la'] = (datetime.now() - timedelta(hours=3)).isoformat(timespec='seconds')
+    assert admin.get('/').status_code == 200

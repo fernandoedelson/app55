@@ -27,7 +27,7 @@ class Config:
     SESSION_REFRESH_EACH_REQUEST = False
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
     SESSAO_ABSOLUTA_HORAS = 8          # desde o login, nunca renovada por uso
-    SESSAO_INATIVIDADE_MIN = 60
+    SESSAO_INATIVIDADE_MIN = 240
 
     # login e senha
     SENHA_MIN = 10
