@@ -4,7 +4,7 @@
   "atos.css": "016233a4ca921f0943919d324257074f50f4d15757e65805d7762a9522373016",
   "atos.js": "5ff5ca6fd645afd4aedecb8d909275b245d199ad9ed2a69c95b911e568023f5e",
   "atos_ajustes.js": "b44fc84a2739bc3efef1728a92818bb8b7a62454ba8495a1051d005dceb6d885",
-  "dredin.js": "68d059d2834277e4e1eec3abf752cb34b30315116ccd98a7b859f3679938e8fa",
+  "dredin.js": "243bbdd556f1bd85008315f22d50152129fdf1edb5814e8a1a6f4143f7abf488",
   "gerar_html_atos.py": "1642d93484dbad101e7cb067cb7ec6f947b792469e6b09af48b43d44c42aaa0c",
   "gerar_relatorio.py": "e971e0defd3c265fb515668ad7d5ce1e493d0c6da2dc9bcf5537907ed2b57840",
   "img/logo-chip.png": "5b193ee684af3be5690281018fa7cf44d06c7607937ade823c259c66c1a19061",
@@ -31,5 +31,5 @@
   "insights.js": "1fcf2cee47e66084fff6d5b4c062415d78beadc2b1e3dae131b259146e183a73",
   "style2.css": "bef69ee6a9ca89db3881125987037632e88577c72b82afc8e027a79a66ca141d"
  },
- "tag": "gabarito-v11"
+ "tag": "gabarito-v12"
 }

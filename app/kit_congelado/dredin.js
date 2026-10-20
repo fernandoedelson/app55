@@ -240,6 +240,7 @@
 .dd{border-collapse:collapse;table-layout:fixed;font-family:Arial,Helvetica,sans-serif;color:#000}
 .dd td{position:relative;padding:0 3px;overflow:hidden;white-space:nowrap;box-sizing:border-box;vertical-align:middle}
 .dd td.dd-q{white-space:normal;line-height:1.1}
+.dd td.dd-h{position:sticky;z-index:3}
 .dd td.dd-r{text-align:right}
 .dd tr.dd-rec{display:none}
 .dd .dd-tg{position:absolute;left:5px;top:50%;margin-top:-7px;width:13px;height:13px;border:1px solid #666;background:#fff;color:#222;font:700 11px/11px Arial;text-align:center;cursor:pointer;user-select:none;box-sizing:border-box}
@@ -257,8 +258,10 @@ body.dd-imprimindo *{visibility:hidden}body.dd-imprimindo .dd-imp,body.dd-imprim
   }
 
   const DENSIDADE = { gray125: .125, gray0625: .0625, lightGray: .25, mediumGray: .5, darkGray: .75, lightGrid: .2, lightTrellis: .25, lightUp: .2, lightDown: .2 };
-  function cssDoEstilo(e) {
+  /* fixo = célula de cabeçalho congelado: fundo opaco e bordas por sombra interna (a borda da tabela não acompanha célula sticky) */
+  function cssDoEstilo(e, fixo) {
     const css = [];
+    if (fixo) css.push('background-color:#fff');
     css.push('font-family:' + (e.fn ? "'" + e.fn + "'," : '') + 'Arial,Helvetica,sans-serif');
     css.push('font-size:' + (((e.sz || 10) * 4) / 3).toFixed(2) + 'px');
     if (e.b) css.push('font-weight:700'); if (e.i) css.push('font-style:italic'); if (e.u) css.push('text-decoration:underline');
@@ -274,7 +277,11 @@ body.dd-imprimindo *{visibility:hidden}body.dd-imprimindo .dd-imp,body.dd-imprim
     const larg = { thin: 1, hair: 1, dotted: 1, dashed: 1, medium: 2, thick: 3, double: 3 };
     const tipo = { dotted: 'dotted', hair: 'dotted', dashed: 'dashed', double: 'double' };
     const lado = { t: 'top', b: 'bottom', l: 'left', r: 'right' };
-    Object.keys(e.bd || {}).forEach(k => { const [est, cor] = e.bd[k]; css.push('border-' + lado[k] + ':' + (larg[est] || 1) + 'px ' + (tipo[est] || 'solid') + ' #' + cor); });
+    if (fixo) {
+      const sombras = Object.keys(e.bd || {}).map(k => { const [est, cor] = e.bd[k]; const w = larg[est] || 1;
+        return 'inset ' + (k === 'l' ? w : k === 'r' ? -w : 0) + 'px ' + (k === 't' ? w : k === 'b' ? -w : 0) + 'px 0 0 #' + cor; });
+      if (sombras.length) css.push('box-shadow:' + sombras.join(','));
+    } else Object.keys(e.bd || {}).forEach(k => { const [est, cor] = e.bd[k]; css.push('border-' + lado[k] + ':' + (larg[est] || 1) + 'px ' + (tipo[est] || 'solid') + ' #' + cor); });
     if (e.h === 'center' || e.h === 'centerContinuous') css.push('text-align:center');
     else if (e.h === 'right') css.push('text-align:right');
     else if (e.h === 'left') css.push('text-align:left');
@@ -324,14 +331,14 @@ body.dd-imprimindo *{visibility:hidden}body.dd-imprimindo .dd-imp,body.dd-imprim
     const pai = {}; let ultimaVisivel = null;
     linhas.forEach(l => { if (l.o) pai[l.r] = ultimaVisivel; else ultimaVisivel = l.r; });
     const temFilhos = new Set(Object.values(pai));
-    let alturaTotal = 0;
+    let alturaTotal = 0, topoAcum = 0;
     linhas.forEach(l => {
       if (l.r < 4) return;                               // linhas 1–3: seletores da planilha (não aparecem na imagem)
       const aberto = !l.o || abertos.has(pai[l.r]);
       const altura = Math.round((l.h || 15) * 4 / 3);
       if (aberto) alturaTotal += altura;
       h += '<tr' + (aberto ? '' : ' class="dd-rec"') + ' data-r="' + l.r + '" style="height:' + altura + 'px">';
-      const pulo = {};
+      const pulo = {}, topoLinha = topoAcum;
       colunas.forEach((c, ci) => {
         if (pulo[ci]) return;
         const cel = l.cel[c.k] || {};
@@ -370,8 +377,10 @@ body.dd-imprimindo *{visibility:hidden}body.dd-imprimindo .dd-imp,body.dd-imprim
         }
         const estilo = visao === 'evol' && !ehCab && c.k === 'E' ? est[(l.cel.E || {}).s || 0] : e;
         if ((estilo || e).wrap) cls = cls ? cls.replace('dd-r', 'dd-r dd-q') : ' class="dd-q"';
-        h += '<td' + cls + (span > 1 ? ' colspan="' + span + '"' : '') + ' style="' + cssDoEstilo(estilo || e) + '">' + conteudo + '</td>';
+        let cl = cls; if (ehCab) cl = cl ? cl.replace('class="', 'class="dd-h ') : ' class="dd-h"';
+        h += '<td' + cl + (span > 1 ? ' colspan="' + span + '"' : '') + ' style="' + cssDoEstilo(estilo || e, ehCab) + (ehCab ? ';top:' + topoLinha + 'px' : '') + '">' + conteudo + '</td>';
       });
+      if (l.r <= 9) topoAcum += altura;
       h += '</tr>';
     });
     h += '</tbody></table>';
@@ -402,7 +411,7 @@ body.dd-imprimindo *{visibility:hidden}body.dd-imprimindo .dd-imp,body.dd-imprim
     function barra() {
       bar.innerHTML = '<label>Unidade<select data-f="unidade">' + opcoes(cfg.unidades, estado.unidade) + '</select></label>'
         + '<label>Ano<select data-f="ano">' + opcoes(cfg.anos, estado.ano) + '</select></label>'
-        + '<label>Mês<select data-f="mes">' + opcoes(rng(1, 12), estado.mes, m => MESES[m - 1]) + '</select></label>'
+        + (estado.visao === 'evol' ? '' : '<label>Mês<select data-f="mes">' + opcoes(rng(1, 12), estado.mes, m => MESES[m - 1]) + '</select></label>')
         + (fixa ? '' : '<div class="dd-seg"><button type="button" data-v="mes" class="' + (estado.visao === 'mes' ? 'on' : '') + '">Mês e acumulado</button>'
         + '<button type="button" data-v="evol" class="' + (estado.visao === 'evol' ? 'on' : '') + '">Evolutivo</button></div>')
         + '<span class="dd-esp"></span><button type="button" class="dd-btn" data-a="todos">Expandir tudo</button>'
@@ -413,10 +422,13 @@ body.dd-imprimindo *{visibility:hidden}body.dd-imprimindo .dd-imp,body.dd-imprim
       const disp = stage.clientWidth || info.largura;
       const escala = tela ? Math.max(.3, (wrap.clientWidth - 28) / info.largura) : Math.min(1, disp / info.largura);
       folha.style.width = info.largura + 'px';
-      folha.style.transform = 'scale(' + escala.toFixed(4) + ')';
-      folha.style.height = info.altura + 'px';
-      stage.style.height = Math.ceil(info.altura * escala + 2) + 'px';
+      if ('zoom' in document.body.style) { folha.style.zoom = escala.toFixed(4); folha.style.transform = ''; folha.style.height = ''; }
+      else { folha.style.transform = 'scale(' + escala.toFixed(4) + ')'; folha.style.height = info.altura + 'px'; }
+      const cheia = Math.ceil(info.altura * escala + 2);
+      const livre = tela ? Math.max(200, wrap.clientHeight - bar.offsetHeight - 70) : Math.max(380, window.innerHeight - 150);
+      stage.style.height = Math.min(cheia, livre) + 'px';
       stage.style.overflowX = escala < 1 ? 'hidden' : 'auto';
+      stage.style.overflowY = cheia > livre ? 'auto' : 'hidden';
     }
     async function desenhar() {
       barra();
@@ -446,7 +458,9 @@ body.dd-imprimindo *{visibility:hidden}body.dd-imprimindo .dd-imp,body.dd-imprim
       const est = document.createElement('style'); est.textContent = '@page{size:A4 landscape;margin:8mm}'; document.head.appendChild(est);
       document.body.classList.add('dd-imprimindo'); wrap.classList.add('dd-imp');
       const esc = Math.min(1, 1030 / info.largura);
-      folha.style.transform = 'scale(' + esc.toFixed(4) + ')'; stage.style.height = Math.ceil(info.altura * esc + 2) + 'px'; stage.style.overflow = 'visible';
+      if ('zoom' in document.body.style) { folha.style.zoom = esc.toFixed(4); folha.style.transform = ''; folha.style.height = ''; }
+      else { folha.style.transform = 'scale(' + esc.toFixed(4) + ')'; folha.style.height = info.altura + 'px'; }
+      stage.style.height = 'auto'; stage.style.overflow = 'visible';
       const volta = () => { window.removeEventListener('afterprint', volta); document.body.classList.remove('dd-imprimindo'); wrap.classList.remove('dd-imp'); est.remove(); ajustar(info); };
       window.addEventListener('afterprint', volta);
       setTimeout(() => window.print(), 60);

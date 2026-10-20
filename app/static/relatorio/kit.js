@@ -1,5 +1,5 @@
 /* ===== +55 · desenho do relatório =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v11.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v12.
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
