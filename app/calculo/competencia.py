@@ -102,7 +102,12 @@ class Competencia:
 
     @cached_property
     def maxym_custos(self):
-        return max(self._custos_yms) if self._custos_yms else None
+        """Último mês coberto por TODAS as bases de custo (CPV, CPP, matéria-prima, razão, absorção e horas):
+        se uma base atrasar, o teto recua para o último mês que todas têm (como no Kit)."""
+        cu = self.blob('CUSTOS')
+        tetos = [max(r[0] for r in cu[k]) for k in ('cpv', 'cpp', 'materiais', 'cta', 'cc', 'horas')
+                 if cu and cu.get(k)] if cu else []
+        return min(tetos) if tetos else None
 
     @cached_property
     def ano_c(self):

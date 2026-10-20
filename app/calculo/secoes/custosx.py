@@ -2,6 +2,10 @@
 """Custos — Visão executiva (CPV) — porte de renderCustosX(), renderCxGrpTable(), cxgGroupDrivers()
 e renderCxgDrivers() (app.js).
 
+O texto das leituras (os "pontos que importam", a leitura de cada quadro e o resumo dos drivers) é o motor de
+leitura do Kit (static/relatorio/leituras.js, extraído do app.js). Ele trabalha sobre os mesmos agregados do
+Kit — períodos A e B, produtos, materiais, centros de custo — e por isso o servidor os manda no formato do Kit.
+
 Parâmetros: de/ate (período da leitura executiva) e cxa/cxb (os dois meses do comparativo A × B,
 que têm filtro próprio no Kit). Os materiais de uma categoria e os produtos de um grupo de driver
 saem por detalhamento."""
@@ -87,65 +91,23 @@ def _drivers(agg_a, agg_b):
     return sorted((grp[k] for k in ordem_chaves_js(grp)), key=lambda g: -abs(g['total']))
 
 
-def _pontos(a, prev, t):
-    """Os números dos sete 'pontos que importam' (o texto é montado no desenho)."""
-    comp_a = next((g for g in a['grupos'] if g[0] == 'COMPONENTES'), None)
-    tX = {'qtd': t['qtd'] - (comp_a[1] if comp_a else 0), 'mat': t['mat'] - (comp_a[2] if comp_a else 0),
-          'mod': t['mod'] - (comp_a[3] if comp_a else 0), 'ggf': t['ggf'] - (comp_a[4] if comp_a else 0),
-          'custo': t['custo'] - (comp_a[5] if comp_a else 0)}
-    grupos_x = [g for g in a['grupos'] if g[0] != 'COMPONENTES']
-    comp_p = next((g for g in prev['grupos'] if g[0] == 'COMPONENTES'), None) if prev else None
-    prev_tx = ({'qtd': prev['total']['qtd'] - (comp_p[1] if comp_p else 0),
-                'custo': prev['total']['custo'] - (comp_p[5] if comp_p else 0)} if prev else None)
-    un_x = tX['custo'] / tX['qtd'] if tX['qtd'] else 0
-    p_un_x = prev_tx['custo'] / prev_tx['qtd'] if prev and prev_tx['qtd'] else 0
-    comp_max = sorted([['Matéria-prima', tX['mat']], ['Mão de obra', tX['mod']], ['GGF', tX['ggf']]], key=lambda x: -x[1])[0]
-    cat_prev = {c: v for c, v in (prev['materiais'] if prev else [])}
-    cat_move = None
-    if prev:
-        movs = sorted(([c, v, cat_prev.get(c, 0), v - cat_prev.get(c, 0)] for c, v in a['materiais']
-                       if cat_prev.get(c, 0) > 0), key=lambda x: -x[3])
-        cat_move = movs[0] if movs else None
-    cat_top = a['materiais'][0] if a['materiais'] else None
-    grp_prev = {g[0]: {'q': g[1], 'c': g[5]} for g in (prev['grupos'] if prev else [])}
-    grp_top = grupos_x[0] if grupos_x else None
-    grp_press = None
-    if prev:
-        cand = []
-        for g in grupos_x:
-            if not (g[5] > tX['custo'] * 0.05 and g[1]):
-                continue
-            ua = g[5] / g[1]
-            gp = grp_prev.get(g[0])
-            ub = gp['c'] / gp['q'] if gp and gp['q'] else 0
-            if ub:
-                cand.append([g[0], ua, ub, ua / ub - 1])
-        cand.sort(key=lambda x: -x[3])
-        grp_press = cand[0] if cand else None
-    ret_map = {}
-    for x in a['retrabalho']['porItem']:
-        ret_map[x[1]] = ret_map.get(x[1], 0) + x[2]
-    ret_top = sorted(([k, ret_map[k]] for k in ordem_chaves_js(ret_map)), key=lambda x: -x[1])
-    cc_caro = sorted((x for x in a['cc'] if x[7] > 0), key=lambda x: -x[7])
-    qa = prev_tx['qtd'] if prev else 0
-    qb = tX['qtd']
-    ua_avg = prev_tx['custo'] / qa if qa else 0
-    vol_eff = (qb - qa) * ua_avg if prev else 0
-    mix_eff = cost_eff = 0
-    top_mix = top_cost = None
-    if prev:
-        unit_a = {g[0]: (g[5] / g[1] if g[1] else 0) for g in prev['grupos']}
-        efeitos = [[g[0], g[1] * (unit_a.get(g[0], 0) - ua_avg), g[1] * ((g[5] / g[1] if g[1] else 0) - unit_a.get(g[0], 0))]
-                   for g in grupos_x]
-        mix_eff = soma(e[1] for e in efeitos)
-        cost_eff = soma(e[2] for e in efeitos)
-        top_mix = sorted(efeitos, key=lambda e: -abs(e[1]))[0] if efeitos else None
-        top_cost = sorted(efeitos, key=lambda e: -abs(e[2]))[0] if efeitos else None
-    return {'tX': tX, 'un_x': un_x, 'p_un_x': p_un_x, 'comp_max': comp_max, 'cat_move': cat_move, 'cat_top': cat_top,
-            'grp_press': grp_press, 'grp_top': grp_top, 'ret_top': ret_top[0] if ret_top else None,
-            'cc_caro': cc_caro[0] if cc_caro else None, 'prev_tx': prev_tx, 'qa': qa, 'qb': qb,
-            'vol_eff': vol_eff, 'mix_eff': mix_eff, 'cost_eff': cost_eff, 'top_mix': top_mix, 'top_cost': top_cost,
-            'mat_total': t['mat']}
+def _slim(a):
+    """O agregado do Kit (custosAgg) só com o que o motor de leitura consome."""
+    return {'ymMin': a['ymMin'], 'ymMax': a['ymMax'], 'total': a['total'], 'grupos': a['grupos'],
+            'produtos': [{'prod': p['prod'], 'grp': p['grp'], 'qtd': p['qtd'], 'custo': p['custo']}
+                         for p in a['produtos']],
+            'materiais': a['materiais'], 'materiaisTop': a['materiaisTop'], 'cc': a['cc'], 'ccTotal': a['ccTotal'],
+            'retrabalho': a['retrabalho'], 'assistencia': a['assistencia']}
+
+
+def _janela(CU, ym_min, ym_max):
+    """As linhas da base bruta que o motor lê direto (window.CUSTOS no Kit), só das janelas pedidas:
+    materiais por item (ponte consumo × preço), unidades produzidas (CPP) e o grupo MATERIAIS do CPV
+    (conciliação com o arquivo CPV_Acumulado)."""
+    dentro = lambda ym: ym_min <= ym <= ym_max
+    return {'materiais_item': [r for r in CU['materiais_item'] if dentro(r[0])],
+            'cpp': [[r[0], r[1], r[2]] for r in CU['cpp'] if dentro(r[0])],
+            'cpv': [r for r in CU['cpv'] if dentro(r[0]) and r[1] == 'MATERIAIS']}
 
 
 def calcular(C, params=None):
@@ -181,7 +143,8 @@ def calcular(C, params=None):
                           'un': prev['total']['custo'] / prev['total']['qtd'] if prev['total']['qtd'] else 0,
                           'evit': prev['retrabalho']['total'] + prev['assistencia']['total'],
                           'taxa': prev['ccTotal']['taxaRaw']} if prev else None)},
-        'pontos': _pontos(a, prev, t),
+        'agg': {'a': _slim(a), 'prev': _slim(prev) if prev else None},
+        'janela': _janela(CU, (prev or a)['ymMin'], a['ymMax']),
         'retrabalho_total': a['retrabalho']['total'], 'assistencia_total': a['assistencia']['total'],
     })
     # comparativo A × B (filtro próprio)
@@ -190,23 +153,26 @@ def calcular(C, params=None):
     agg_b = custos_agg(CU, cxb, cxb, EXCL)
     grupos = lambda g: [[x[0], x[1], x[2], x[3], x[4], x[5]] for x in g['grupos']]
     out['cx-grp'] = {'cxa': cxa, 'cxb': cxb, 'minym': C.minym_custos, 'maxym': C.maxym_custos,
-                     'a': grupos(agg_a), 'b': grupos(agg_b)}
+                     'a': grupos(agg_a), 'b': grupos(agg_b), 'ta': agg_a['total'], 'tb': agg_b['total']}
     out['cx-ranking'] = {'produtos': [[p['prod'], p['grp'], p['qtd'], p['mat'], p['mod'], p['ggf'], p['custo']]
                                       for p in agg_b['produtos']]}
     if len(a['meses']) > 1:
         out['cx-mensal'] = {'meses': a['meses']}
         out['cx-unidade'] = {'meses': a['meses']}
         out['cx-volume'] = {'meses': a['meses']}
-    out['cx-grupos'] = {'top': [[g[0], g[5], g[1]] for g in a['grupos'][:8]], 'total': t['custo']}
+    out['cx-grupos'] = {'top': [[g[0], g[5], g[1]] for g in a['grupos'][:8]], 'total': t['custo'],
+                        'grupos': a['grupos']}
     out['cx-drivers'] = {'cxa': cxa, 'cxb': cxb,
                          'grupos': [[g['grp'], g['custoA'], g['custoB'], g['mix'], g['vol'], g['cst'], g['total']]
                                     for g in _drivers(agg_a, agg_b)]}
     out['cx-materia'] = {'materiais': a['materiais'], 'mat': t['mat'], 'a': cx_min, 'b': cx_max,
-                         'prev': ({c: v for c, v in prev['materiais']} if prev else None)}
+                         'prev': ({c: v for c, v in prev['materiais']} if prev else None),
+                         'prev_list': prev['materiais'] if prev else None}
     out['cx-operacionais'] = {'mod': t['mod'], 'ggf': t['ggf']}
     out['cx-absorcao-cc'] = {'cc': a['cc'], 'mod': soma(x[1] for x in a['cc']), 'ggf': soma(x[2] for x in a['cc']),
                              'custo': a['ccTotal']['custo'], 'custo_raw': a['ccTotal']['custoRaw'],
-                             'horas': a['ccTotal']['horas'], 'taxa_raw': a['ccTotal']['taxaRaw']}
+                             'horas': a['ccTotal']['horas'], 'taxa_raw': a['ccTotal']['taxaRaw'],
+                             'prev_cc': prev['cc'] if prev else None}
     itens = sorted(moggf_por_tipo_de_conta(a, t['mod'], t['ggf']), key=lambda x: -x[2])
     tot_mo = soma(x[2] for x in itens if x[1] == 'Mão de Obra')
     tot_ggf = soma(x[2] for x in itens if x[1] == 'GGF')
@@ -216,7 +182,7 @@ def calcular(C, params=None):
     ytd_min, ytd_max = cx_max // 100 * 100 + 1, cx_max
     ytd = custos_agg(CU, ytd_min, ytd_max, EXCL) if not (ytd_min == cx_min and ytd_max == cx_max) else None
     out['cx-retrabalho'] = {'total': a['retrabalho']['total'], 'pct': a['retrabalho']['total'] / base_raw if base_raw else 0,
-                            'mensal': a['retrabalho']['mensal'], 'por_item': a['retrabalho']['porItem'][:25],
+                            'mensal': a['retrabalho']['mensal'], 'por_item': a['retrabalho']['porItem'],
                             'top': a['retrabalho']['porItem'][0] if a['retrabalho']['porItem'] else None,
                             'ano': cx_max // 100, 'ytd': ytd['retrabalho']['total'] if ytd else None,
                             'a': cx_min, 'b': cx_max}
@@ -258,18 +224,6 @@ def produtos_do_driver(C, params):
         if p['grp'] != grp:
             continue
         merged.append(dict(p, **_impacto(p['qtyA'], p['custoA'], p['qtyB'], p['custoB'])))
-    merged.sort(key=lambda p: -abs(p['total']))
-    # cxgPickTop: sempre os 3 maiores, até 5 enquanto o próximo valer ao menos 15% do maior
-    n = min(5, len(merged))
-    corte = n if n <= 3 else 3
-    if n > 3:
-        top_abs = abs(merged[0]['total']) or 1
-        for i in range(3, n):
-            if abs(merged[i]['total']) >= 0.15 * top_abs:
-                corte = i + 1
-            else:
-                break
     grupo = next((g for g in _drivers(agg_a, agg_b) if g['grp'] == grp), None)
     return {'grp': grp, 'cxa': cxa, 'cxb': cxb, 'n': len(merged), 'grupo': grupo,
-            'linhas': [[p['prod'], p['qtyA'], p['qtyB'], p['custoA'], p['custoB'], p['mix'], p['vol'], p['cst'], p['total']]
-                       for p in merged[:corte]]}
+            'produtos': [[p['prod'], p['qtyA'], p['custoA'], p['qtyB'], p['custoB']] for p in merged]}

@@ -42,6 +42,19 @@ INSIGHTS_NOMES = ['FAM', 'strip', 'mount', 'abre', 'acende', 'digest', 'casaRotu
                   'plural', 'artPl', 'un']
 
 
+# Motor de leitura dos Custos (Executivo e Operacional): cada leitura é uma função PURA dos números já agregados
+# (a, prev, os dois períodos A × B) — o texto é o mesmo código que escreveu o gabarito. Os números vêm do servidor
+# (app/calculo/secoes/custosx.py e custos.py), no mesmo formato do Kit, e o desenho só chama estas funções.
+LEITURAS = [
+    'cxSg', 'cxCol', 'cxAbsPct', 'cxUn', 'cxMod', 'cxNomes', 'cxCn',
+    'cxUnitBridge', 'cxSkuStats', 'cxPvm', 'cxMatBridge', 'cxVolProd', 'cxCausaUnit', 'cxLeitGrupo', 'cxLeitGrupoSolo',
+    'cxPontos', 'cxConc', 'cxLeituraGrupos', 'cxLeituraConcentracao', 'cxLeituraMP', 'cxLeituraCentros',
+    'cxLeituraContas', 'cxPico', 'cxLeituraRetrabalho', 'cxLeituraAssistencia', 'cxgResumoDrivers',
+    'cxgDesvio', 'cxgExecutiveInsight', 'cxgGroupDriversOf', 'cxgImpact', 'cxgMergeProdutos', 'cxgPickTop',
+    'cxCV', 'cxOls', 'opLeituraRapida', 'opLeituraDesmembrado', 'opLeituraVolume', 'opLeituraApoio',
+    'opLeituraComparativo',
+]
+
 # nunca copiar: cálculo (vai para o Python), datas derivadas dos dados, montagem das seções e estado
 EXCLUIR = re.compile(r'^(render|draw|init|build|wire|apply|carregar|aplicar|montar|toggle|inject|renumerar)'
                      r'|^(aggregate|concentracao|tabelaClientes|clienteItens|dreAgg|dreMonthly|dreYears|custosAgg|'
@@ -129,6 +142,40 @@ def destaques(ja_no_kit):
     print('destaques.js: %d declarações, %d linhas' % (len(incluidos), corpo.count('\n') + 1))
 
 
+def leituras(ja_no_kit):
+    """leituras.js: o motor de leitura dos Custos, extraído como está. Só entra o que o kit.js ainda não tem."""
+    js = subprocess.run(['git', '-C', KIT, 'show', TAG + ':app.js'], capture_output=True, text=True,
+                        encoding='utf-8').stdout
+    linhas, decl = declaracoes(js)
+    faltam = [n for n in LEITURAS if n not in decl]
+    if faltam:
+        raise SystemExit('não achei no app.js: %s' % faltam)
+    incluidos, acrescidos = list(LEITURAS), []
+    while True:
+        texto = '\n'.join('\n'.join(linhas[a:b]) for a, b in {decl[n] for n in incluidos})
+        novos = sorted({t for t in re.findall(r'\b[A-Za-z_$][\w$]*\b', texto)
+                        if t in decl and t not in incluidos and t not in ja_no_kit and not EXCLUIR.match(t)})
+        if not novos:
+            break
+        incluidos += novos
+        acrescidos += novos
+    if acrescidos:
+        print('leituras.js — dependências acrescentadas: %s' % ', '.join(acrescidos))
+    corpo = '\n\n'.join('\n'.join(linhas[a:b]).rstrip() for a, b in sorted({decl[n] for n in incluidos}))
+    cab = ('/* ===== +55 · motor de leitura dos Custos =====\n'
+           '   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag %s.\n'
+           '   Não editar à mão: é o mesmo código que escreveu o texto das leituras no gabarito. Os números\n'
+           '   (períodos A e B, produtos, materiais, centros de custo...) chegam do servidor no formato do Kit.\n'
+           '   ====================================================================== */\n'
+           "'use strict';\n"
+           '/* o período A × B dos Drivers: quem monta a tela grava estes quatro antes de chamar as leituras */\n'
+           "let cxgAggA=null,cxgAggB=null,cxgLabA='',cxgLabB='';\n"
+           '/* o Kit lê a base de custos inteira; aqui só chegam as linhas das janelas pedidas (materiais_item, cpp, cpv) */\n'
+           'window.CUSTOS=window.CUSTOS||{materiais_item:[],cpp:[],cpv:[]};\n\n') % TAG
+    open(os.path.join(DESTINO, 'leituras.js'), 'w', encoding='utf-8').write(cab + corpo + '\n')
+    print('leituras.js: %d declarações, %d linhas' % (len(incluidos), corpo.count('\n') + 1))
+
+
 def main():
     js = subprocess.run(['git', '-C', KIT, 'show', TAG + ':app.js'], capture_output=True, text=True,
                         encoding='utf-8').stdout
@@ -172,6 +219,7 @@ def main():
     open(os.path.join(DESTINO, 'style2.css'), 'w', encoding='utf-8').write(css)
     print('kit.js: %d declarações, %d linhas | style2.css copiado' % (len(NOMES), corpo.count('\n') + 1))
     destaques(incluidos)
+    leituras(set(incluidos))
 
 
 if __name__ == '__main__':

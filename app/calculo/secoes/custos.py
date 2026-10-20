@@ -181,7 +181,9 @@ def calcular(C, params=None):
     if cb:
         b = reconciliar(custos_agg(CU, cb[0], cb[1], None, SRC))
         tb = b['total']
-        out['cu-comparativo'] = {'a': [cu_min, cu_max], 'b': list(cb),
+        slim = lambda ag: [{'prod': p['prod'], 'grp': p['grp'], 'qtd': p['qtd'], 'custo': p['custo']}
+                           for p in ag['produtos']]
+        out['cu-comparativo'] = {'a': [cu_min, cu_max], 'b': list(cb), 'prod_a': slim(a), 'prod_b': slim(b),
                                  'linhas': [[t['custo'], tb['custo']], [t['qtd'], tb['qtd']],
                                             [t['custo'] / t['qtd'] if t['qtd'] else 0,
                                              tb['custo'] / tb['qtd'] if tb['qtd'] else 0],
@@ -204,8 +206,10 @@ def calcular(C, params=None):
     out['cu-painel'] = {'a': cu_min, 'b': cu_max, 'custo': t['custo'], 'qtd': t['qtd'], 'mat': t['mat'],
                         'mod': t['mod'], 'ggf': t['ggf'], 'ret': a['retrabalho']['total'], 'ret_pct': ret_pct,
                         'ass': a['assistencia']['total'], 'ass_pct': ass_pct, 'horas': a['ccTotal']['horas'],
-                        'taxa': a['ccTotal']['taxa'], 'cc_caro': cc_caro[0] if cc_caro else None}
-    out['cu-desmembrado'] = {'meses': a['meses'], 'mat': t['mat'], 'mod': t['mod'], 'ggf': t['ggf'], 'custo': t['custo']}
+                        'taxa': a['ccTotal']['taxa'], 'cc_caro': cc_caro[0] if cc_caro else None,
+                        'n_meses': len(a['mesesYm'])}
+    out['cu-desmembrado'] = {'meses': a['meses'], 'mat': t['mat'], 'mod': t['mod'], 'ggf': t['ggf'], 'custo': t['custo'],
+                             'qtd': t['qtd']}
     out['cu-composicao'] = {'materiais': a['materiais']}
     out['cu-grupos'] = {'grupos': [[g[0], g[1], g[2], g[3], g[4], g[5]] for g in a['grupos']],
                         'meses': a['mesesYm'],
@@ -220,6 +224,8 @@ def calcular(C, params=None):
     vol = {'grupos': grp_ord, 'meses': a['mesesYm'],
            'mat': [[(a['volGrpMes'].get(g) or {}).get(ym, 0) for ym in a['mesesYm']] for g in grp_ord]}
     vol['total'] = [soma(linha[i] for linha in vol['mat']) for i in range(len(a['mesesYm']))]
+    # unidades do grupo MATERIAIS (fica fora do quadro): a leitura do volume avisa que o total é menor que o do painel
+    vol['materiais_qtd'] = next((g[1] for g in a['grupos'] if g[0] == 'MATERIAIS'), 0)
     out['cu-volume'] = vol
     op = a['operacionais']
     out['cu-operacionais'] = {'produtivo': op['PRODUTIVO']['total'], 'apoio': op['AUXILIAR/APOIO']['total']}
@@ -243,7 +249,7 @@ def calcular(C, params=None):
     ytd_min, ytd_max = cu_max_real // 100 * 100 + 1, cu_max_real
     ytd = custos_agg(CU, ytd_min, ytd_max, None, SRC) if not (ytd_min == cu_min and ytd_max == cu_max) else None
     out['cu-retrabalho'] = {'a': cu_min, 'b': cu_max, 'total': a['retrabalho']['total'], 'pct': ret_pct,
-                            'mensal': a['retrabalho']['mensal'], 'por_item': a['retrabalho']['porItem'][:25],
+                            'mensal': a['retrabalho']['mensal'], 'por_item': a['retrabalho']['porItem'],
                             'top': a['retrabalho']['porItem'][0] if a['retrabalho']['porItem'] else None,
                             'ano': cu_max_real // 100, 'ytd': ytd['retrabalho']['total'] if ytd else None}
     ret_cc = {}

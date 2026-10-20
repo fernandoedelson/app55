@@ -24,6 +24,7 @@
 <script src="{{ url_for('static', filename='relatorio/kit.js') }}"></script>
 <script src="{{ url_for('static', filename='relatorio/destaques.js') }}"></script>
 <script src="{{ url_for('static', filename='relatorio/destaques_texto.js') }}"></script>
+{% if secao.id in ('custos', 'custosx') %}<script src="{{ url_for('static', filename='relatorio/leituras.js') }}"></script>{% endif %}
 <script src="{{ url_for('static', filename='relatorio/secoes/' + secao.id + '.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded',function(){

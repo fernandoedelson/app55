@@ -61,8 +61,7 @@ function _cuPCCorpo(E){
   let s=`<p class="cap" style="margin:2px 0 10px">${esc(E.desc||E.cod)}${E.id?' · ID '+esc(E.id):''}</p>`;
   if(!E.tem){ s+=call('Sem consumo de matéria-prima direta (TP=C) registrado para este produto no período/ID selecionado.','warn'); return s; }
   const cores=[SER[3],SER[0],SER[6],SER[2]];
-  s+=fig(line(E.ordem.map((ano,i)=>['Custo de '+ano,E.anos[String(ano)],cores[i%cores.length]]),MES,{valfmt:v=>money(v,2),w:980,h:320,legend:true}),
-    ins('comparaAnos','compara-anos-pc'));
+  s+=fig(line(E.ordem.map((ano,i)=>['Custo de '+ano,E.anos[String(ano)],cores[i%cores.length]]),MES,{valfmt:v=>money(v,2),w:980,h:320,legend:true}));
   const linhas=[];
   E.ordem.forEach(ano=>{
     const vals=E.anos[String(ano)];
@@ -103,14 +102,16 @@ function _cuCorpo(P){
       +table(['Grupo',la,lb,'Var.'],GC.linhas.map(x=>[esc(x[0]),money(x[1]),x[2]?money(x[2]):'—',x[2]?dv(x[1],x[2]):'—']),
         ['left','right','right','right'])+'</div>';
     s+='</div>';
+    s+=opLeituraComparativo({total:{custo:L[0][0]},produtos:CP.prod_a},{total:{custo:L[0][1]},produtos:CP.prod_b},la,lb);
     s+=call('Nas linhas de custo, <b>verde = caiu</b> (bom) e <b>vermelho = subiu</b>. Volume usa a convenção inversa. Use "Limpar comparação" no filtro para fechar este bloco.','note');
   }
   const K=P['cu-painel'];
   if(K){
     s+=H3('Painel de indicadores — visão executiva','','cu-painel');
     const kpiCount=9+(K.cc_caro?1:0), kpiRem=kpiCount%4, kpiSpan=kpiRem?4-kpiRem:0;
-    const leituraTxt='Leitura rápida: cada R$1 de retrabalho e assistência técnica é custo evitável — some '+mi(K.ret+K.ass)+' ('+pct(K.ret_pct+K.ass_pct,1)+' do custo de produção interno) que não agrega valor ao produto. GGF responde por '+pct(K.custo?K.ggf/K.custo:0,0)+' do CPP — a maior alavanca de eficiência é a absorção de custo fixo fabril por unidade produzida.';
-    const leituraHtml=call(leituraTxt,(K.ret_pct+K.ass_pct)>0.04?'warn':'note');
+    const lr=opLeituraRapida({total:{custo:K.custo,qtd:K.qtd,mat:K.mat,mod:K.mod,ggf:K.ggf},retrabalho:{total:K.ret},
+      assistencia:{total:K.ass},mesesYm:new Array(K.n_meses)},K.ret_pct,K.ass_pct);
+    const leituraHtml=call(lr.txt,lr.kind);
     s+='<div class="kpis">'
      +kpi('CPP Total',mi(K.custo),_cuPeriodo(A,K.a,K.b))
      +kpi('Volume Produzido',nf(Math.round(K.qtd))+' un.','base do CPP (ordens de produção)')
@@ -135,25 +136,27 @@ function _cuCorpo(P){
         {name:'Matéria-prima (MAT)',values:D.meses.map(m=>m[1]),color:SER[0]},
         {name:'Mão de obra (M.O)',values:D.meses.map(m=>m[2]),color:SER[2]},
         {name:'GGF',values:D.meses.map(m=>m[3]),color:SER[1]},
-      ],{valfmt:v=>mi(v,1),w:w,subLabels:D.meses.map(m=>nf(m[5])+' un.'),subTitle:'Vol. produção'}),ins('cpvAbsorcao','cpv-absorcao'));
+      ],{valfmt:v=>mi(v,1),w:w,subLabels:D.meses.map(m=>nf(m[5])+' un.'),subTitle:'Vol. produção'}));
     }
     s+=table(['Componente','Valor total','% do CPP'],[
       ['Matéria-prima (MAT)',money(D.mat),pct(D.custo?D.mat/D.custo:0)],
       ['Mão de obra (M.O)',money(D.mod),pct(D.custo?D.mod/D.custo:0)],
       ['Gastos Gerais de Fabricação (GGF)',money(D.ggf),pct(D.custo?D.ggf/D.custo:0)],
-    ],['left','right','right'],['CPP total',money(D.custo),'100,0%'],ins('auto','auto-cpp-componentes'));
+    ],['left','right','right'],['CPP total',money(D.custo),'100,0%']);
+    s+=opLeituraDesmembrado({total:{custo:D.custo,qtd:D.qtd},meses:D.meses});
   }
   const CO=P['cu-composicao'];
   if(CO){
     s+=H3('Composição do Custo de Produção - CPP','matéria-prima direta · clique numa fatia ou na legenda para abrir o detalhe da categoria','cu-composicao');
-    s+=fig(pie3D(CO.materiais,{valfmt:v=>mi(v,1),colorOf:nm=>CU_MAT_CORES[nm]||SER[0]}),ins('auto','auto-cpp-materiais'));
+    s+=fig(pie3D(CO.materiais,{valfmt:v=>mi(v,1),colorOf:nm=>CU_MAT_CORES[nm]||SER[0]}));
+    s+=cxLeituraMP({materiais:CO.materiais},null);
     s+=cap('Considera apenas matéria-prima direta (TP=C). Componentes fabricados internamente (TP=F) ficam de fora — o custo deles (MAT+M.O+GGF) já foi contabilizado na etapa de produção em que foram fabricados, e entrar aqui de novo seria contagem em duplicidade. <b>Clique numa fatia ou na legenda para abrir os principais materiais da categoria.</b>');
     s+='<div id="matdetail"></div>';
   }
   const G=P['cu-grupos'];
   if(G){
     s+=H3('CPP por grupo de produtos','volume e desmembramento · clique numa barra ou numa linha da tabela para abrir os produtos do grupo','cu-grupos');
-    s+='<div id="grpchart">'+fig(hbar(G.grupos.map(g=>[g[0],g[5]]),{valfmt:v=>mi(v,1),padLeft:220,w:820,maxbars:12}),ins('auto','auto-cpp-grupos'))+'</div>';
+    s+='<div id="grpchart">'+fig(hbar(G.grupos.map(g=>[g[0],g[5]]),{valfmt:v=>mi(v,1),padLeft:220,w:820,maxbars:12}))+'</div>';
     s+='<div id="grpdetail"></div>';
     const hasTrend=G.meses.length>1;
     s+='<div class="nzwide">'+table(['Grupo de produto','Qtde produzida','MAT','M.O','GGF','CPP total','CPP/unidade'].concat(hasTrend?['Tendência']:[]),
@@ -163,17 +166,15 @@ function _cuCorpo(P){
         return row;
       }),
       ['left','right','right','right','right','right','right'].concat(hasTrend?['right']:[]),
-      ['Total',nf(G.total[0]),money(G.total[1]),money(G.total[2]),money(G.total[3]),money(G.total[4]),money(G.total[0]?G.total[4]/G.total[0]:0)].concat(hasTrend?['']:[]),
-      ins('auto','auto-cpp-grupos-tab'))+'</div>';
+      ['Total',nf(G.total[0]),money(G.total[1]),money(G.total[2]),money(G.total[3]),money(G.total[4]),money(G.total[0]?G.total[4]/G.total[0]:0)].concat(hasTrend?['']:[]))+'</div>';
+    s+=cxLeituraConcentracao({grupos:G.grupos},'CPP','produzidas');
   }
   const R=P['cu-ranking'];
   if(R){
     s+='<div id="topprod-section" class="hidden-section">';
-    s+='<div class="sec-head-flex">'+H3('Ranking de produtos produzidos - CPP','curva 80/20 · até 20 produtos · use a busca para achar qualquer produto da base','cu-ranking')
-      +'<button id="topprod-close" type="button" class="dr-close">Fechar &#10005;</button></div>';
+    s+=H3('Ranking de produtos produzidos - CPP','curva 80/20 · até 20 produtos · use a busca para achar qualquer produto da base','cu-ranking');
     s+=`<div class="searchbar"><input id="prodsearch" type="search" placeholder="Buscar produto na base completa (${nf(R.produtos.length)} itens)…" autocomplete="off"></div>`;
     s+='<div id="topprod">'+_cuTopProd(R.produtos,'')+'</div>';
-    s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('auto','auto-cpp-produtos')):'')+'</div>';
     s+=cap('Ranking por CPP total no período selecionado, limitado aos 20 produtos de maior custo. "Demais produtos" agrupa o restante da base para fechar com o total geral — juntos, Top 20 + Demais produtos somam o mesmo total da tabela por grupo acima.');
     s+='</div>';
   }
@@ -183,12 +184,14 @@ function _cuCorpo(P){
     if(V.meses.length>1){
       const lbl=V.meses.map(custosMesLab);
       const hdata={}; V.grupos.forEach((g,i)=>{ hdata[g]={}; lbl.forEach((m,j)=>hdata[g][m]=V.mat[i][j]); });
-      s+=fig(heatmap(V.grupos,lbl,hdata,{valfmt:v=>v?nf(v,0):'',padLeft:190,w:900}),ins('mixCruzado','mix-cruzado-cpp-vol-mes'));
-      s+=fig(line([['Volume total',V.total,SER[0]]],lbl,{valfmt:v=>nf(v,0),w:960,h:260}),ins('serieOscilacao','serie-oscilacao-cpp-volume'));
+      s+=fig(heatmap(V.grupos,lbl,hdata,{valfmt:v=>v?nf(v,0):'',padLeft:190,w:900,colTrunc:false}));
+      s+=fig(line([['Volume total',V.total,SER[0]]],lbl,{valfmt:v=>nf(v,0),w:960,h:260}));
       s+='<div class="nzwide">'+table(['Grupo de produto'].concat(lbl,['Total']),
         V.grupos.map((g,i)=>[esc(g)].concat(V.mat[i].map(v=>nf(v)),[nf(V.mat[i].reduce((s2,v)=>s2+v,0))])),
         ['left'].concat(lbl.map(()=>'right'),['right']),
-        ['Total'].concat(V.total.map(v=>nf(v)),[nf(V.total.reduce((s2,v)=>s2+v,0))]),ins('auto','auto-cpp-vol-tab'))+'</div>';
+        ['Total'].concat(V.total.map(v=>nf(v)),[nf(V.total.reduce((s2,v)=>s2+v,0))]))+'</div>';
+      const volGrpMes={}; V.grupos.forEach((g,i)=>{ volGrpMes[g]={}; V.meses.forEach((ym,j)=>volGrpMes[g][ym]=V.mat[i][j]); });
+      s+=opLeituraVolume({mesesYm:V.meses,volGrpMes:volGrpMes,grupos:V.materiais_qtd>0?[['MATERIAIS',V.materiais_qtd]]:[]},V.grupos);
     } else { s+=cap('Selecione um período com mais de um mês para ver a evolutiva mensal.'); }
   }
   const OP=P['cu-operacionais'];
@@ -203,10 +206,11 @@ function _cuCorpo(P){
   if(PR||AP){
     s+='<div class="two">';
     if(PR) s+='<div>'+H3('Produtivo — por tipo de conta','','cu-produtivo')
-      +fig(hbar(PR.itens,{valfmt:v=>mi(v,1),color:SER[2],padLeft:190,w:520,maxbars:8}),ins('auto','auto-cpp-produtivo'))+'</div>';
+      +fig(hbar(PR.itens,{valfmt:v=>mi(v,1),color:SER[2],padLeft:190,w:520,maxbars:8}))+'</div>';
     if(AP) s+='<div>'+H3('Apoio / Auxiliar — por tipo de conta','','cu-apoio')
-      +fig(hbar(AP.itens,{valfmt:v=>mi(v,1),color:SER[3],padLeft:190,w:520,maxbars:8}),ins('auto','auto-cpp-apoio'))+'</div>';
+      +fig(hbar(AP.itens,{valfmt:v=>mi(v,1),color:SER[3],padLeft:190,w:520,maxbars:8}))+'</div>';
     s+='</div>';
+    if(PR&&AP&&OP) s+=opLeituraApoio({operacionais:{PRODUTIVO:{itens:PR.itens,total:OP.produtivo},'AUXILIAR/APOIO':{itens:AP.itens,total:OP.apoio}}});
     s+=cap('Classificação por centro de custo (Produtivo = fábrica; Apoio/Auxiliar = administrativo, comercial, suporte). "Produtivo" é a base de absorção de custo no CPP; "Apoio" fica fora do CPP, tratado como despesa operacional.');
   }
   const CT=P['cu-absorcao-conta'];
@@ -215,22 +219,22 @@ function _cuCorpo(P){
     s+=table(['Tipo de conta','Produtivo (R$)','% Produtivo','Apoio/Auxiliar (R$)','% Apoio'],
       CT.linhas.map(x=>[esc(x[0]),money(x[1]),pct(CT.produtivo?x[1]/CT.produtivo:0),money(x[2]),pct(CT.apoio?x[2]/CT.apoio:0)]),
       ['left','right','right','right','right'],
-      ['Total',money(CT.produtivo),'100,0%',money(CT.apoio),'100,0%'],ins('auto','auto-cpp-conta'));
+      ['Total',money(CT.produtivo),'100,0%',money(CT.apoio),'100,0%']);
   }
   if(P['cu-absorcao-cc']) s+=H3('Absorção por centro de custo','MOD · GGF · horas · R$/hora','cu-absorcao-cc');
   const CCT=P['cu-cc-total'], CCX=P['cu-cc-taxa'];
   if(CCT||CCX){
     s+='<div class="two">';
-    if(CCT) s+='<div>'+H3('Custo total absorvido','','cu-cc-total')+fig(hbar(CCT.cc,{valfmt:v=>mi(v,1),color:SER[0],padLeft:170,w:520}),ins('auto','auto-cpp-cc'))+'</div>';
-    if(CCX) s+='<div>'+H3('Taxa hora (R$/h)','','cu-cc-taxa')+fig(hbar(CCX.taxa,{valfmt:v=>money(v),color:SER[6],padLeft:170,w:520}),ins('auto','auto-cpp-taxa'))+'</div>';
+    if(CCT) s+='<div>'+H3('Custo total absorvido','','cu-cc-total')+fig(hbar(CCT.cc,{valfmt:v=>mi(v,1),color:SER[0],padLeft:170,w:520}))+'</div>';
+    if(CCX) s+='<div>'+H3('Taxa hora (R$/h)','','cu-cc-taxa')+fig(hbar(CCX.taxa,{valfmt:v=>money(v),color:SER[6],padLeft:170,w:520}))+'</div>';
     s+='</div>';
   }
   if(CCX){
     s+=table(['Centro de custo','MOD','GGF','Custo total','Horas apontadas','R$/hora'],
       CCX.cc.map(x=>[esc(x[0]),money(x[1]),money(x[2]),money(x[3]),nf(Math.round(x[4])),x[5]?money(x[5]):'—']),
       ['left','right','right','right','right','right'],
-      ['Total',money(CCX.mod),money(CCX.ggf),money(CCX.custo),nf(Math.round(CCX.horas)),money(CCX.taxa_total)],
-      ins('taxaHoraCC','taxa-hora-cc-cpp-tab')||ins('auto','auto-cpp-cc-tab'));
+      ['Total',money(CCX.mod),money(CCX.ggf),money(CCX.custo),nf(Math.round(CCX.horas)),money(CCX.taxa_total)]);
+    s+=cxLeituraCentros({cc:CCX.cc,ccTotal:{custo:CCX.custo,taxa:CCX.taxa_total,horas:CCX.horas}},null,false);
     s+=cap('Horas apontadas via NDPRO359 (centros de trabalho reagrupados nos 8 centros de custo produtivos); coluna original vem em minutos e foi convertida para horas. Taxa hora = custo total absorvido ÷ horas apontadas no período.');
   }
   const RT=P['cu-retrabalho'];
@@ -239,27 +243,29 @@ function _cuCorpo(P){
     s+='<div class="kpis k3">'+kpi('Retrabalho total',mi(RT.total),_cuPeriodo(A,RT.a,RT.b)+(RT.ytd!=null?' · YTD '+RT.ano+': '+mi(RT.ytd):''))
       +kpi('% do custo de produção',pct(RT.pct,2),'vs. custo total absorvido',RT.pct>0.02?'warn':'ok')
       +kpi('Item mais afetado',RT.top?esc(RT.top[0]):'—',RT.top?money(RT.top[2]):'')+'</div>';
-    if(RT.mensal.length>1) s+=fig(line([['Custo de retrabalho',RT.mensal.map(m=>m[1]),BAD]],RT.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}),ins('custoEvitavel','custo-evitavel'));
+    if(RT.mensal.length>1) s+=fig(line([['Custo de retrabalho',RT.mensal.map(m=>m[1]),BAD]],RT.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}));
   }
   const PT=P['cu-retrabalho-pareto'];
   if(PT){
     s+=H3('Pareto de retrabalho por centro de custo','onde se concentra o custo evitável','cu-retrabalho-pareto');
-    s+=fig(pareto(PT.pareto.map(x=>[trunc(x[0],22),x[1]]),{valfmt:v=>money(v,0),w:900,h:300}),ins('auto','auto-cpp-retrabalho'));
-    s+=cap('A linha tracejada acumula a participação: os primeiros centros de custo concentram a maior parte do retrabalho — ponto de partida para o plano de ação da fábrica.');
+    s+=fig(pareto(PT.pareto.map(x=>[trunc(x[0],22),x[1]]),{valfmt:v=>money(v,0),w:900,h:300}));
+    s+=cap('A linha tracejada acumula a participação de cada centro de custo no retrabalho total; a leitura numérica está logo abaixo da tabela.');
   }
-  if(RT) s+=table(['Centro de custo','Produto retrabalhado','Custo de retrabalho','% do retrabalho total'],
-    RT.por_item.map(x=>[esc(x[0]),esc(trunc(x[1],48)),money(x[2]),pct(RT.total?x[2]/RT.total:0)]),['left','left','right','right'],null,ins('auto','auto-retrab-item'));
+  if(RT){ s+=table(['Centro de custo','Produto retrabalhado','Custo de retrabalho','% do retrabalho total'],
+    RT.por_item.slice(0,25).map(x=>[esc(x[0]),esc(trunc(x[1],48)),money(x[2]),pct(RT.total?x[2]/RT.total:0)]),['left','left','right','right']);
+    s+=cxLeituraRetrabalho({total:RT.total,porItem:RT.por_item,mensal:RT.mensal}); }
   const AS=P['cu-assistencia'];
   if(AS){
     s+=H3('Custo de assistência técnica','evolução mensal · por produto','cu-assistencia');
     s+='<div class="kpis k2">'+kpi('Assist. técnica total',mi(AS.total),_cuPeriodo(A,AS.a,AS.b)+(AS.ytd!=null?' · YTD '+AS.ano+': '+mi(AS.ytd):''))
       +kpi('% do custo de produção',pct(AS.pct,2),'vs. custo total absorvido',AS.pct>0.03?'warn':'ok')+'</div>';
-    if(AS.mensal.length>1) s+=fig(line([['Custo de assistência técnica',AS.mensal.map(m=>m[1]),WARN]],AS.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}),ins('serieOscilacao','serie-oscilacao-assist'));
+    if(AS.mensal.length>1) s+=fig(line([['Custo de assistência técnica',AS.mensal.map(m=>m[1]),WARN]],AS.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}));
   }
   const ASP=P['cu-assistencia-prod'];
   if(ASP){
     s+=H3('Maiores custos de assistência técnica por produto','','cu-assistencia-prod');
-    s+=table(['Produto','Custo de assistência técnica'],ASP.produtos.map(x=>[esc(trunc(x[0],60)),money(x[1])]),['left','right'],null,ins('auto','auto-assist-prod'));
+    s+=table(['Produto','Custo de assistência técnica'],ASP.produtos.map(x=>[esc(trunc(x[0],60)),money(x[1])]),['left','right']);
+    if(AS) s+=cxLeituraAssistencia({total:AS.total,porProduto:ASP.produtos,mensal:AS.mensal});
   }
   const N=P['cu-nivelzero'];
   if(N){
