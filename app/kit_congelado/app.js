@@ -363,7 +363,11 @@ const MAXYM_VENDAS=_MAXYM_VENDAS_BASE||MAXYM_DRE;
 /* base de custos (CPV): começa em jan/2025 hoje, mas o início também é lido do dado */
 const _CUSTOS_YMS=(window.CUSTOS&&CUSTOS.cpv&&CUSTOS.cpv.length)?CUSTOS.cpv.map(r=>r[0]):[];
 const MINYM_CUSTOS=_CUSTOS_YMS.length?_CUSTOS_YMS.reduce((m,y)=>y<m?y:m,_CUSTOS_YMS[0]):null;
-const MAXYM_CUSTOS=_CUSTOS_YMS.length?_CUSTOS_YMS.reduce((m,y)=>y>m?y:m,_CUSTOS_YMS[0]):null;
+/* teto = último mês coberto por TODAS as bases de custo (CPV, CPP, matéria-prima, razão, absorção e horas), lido
+   do próprio window.CUSTOS: se uma base atrasar, o teto recua para o último mês que todas têm (evita um mês
+   "zerado" numa das seções). Cada exportação mensal estende filtros, presets e rótulos sem editar o código. */
+const _CUSTOS_TETOS=window.CUSTOS?['cpv','cpp','materiais','cta','cc','horas'].map(k=>(CUSTOS[k]||[]).reduce((m,r)=>r[0]>m?r[0]:m,0)).filter(v=>v>0):[];
+const MAXYM_CUSTOS=_CUSTOS_TETOS.length?Math.min(..._CUSTOS_TETOS):null;
 /* ano corrente de cada base e o anterior — a comparação "ano × ano anterior" usa estes */
 const ANO_V=Math.floor((MAXYM_VENDAS||0)/100), ANO_D=Math.floor((MAXYM_DRE||0)/100), ANO_C=Math.floor((MAXYM_CUSTOS||0)/100);
 /* começo da história: primeiro mês da base comercial (hoje jul/2020) e primeiro ano da DRE (2020).
