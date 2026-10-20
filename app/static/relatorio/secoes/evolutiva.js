@@ -14,10 +14,11 @@ DESENHO.evolutiva=function(P){
   if(E){
     const d=v=>v==null?'—':deltaHtml(v);
     s+=H3('Venda contratada × faturamento (DRE) — anual','','ev-anual');
+    const _pj=E.projetado.venda!=null||E.projetado.fat!=null;      // projeção do ano cheio corrente entra no gráfico (tracejado)
     s+=fig(line([
-       ['Venda contratada (base)',E.linhas.map(l=>l.venda),SER[0]],
-       ['Faturamento — Receita Bruta (DRE)',E.linhas.map(l=>l.fat),SER[2]],
-     ],E.anos.map(String),{valfmt:v=>mi(v,1),w:900,h:300}),
+       ['Venda contratada (base)',E.linhas.map(l=>l.venda).concat(_pj?[E.projetado.venda]:[]),SER[0]],
+       ['Faturamento — Receita Bruta (DRE)',E.linhas.map(l=>l.fat).concat(_pj?[E.projetado.fat]:[]),SER[2]],
+     ],E.anos.map(String).concat(_pj?[E.ano_v+' (proj.)']:[]),{valfmt:v=>mi(v,1),w:900,h:300,proj:_pj?E.anos.length:null}),
       ins('vendasEfeitoPrecoVolume','vendas-efeito-preco-volume'));
     const rows=E.linhas.map((l,i)=>[l.ano,money(l.venda||0),money(l.fat),
       i>0?deltaHtml(l.var_v):'—', i>0?deltaHtml(l.var_f):'—', d(l.cagr_v), d(l.cagr_f)]);

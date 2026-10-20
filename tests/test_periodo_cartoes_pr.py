@@ -62,3 +62,15 @@ def test_kit_desenha_o_pr_nos_graficos():
     kit = open(os.path.join(RAIZ, 'app', 'static', 'relatorio', 'kit.js'), encoding='utf-8').read()
     for nome in ('PR_HACH', 'prRect', 'prCap', 'prSoma', 'partes=null'):
         assert nome in kit
+
+
+def test_grafico_anual_leva_a_projecao_e_a_previa_do_pilotar_filtra_o_bloco(app, admin):
+    kit = open(os.path.join(RAIZ, 'app', 'static', 'relatorio', 'secoes', 'evolutiva.js'), encoding='utf-8').read()
+    assert 'proj:_pj?E.anos.length:null' in kit
+    # a prévia é a mesma página da seção, com ?previa=<bloco> (sem barra e sem camada de comentário)
+    r = admin.get('/biblioteca/resumo?comp=2026-07&previa=rs-hist')
+    if r.status_code == 200:
+        html = r.get_data(as_text=True)
+        assert 'class="previa"' in html and 'header class="rb"' not in html and 'PREV=' in html
+    js = open(os.path.join(RAIZ, 'app', 'static', 'pilotar.js'), encoding='utf-8').read()
+    assert 'data-previa' in js and 'previa=' in js

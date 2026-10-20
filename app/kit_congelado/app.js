@@ -91,9 +91,13 @@ function line(series,xlabels,o={}){ const {valfmt=mi,w=860,h=340}=o; const pt=18
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="11" fill="${MUT}">${esc(valfmt(yv))}</text>`;}
   const step=Math.max(1,Math.floor(n/12));
   xlabels.forEach((xl,i)=>{ if(i%step===0||i===n-1) s+=`<text x="${W(X(i))}" y="${h-pb+18}" text-anchor="middle" font-size="10.5" fill="${MUT}">${esc(xl)}</text>`;});
-  series.forEach(([nm,vals,col])=>{ let pts=[]; vals.forEach((v,i)=>{if(v!=null)pts.push(W(X(i))+','+W(Y(v)));});
+  /* o.proj = índice do primeiro ponto que é PROJEÇÃO: do último ponto real até ele o traço é tracejado e o marcador vazado */
+  series.forEach(([nm,vals,col])=>{ const pj=o.proj==null?vals.length:o.proj; let pts=[],pjPts=[];
+    vals.forEach((v,i)=>{ if(v==null) return; const p=W(X(i))+','+W(Y(v)); if(i<pj) pts.push(p); if(o.proj!=null&&i>=pj-1) pjPts.push(p); });
     if(pts.length) s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
-    vals.forEach((v,i)=>{if(v!=null) s+=`<circle cx="${W(X(i))}" cy="${W(Y(v))}" r="3" fill="${col}"><title>${esc(xlabels[i])} · ${esc(nm)}: ${esc(valfmt(v))}</title></circle>`;});});
+    if(pjPts.length>1) s+=`<polyline points="${pjPts.join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-dasharray="6 5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    vals.forEach((v,i)=>{if(v!=null){ const pr=o.proj!=null&&i>=pj;
+      s+=`<circle cx="${W(X(i))}" cy="${W(Y(v))}" r="3" fill="${pr?'#fff':col}"${pr?` stroke="${col}" stroke-width="2"`:''}><title>${esc(xlabels[i])} · ${esc(nm)}: ${esc(valfmt(v))}${pr?' (projeção)':''}</title></circle>`;}});});
   let leg = series.length>1||o.legend ? '<div class="legend">'+series.map(([nm,,c])=>`<span class="lg"><i style="background:${c}"></i>${esc(nm)}</span>`).join('')+'</div>':'';
   return leg+s+'</svg>';}
 
@@ -532,10 +536,11 @@ function renderEvolutiva(){
   const f25mesmo=((DRE[A0]||{}).months||Array(12).fill(0)).slice(0,moF+1).reduce((a,b)=>a+b,0);
   const cagrHtml=(val,base,n)=>{const c=cagrCalc(val,base,n); return c==null?'—':deltaHtml(c);};
   s+=H3('Venda contratada × faturamento (DRE) — anual','','ev-anual');
+  const _pj=v26proj!=null||f26proj!=null;      // projeção do ano cheio corrente entra no gráfico (tracejado)
   s+=fig(line([
-     ['Venda contratada (base)',years.map(y=>yv[y]),SER[0]],
-     ['Faturamento — Receita Bruta (DRE)',years.map(y=>DRE[y].annual),SER[2]],
-   ],years.map(String),{valfmt:v=>mi(v,1),w:900,h:300}),
+     ['Venda contratada (base)',years.map(y=>yv[y]).concat(_pj?[v26proj]:[]),SER[0]],
+     ['Faturamento — Receita Bruta (DRE)',years.map(y=>DRE[y].annual).concat(_pj?[f26proj]:[]),SER[2]],
+   ],years.map(String).concat(_pj?[ANO_V+' (proj.)']:[]),{valfmt:v=>mi(v,1),w:900,h:300,proj:_pj?years.length:null}),
     ins('vendasEfeitoPrecoVolume'));
   const rows=years.map((y,i)=>[y,money(yv[y]||0),money(DRE[y].annual),
     i>0?deltaHtml(yv[y]/yv[years[i-1]]-1):'—',

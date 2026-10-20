@@ -1,5 +1,5 @@
 /* ===== +55 · desenho do relatório =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v4.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v5.
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
@@ -120,9 +120,13 @@ function line(series,xlabels,o={}){ const {valfmt=mi,w=860,h=340}=o; const pt=18
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="11" fill="${MUT}">${esc(valfmt(yv))}</text>`;}
   const step=Math.max(1,Math.floor(n/12));
   xlabels.forEach((xl,i)=>{ if(i%step===0||i===n-1) s+=`<text x="${W(X(i))}" y="${h-pb+18}" text-anchor="middle" font-size="10.5" fill="${MUT}">${esc(xl)}</text>`;});
-  series.forEach(([nm,vals,col])=>{ let pts=[]; vals.forEach((v,i)=>{if(v!=null)pts.push(W(X(i))+','+W(Y(v)));});
+  /* o.proj = índice do primeiro ponto que é PROJEÇÃO: do último ponto real até ele o traço é tracejado e o marcador vazado */
+  series.forEach(([nm,vals,col])=>{ const pj=o.proj==null?vals.length:o.proj; let pts=[],pjPts=[];
+    vals.forEach((v,i)=>{ if(v==null) return; const p=W(X(i))+','+W(Y(v)); if(i<pj) pts.push(p); if(o.proj!=null&&i>=pj-1) pjPts.push(p); });
     if(pts.length) s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
-    vals.forEach((v,i)=>{if(v!=null) s+=`<circle cx="${W(X(i))}" cy="${W(Y(v))}" r="3" fill="${col}"><title>${esc(xlabels[i])} · ${esc(nm)}: ${esc(valfmt(v))}</title></circle>`;});});
+    if(pjPts.length>1) s+=`<polyline points="${pjPts.join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-dasharray="6 5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    vals.forEach((v,i)=>{if(v!=null){ const pr=o.proj!=null&&i>=pj;
+      s+=`<circle cx="${W(X(i))}" cy="${W(Y(v))}" r="3" fill="${pr?'#fff':col}"${pr?` stroke="${col}" stroke-width="2"`:''}><title>${esc(xlabels[i])} · ${esc(nm)}: ${esc(valfmt(v))}${pr?' (projeção)':''}</title></circle>`;}});});
   let leg = series.length>1||o.legend ? '<div class="legend">'+series.map(([nm,,c])=>`<span class="lg"><i style="background:${c}"></i>${esc(nm)}</span>`).join('')+'</div>':'';
   return leg+s+'</svg>';}
 

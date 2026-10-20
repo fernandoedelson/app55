@@ -1,6 +1,6 @@
 {
  "arquivos": {
-  "app.js": "4d520abc7c17f15ee99b396079ef48f5fe0be68af91d0a2c230d465c4a60d3ea",
+  "app.js": "8ff91c26360792feb045a7d5888d18e510169bcd0ff6a6c5a55aefdb30bbf784",
   "atos.css": "016233a4ca921f0943919d324257074f50f4d15757e65805d7762a9522373016",
   "atos.js": "5ff5ca6fd645afd4aedecb8d909275b245d199ad9ed2a69c95b911e568023f5e",
   "atos_ajustes.js": "b44fc84a2739bc3efef1728a92818bb8b7a62454ba8495a1051d005dceb6d885",
@@ -30,5 +30,5 @@
   "insights.js": "1fcf2cee47e66084fff6d5b4c062415d78beadc2b1e3dae131b259146e183a73",
   "style2.css": "baa877a3dc80cfd7dd96b020a50be8ef8d775b962f1cc1842415141d571c6378"
  },
- "tag": "gabarito-v4"
+ "tag": "gabarito-v5"
 }

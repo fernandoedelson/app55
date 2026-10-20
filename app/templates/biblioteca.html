@@ -10,9 +10,10 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='relatorio/barra.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='dialogo.css') }}">
 {% if cmt %}<link rel="stylesheet" href="{{ url_for('static', filename='comentarios.css') }}">{% endif %}
+{% if previa %}<style>body.previa{padding-top:0}body.previa main{margin:0 auto;padding:12px 18px;max-width:1100px}body.previa #chartzoom-tools{display:none}body.previa section::before{display:none}</style>{% endif %}
 </head>
-<body>
-{% include '_barra_relatorio.html' %}
+<body{% if previa %} class="previa"{% endif %}>
+{% if not previa %}{% include '_barra_relatorio.html' %}{% endif %}
 <main id="main">
   <section id="{{ secao.id }}"></section>
 </main>
@@ -54,6 +55,17 @@ document.addEventListener('DOMContentLoaded',function(){
   if(window.INSRT) INSRT.mount(sec);
   marcarEm(sec,{k:'__abre'});
   if(window.DESENHO_POS&&DESENHO_POS[SID]) DESENHO_POS[SID](sec,ctx);
+  {% if previa %}
+  /* prévia de um item do roteiro: some tudo o que não é do bloco pedido (a marcação de blocos termina logo depois do desenho) */
+  const PREV={{ previa|tojson }};
+  const ehAlvo=el=>el.dataset.blkOf===PREV||(el.dataset.blkOf==='__abre'&&SID+'.abertura'===PREV);
+  setTimeout(()=>{
+    const marcados=[...sec.querySelectorAll('[data-blk-of]')];
+    marcados.forEach(el=>{ if(!ehAlvo(el)) el.style.display='none'; });
+    if(!marcados.some(ehAlvo)) sec.insertAdjacentHTML('afterbegin','<p style="padding:24px;color:#8a7f72">Este item não tem conteúdo para mostrar agora.</p>');
+    document.body.classList.add('previa-pronta');
+  },600);
+  {% endif %}
 });
 </script>
 <script src="{{ url_for('static', filename='dialogo.js') }}"></script>

@@ -63,8 +63,12 @@ def secao(secao):
     blocos = [b['id'] for b in C.blocos_da_secao(secao) if not b.get('so_apresentacao')]
     # no "ver como perfil" a tela é a da área (é assim que o administrador testa); gravar é que não pode
     cmt = M.camada(comp, g.usuario, blocos, ver_como=bool(g.get('ver_como')))
+    # prévia (Pilotar a reunião): só o item pedido, sem barra nem camada de comentário
+    previa = request.args.get('previa', '')[:80]
+    if previa:
+        cmt = None
     return render_template('biblioteca.html', secao=C.SECAO[secao], comp=comp, payload=corpo,
-                           recursos=json.dumps(recursos), cmt=cmt, nav=navegacao.barra(g.usuario, secao))
+                           recursos=json.dumps(recursos), cmt=cmt, nav=navegacao.barra(g.usuario, secao), previa=previa)
 
 
 @bp.route('/api/biblioteca/<secao>')

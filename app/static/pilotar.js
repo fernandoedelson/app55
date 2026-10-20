@@ -116,15 +116,18 @@
     if (it.blk) {
       const b = BLOCO[it.blk] || { titulo: it.blk };
       const aberto = abertos.has(it.blk);
-      return '<li class="pl-item pl-blk' + (aberto ? ' aberto' : '') + '" data-i="' + i + '" data-blk="' + esc(it.blk) + '">' +
+      return '<li class="pl-item pl-blk' + (aberto ? ' aberto' : '') + '" data-i="' + i + '" data-blk="' + esc(it.blk) + '" data-sec="' + esc(it.sec) + '">' +
         '<div class="pl-lin"><span class="pl-num">' + (ato.itens.slice(0, i + 1).filter(x => x.blk).length) + '</span><span class="pl-tit"><b>' + esc(b.titulo) + '</b>' +
         '<small>' + esc((SECAO[it.sec] || {}).titulo || it.sec) + '</small></span>' +
+        '<button type="button" class="pl-prev" data-previa title="Ver o item como ele aparece na reunião">Prévia</button>' +
         '<button type="button" class="pl-cmt" data-gaveta aria-expanded="' + aberto + '">' + resumoCmt(it.blk) + '<span class="pl-cmt-v">Comentários ' + (aberto ? '▴' : '▾') + '</span></button>' +
         setas + '</div>' + (aberto ? gavetaCmt(it.blk) : '') + '</li>';
     }
     const rot = it.filtroSel ? 'Filtro do comparativo A × B' : (it.filtro ? 'Filtros da seção' : 'Abertura da seção');
-    return '<li class="pl-item pl-ctrl" data-i="' + i + '"><span class="pl-tipo">' + rot + '</span><span class="pl-tit"><small>' +
-      esc((SECAO[it.sec] || {}).titulo || it.sec) + '</small></span>' + setas + '</li>';
+    const prevAbre = !it.filtro && !it.filtroSel
+      ? '<button type="button" class="pl-prev" data-previa title="Ver a abertura como ela aparece na reunião">Prévia</button>' : '';
+    return '<li class="pl-item pl-ctrl" data-i="' + i + '" data-sec="' + esc(it.sec) + '" data-prev="' + esc(it.sec + '.abertura') + '"><span class="pl-tipo">' + rot + '</span><span class="pl-tit"><small>' +
+      esc((SECAO[it.sec] || {}).titulo || it.sec) + '</small></span>' + prevAbre + setas + '</li>';
   }
 
   function desenhar() {
@@ -201,6 +204,32 @@
     }
   });
 
+  /* ------------------------------------------------------------ prévia do item */
+  let janelaPrevia = null;
+  function previa(secao, alvo, titulo) {
+    if (!janelaPrevia) {
+      janelaPrevia = document.createElement('div');
+      janelaPrevia.className = 'pl-modal'; janelaPrevia.hidden = true;
+      janelaPrevia.innerHTML = '<div class="pl-modal-caixa" role="dialog" aria-modal="true" aria-labelledby="pl-modal-t">' +
+        '<header><b id="pl-modal-t"></b><span class="pl-modal-acoes"><a target="_blank" rel="noopener" class="pl-modal-sec">Abrir a seção inteira ↗</a>' +
+        '<button type="button" class="pl-ico" data-fechar aria-label="Fechar prévia">✕</button></span></header>' +
+        '<iframe title="Prévia do item"></iframe></div>';
+      document.body.appendChild(janelaPrevia);
+      janelaPrevia.addEventListener('click', ev => { if (ev.target === janelaPrevia || ev.target.closest('[data-fechar]')) fecharPrevia(); });
+      document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !janelaPrevia.hidden) fecharPrevia(); });
+    }
+    const base = D.url_biblioteca + '/' + encodeURIComponent(secao) + '?comp=' + encodeURIComponent(D.comp);
+    janelaPrevia.querySelector('#pl-modal-t').textContent = titulo;
+    janelaPrevia.querySelector('.pl-modal-sec').href = base;
+    janelaPrevia.querySelector('iframe').src = base + '&previa=' + encodeURIComponent(alvo);
+    janelaPrevia.hidden = false; document.body.classList.add('pl-modal-aberto');
+    janelaPrevia.querySelector('[data-fechar]').focus();
+  }
+  function fecharPrevia() {
+    janelaPrevia.hidden = true; janelaPrevia.querySelector('iframe').src = 'about:blank';
+    document.body.classList.remove('pl-modal-aberto');
+  }
+
   $('#pl-atos').addEventListener('click', async ev => {
     const b = ev.target.closest('button'); if (!b) return;
     const sec = b.closest('.pl-ato'); if (!sec) return;
@@ -220,6 +249,10 @@
         texto: 'Os gráficos dele voltam para os anexos. Nada é apagado dos dados.' });
       if (!ok) return;
       atos.splice(ai, 1); renumerar(); marcarSujo(true); desenhar();
+    } else if (b.hasAttribute('data-previa')) {
+      const alvo = li.dataset.blk || li.dataset.prev;
+      const tit = li.dataset.blk ? (BLOCO[alvo] || {}).titulo : 'Abertura — ' + ((SECAO[li.dataset.sec] || {}).titulo || '');
+      previa(li.dataset.sec, alvo, tit || alvo);
     } else if (b.hasAttribute('data-gaveta')) {
       const blk = li.dataset.blk;
       abertos.has(blk) ? abertos.delete(blk) : abertos.add(blk); desenhar();
