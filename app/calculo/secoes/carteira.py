@@ -65,7 +65,7 @@ def calcular_dinamica(C, params=None):
                                        'pr_total': pr['total'] if pr else None},
         'cd-status': {'status': CD['status'], 'pedidos': por_status, 'total': CD['total'],
                       'pr_status': [pr['status'].get(x[0], 0) for x in CD['status']] if pr else None,
-                      'pr_total': pr['total'] if pr else None},
+                      'pr_total': pr['total'] if pr else None, 'pr_padroes': _partes_relacionadas(C)},
         'cd-evol': {'evol': CD['evol'], 'pr': [pr['evol']['vendas'], pr['evol']['atrasados']] if pr else None},
         'cd-adiados': {'evol': CD['evol_adiado'], 'pr': [pr['adiado']] if pr else None},
         'cd-previsao': {'evol': CD['andamento_entrega'], 'pr': [pr['entrega']] if pr else None},

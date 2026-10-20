@@ -60,7 +60,7 @@ function _cuNZCorpo(N){
 function _cuPCCorpo(E){
   let s=`<p class="cap" style="margin:2px 0 10px">${esc(E.desc||E.cod)}${E.id?' · ID '+esc(E.id):''}</p>`;
   if(!E.tem){ s+=call('Sem consumo de matéria-prima direta (TP=C) registrado para este produto no período/ID selecionado.','warn'); return s; }
-  const cores=[SER[3],SER[0],SER[6],SER[2]];
+  const cores=[SER[2],SER[0],SER[6],SER[1]];
   s+=fig(line(E.ordem.map((ano,i)=>['Custo de '+ano,E.anos[String(ano)],cores[i%cores.length]]),MES,{valfmt:v=>money(v,2),w:980,h:320,legend:true}));
   const linhas=[];
   E.ordem.forEach(ano=>{

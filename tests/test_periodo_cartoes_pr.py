@@ -60,7 +60,7 @@ def test_carteiras_mandam_o_valor_de_pr_por_status_faixa_vendedor_e_mes():
 
 def test_kit_desenha_o_pr_nos_graficos():
     kit = open(os.path.join(RAIZ, 'app', 'static', 'relatorio', 'kit.js'), encoding='utf-8').read()
-    for nome in ('PR_HACH', 'prRect', 'prCap', 'prSoma', 'partes=null'):
+    for nome in ('prTom', 'prRect', 'prCap', 'prSoma', 'partes=null'):
         assert nome in kit
 
 

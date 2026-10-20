@@ -22,7 +22,7 @@ DESENHO.carteira_dinamica=function(P){
     s+=H3('Classificação da carteira por status','','cd-status');
     s+=`<div class="fig" id="cartdin-status-fig">${pareto(S.status,{valfmt:v=>mi(v,1),colors:[SER[0],GOOD,WARN,BAD],clickable:true,partes:S.pr_status||null})}`
      +`${window.INSRT?INSRT.strip(ins('carteiraAtrasoConcentrado','carteira-atraso-concentrado')||ins('auto','auto-cartdin-status')):''}</div>`;
-    s+=cap('Clique em uma barra para ver os pedidos daquele status.'+(S.pr_total>0?' Hachurado = parte relacionada (PR): '+mi(S.pr_total,1)+' ('+pct(S.total?S.pr_total/S.total:0,0)+' da carteira).':''));
+    s+=cap('Clique em uma barra para ver os pedidos daquele status.'+(S.pr_total>0?' Tom mais escuro = parte relacionada (PR): '+mi(S.pr_total,1)+' ('+pct(S.total?S.pr_total/S.total:0,0)+' da carteira).':''));
   }
   const E=P['cd-evol'];
   if(E){ const C=E.evol;
@@ -67,6 +67,7 @@ DESENHO.carteira_dinamica=function(P){
 };
 DESENHO_POS.carteira_dinamica=function(sec,ctx){
   const S=ctx.payload['cd-status']; if(!S) return;
+  window.PARTES_RELACIONADAS=S.pr_padroes||window.PARTES_RELACIONADAS||[];
   const box=document.getElementById('cartdin-status-fig'); if(!box) return;
   const bars=box.querySelectorAll('.par-bar');
   function desenha(i){
@@ -77,7 +78,7 @@ DESENHO_POS.carteira_dinamica=function(sec,ctx){
     let acc=0;
     const rows=peds.map(p=>{ acc+=p[2];
       return `<tr class="cartdin-ped-row" data-p="${esc(String(p[0]))}">`
-       +`<td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}</td>`
+       +`<td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
        +`<td class="right">${nf(p[3])}</td><td class="right">${money(p[2])}</td>`
        +`<td class="right">${pct(total?p[2]/total:0,1)}</td><td class="right">${pct(total?acc/total:0,1)}</td></tr>`;}).join('');
     const det=document.getElementById('cartdin-status-detail'); if(!det) return;
@@ -87,7 +88,7 @@ DESENHO_POS.carteira_dinamica=function(sec,ctx){
           <th class="right">Valor</th><th class="right">% do status</th><th class="right">% acumulada</th>
         </tr></thead><tbody>${rows}</tbody></table></div>`
       +'<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('auto','auto-cartdin-peds-'+bucket)):'')+'</div>'
-      +cap('Clique num pedido para ver os itens.')
+      +prLegenda()+cap('Clique num pedido para ver os itens.')
       +'<div id="cartdin-ped-detail"></div>';
     if(!ctx.pode('detalhar')) return;
     det.querySelectorAll('.cartdin-ped-row').forEach(tr=>{ tr.style.cursor='pointer';

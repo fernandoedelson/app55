@@ -13,7 +13,7 @@ DESENHO.ytd=function(P){
       +kpi(`Pedidos ${Y1}`,nf(b.peds),deltaHtml(b.peds/a.peds-1)+' vs '+Y0)
       +kpi(`Ticket médio ${Y1}`,mi(b.ticket),deltaHtml(b.ticket/a.ticket-1)+' vs '+Y0)+'</div>'; }
   const L=P['ytd-linha'];
-  if(L) s+=fig(line([[String(L.Y0),L.serieA,SER[3]],[String(L.Y1),L.serieB,SER[0]]],
+  if(L) s+=fig(line([[String(L.Y0),L.serieA,SER[2]],[String(L.Y1),L.serieB,SER[0]]],
      L.labels,{valfmt:v=>mi(v,1),w:900,h:300}),ins('serieOscilacao','serie-oscilacao-ytd'),'ytd-linha');
   const I=P['ytd-ind'];
   if(I){ const a=I.a,b=I.b;

@@ -21,7 +21,7 @@ DESENHO.carteira=function(P){
   if(S){ const stat=S.stat, stTot=stat.reduce((a,x)=>a+x[1],0);
     s+=H3('Classificação da carteira por status','carteira dinâmica · '+S.data_base,'ce-status');
     s+=fig(pareto(stat,{valfmt:v=>mi(v,1),colors:[SER[0],GOOD,WARN,BAD],partes:S.pr_stat||null}),ins('auto','auto-cart-status'));
-    s+=cap('Carteira de '+mi(stTot)+' ('+nf(S.itens)+' itens, posição '+S.data_base+') segmentada por status. "Em andamento" concentra '+pct(stat[0][1]/stTot,0)+' do total; andamento + finalizado somam '+pct((stat[0][1]+stat[1][1])/stTot,0)+'.'+(S.pr_total>0?' Hachurado = parte relacionada (PR): '+mi(S.pr_total,1)+' ('+pct(S.pr_total/stTot,0)+' da carteira).':''));
+    s+=cap('Carteira de '+mi(stTot)+' ('+nf(S.itens)+' itens, posição '+S.data_base+') segmentada por status. "Em andamento" concentra '+pct(stat[0][1]/stTot,0)+' do total; andamento + finalizado somam '+pct((stat[0][1]+stat[1][1])/stTot,0)+'.'+(S.pr_total>0?' Tom mais escuro = parte relacionada (PR): '+mi(S.pr_total,1)+' ('+pct(S.pr_total/stTot,0)+' da carteira).':''));
     s+=aging(S.aging,S.total_base,_pr(S.pr_base));
     const rotSt=stat.map(x=>x[0].split(' ')[x[0].startsWith('Em ')?1:0].toLowerCase()+' '+mi(x[1])).join(' · ');
     s+=call('<b>Conciliação de carteira.</b> Base comercial (posição '+ymLab(S.maxym)+'): '+mi(S.total_base)+'. Carteira dinâmica ('+S.data_base+'): '+mi(stTot)+', já segmentada por status ('+rotSt+'). A diferença reflete as datas de posição distintas e o critério de cada planilha.','recon');

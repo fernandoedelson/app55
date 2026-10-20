@@ -59,18 +59,20 @@ function hbar(items,o={}){ const {valfmt=money,color=SER[0],w=780,rowh=30,padLef
 
 /* PR (parte relacionada): parte hachurada na base da barra + "PR R$ x · y%" sob o rótulo + tooltip.
    `partes` = lista alinhada aos itens (ou, no evolCombo, uma lista por série). */
-const PR_HACH='<defs><pattern id="prh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="rgba(26,20,15,.62)"/><line x1="0" y1="0" x2="0" y2="6" stroke="#fff" stroke-width="2.4"/></pattern></defs>';
 const prLeg='<span class="lg"><i class="pr-sw"></i>PR (parte relacionada)</span>';
 const prT=(pv,i,v,fmt)=>(pv&&pv[i]>0)?' · PR '+fmt(pv[i])+' ('+pct(pv[i]/(v||1),0)+')':'';
-const prRect=(x,y,bw,bh,pv,v,i)=>{ if(!(pv&&pv[i]>0&&v>0)) return ''; const f=Math.min(1,pv[i]/v);
-  return `<rect x="${W(x)}" y="${W(y+bh-bh*f)}" width="${W(bw)}" height="${W(bh*f)}" fill="url(#prh)" pointer-events="none"/>`; };
+/* a parte PR da barra é a mesma cor, num tom mais escuro */
+const prTom=c=>{ const m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(c||'')); if(!m) return 'rgba(26,20,15,.38)';
+  return '#'+[1,2,3].map(i=>Math.round(parseInt(m[i],16)*.66).toString(16).padStart(2,'0')).join(''); };
+const prRect=(x,y,bw,bh,pv,v,i,col)=>{ if(!(pv&&pv[i]>0&&v>0)) return ''; const f=Math.min(1,pv[i]/v);
+  return `<rect x="${W(x)}" y="${W(y+bh-bh*f)}" width="${W(bw)}" height="${W(bh*f)}" fill="${prTom(col)}" pointer-events="none"/>`; };
 const prRot=(cx,y,pv,i,v,fmt)=>(pv&&pv[i]>0)?`<text x="${W(cx)}" y="${W(y)}" text-anchor="middle" font-size="10" fill="${MUT}">PR ${esc(fmt(pv[i]))} · ${pct(pv[i]/(v||1),0)}</text>`:'';
-const prCap=(tot,base,rot)=>tot>0?cap('Hachurado = parte relacionada (PR): '+mi(tot,1)+' ('+pct(base?tot/base:0,0)+' '+rot+').'):'';
+const prCap=(tot,base,rot)=>tot>0?cap('Tom mais escuro = parte relacionada (PR): '+mi(tot,1)+' ('+pct(base?tot/base:0,0)+' '+rot+').'):'';
 const prSoma=a=>a?a.reduce((x,y)=>x+y,0):0;
 function vbars(items,o={}){ const {valfmt=mi,w=820,h=300,color=SER[0],colors=null,highlight=null,partes=null}=o;
   const temPR=!!(partes&&partes.some(x=>x>0));
   const pt=24,pr=16,pb=temPR?56:40,pl=64,pw=w-pl-pr,ph=h-pt-pb; const vals=items.map(i=>+i[1]),vmax=Math.max(...vals,1);
-  const n=items.length,gap=10,bw=(pw-gap*(n-1))/n; let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:100%;height:auto">`+(temPR?PR_HACH:'');
+  const n=items.length,gap=10,bw=(pw-gap*(n-1))/n; let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:100%;height:auto">`;
   for(let g=0;g<5;g++){const yv=vmax*g/4,yy=pt+ph-ph*g/4;
     s+=`<line x1="${pl}" y1="${W(yy)}" x2="${pl+pw}" y2="${W(yy)}" stroke="${GRID}"/>`;
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="11" fill="${MUT}">${esc(valfmt(yv))}</text>`;}
@@ -79,7 +81,7 @@ function vbars(items,o={}){ const {valfmt=mi,w=820,h=300,color=SER[0],colors=nul
     s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" rx="4" fill="${col}"><title>${esc(it[0])}: ${esc(valfmt(v))}${prT(partes,i,v,valfmt)}</title></rect>`;
     s+=`<text x="${W(x+bw/2)}" y="${W(y-6)}" text-anchor="middle" font-size="11" font-weight="600" fill="${INK}">${esc(valfmt(v))}</text>`;
     s+=`<text x="${W(x+bw/2)}" y="${h-pb+18}" text-anchor="middle" font-size="11" fill="${INK2}">${esc(it[0])}</text>`;
-    if(temPR) s+=prRect(x,y,bw,bh,partes,v,i)+prRot(x+bw/2,h-pb+33,partes,i,v,valfmt);});
+    if(temPR) s+=prRect(x,y,bw,bh,partes,v,i,col)+prRot(x+bw/2,h-pb+33,partes,i,v,valfmt);});
   return s+'</svg>'+(temPR?'<div class="legend">'+prLeg+'</div>':'');}
 
 function line(series,xlabels,o={}){ const {valfmt=mi,w=860,h=340}=o; const pt=18,pr=18,pb=46,pl=64,pw=w-pl-pr,ph=h-pt-pb;
@@ -145,7 +147,7 @@ function pareto(items,o={}){ const {valfmt=v=>mi(v,1),w=880,h=320,colors=null,cl
   const n=items.length,gap=18,bw=(pw-gap*(n-1))/n;
   let acc=0; const cum=vals.map(v=>{acc+=v; return acc/total;});
   const X=i=>pl+i*(bw+gap), Ybar=v=>pt+ph-ph*v/vmax, Ypct=p=>pt+ph-ph*p;
-  let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:100%;height:auto">`+(temPR?PR_HACH:'');
+  let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:100%;height:auto">`;
   for(let g=0;g<=4;g++){const yv=vmax*g/4,yy=pt+ph-ph*g/4;
     s+=`<line x1="${pl}" y1="${W(yy)}" x2="${pl+pw}" y2="${W(yy)}" stroke="${GRID}"/>`;
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="10.5" fill="${MUT}">${esc(valfmt(yv))}</text>`;
@@ -154,7 +156,7 @@ function pareto(items,o={}){ const {valfmt=v=>mi(v,1),w=880,h=320,colors=null,cl
     s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" rx="4" fill="${col}"${clickable?` class="par-bar" data-i="${i}" style="cursor:pointer"`:''}><title>${esc(it[0])}: ${esc(valfmt(v))}${prT(partes,i,v,valfmt)}</title></rect>`;
     s+=`<text x="${W(x+bw/2)}" y="${W(y-8)}" text-anchor="middle" font-size="11.5" font-weight="600" fill="${INK}">${esc(valfmt(v))}</text>`;
     s+=`<text x="${W(x+bw/2)}" y="${h-pb+18}" text-anchor="middle" font-size="11.5" fill="${INK2}">${esc(it[0])}</text>`;
-    if(temPR) s+=prRect(x,y,bw,bh,partes,v,i)+prRot(x+bw/2,h-pb+34,partes,i,v,valfmt);});
+    if(temPR) s+=prRect(x,y,bw,bh,partes,v,i,col)+prRot(x+bw/2,h-pb+34,partes,i,v,valfmt);});
   const pts=cum.map((p,i)=>W(X(i)+bw/2)+','+W(Ypct(p)));
   s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${GOOD}" stroke-width="2.2" stroke-dasharray="6 4" stroke-linejoin="round" stroke-linecap="round"/>`;
   cum.forEach((p,i)=>{const cx=X(i)+bw/2,cy=Ypct(p),lbl=pct(p,1),lw=lbl.length*6.6+12,bx=cx-lw/2,by=cy-26;
@@ -574,7 +576,7 @@ function renderYTD(){
   s+='<div class="kpis k3" data-blk="ytd-kpi">'+kpi(`Venda ${Y1} · Jan–`+mLab,mi(b.total),deltaHtml(b.total/a.total-1)+' vs '+Y0)
     +kpi(`Pedidos ${Y1}`,nf(b.peds),deltaHtml(b.peds/a.peds-1)+' vs '+Y0)
     +kpi(`Ticket médio ${Y1}`,mi(b.ticket),deltaHtml(b.ticket/a.ticket-1)+' vs '+Y0)+'</div>';
-  s+=fig(line([[String(Y0),ymList(i0,MAXYM_VENDAS-100).map(y=>a.monthly[y]||0),SER[3]],[String(Y1),ymList(i1,MAXYM_VENDAS).map(y=>b.monthly[y]||0),SER[0]]],
+  s+=fig(line([[String(Y0),ymList(i0,MAXYM_VENDAS-100).map(y=>a.monthly[y]||0),SER[2]],[String(Y1),ymList(i1,MAXYM_VENDAS).map(y=>b.monthly[y]||0),SER[0]]],
      MES.slice(0,mFim),{valfmt:v=>mi(v,1),w:900,h:300}),
      ins('serieOscilacao',{labels:ymList(i1,MAXYM_VENDAS).map(ymLab),
        vals:ymList(i1,MAXYM_VENDAS).map(y=>b.monthly[y]||0),id:'ytd'}),'ytd-linha');
@@ -943,7 +945,7 @@ function renderCarteira(){
     s+=fig(pareto(stat,{valfmt:v=>mi(v,1),colors:[SER[0],GOOD,WARN,BAD],partes:CD.pr?ST_ROT.map(([k])=>CD.pr.status[k]||0):null}),
       ins('auto',{itens:stat.map(x=>({name:x[0],v:x[1]})),escopo:'status',escopoPl:'status',
         universo:'da carteira',id:'cart-status',preferir:['estrutura','cauda']}));
-    s+=cap('Carteira de '+mi(stTot)+' ('+nf(CD.itens)+' itens, posição '+CD.data_base+') segmentada por status. "Em andamento" concentra '+pct(stat[0][1]/stTot,0)+' do total; andamento + finalizado somam '+pct((stat[0][1]+stat[1][1])/stTot,0)+'.'+(CD.pr&&CD.pr.total>0?' Hachurado = parte relacionada (PR): '+mi(CD.pr.total,1)+' ('+pct(CD.pr.total/stTot,0)+' da carteira).':''));
+    s+=cap('Carteira de '+mi(stTot)+' ('+nf(CD.itens)+' itens, posição '+CD.data_base+') segmentada por status. "Em andamento" concentra '+pct(stat[0][1]/stTot,0)+' do total; andamento + finalizado somam '+pct((stat[0][1]+stat[1][1])/stTot,0)+'.'+(CD.pr&&CD.pr.total>0?' Tom mais escuro = parte relacionada (PR): '+mi(CD.pr.total,1)+' ('+pct(CD.pr.total/stTot,0)+' da carteira).':''));
   }
   const cols=['#577c69',SER[3],WARN,'#c0885a','#a8493c','#d0c4b0'];
   s+=fig(vbars(c.aging.map(x=>[x[0],x[1]]),{valfmt:v=>mi(v,1),w:820,h:280,colors:cols,partes:_prC?c.aging.map(x=>_prC.aging[x[0]]||0):null}),
@@ -988,7 +990,7 @@ function renderCarteiraDinamica(){
    +`${window.INSRT?INSRT.strip(ins('carteiraAtrasoConcentrado')
       ||ins('auto',{itens:C.status.map(x=>({name:x[0],v:x[1]})),escopo:'status',escopoPl:'status',
           universo:'da carteira',id:'cartdin-status',preferir:['estrutura','cauda']})):''}</div>`;
-  s+=cap('Clique em uma barra para ver os pedidos daquele status.'+(C.pr&&C.pr.total>0?' Hachurado = parte relacionada (PR): '+mi(C.pr.total,1)+' ('+pct(C.total?C.pr.total/C.total:0,0)+' da carteira).':''));
+  s+=cap('Clique em uma barra para ver os pedidos daquele status.'+(C.pr&&C.pr.total>0?' Tom mais escuro = parte relacionada (PR): '+mi(C.pr.total,1)+' ('+pct(C.total?C.pr.total/C.total:0,0)+' da carteira).':''));
 
   s+=H3('Evolutiva mensal da carteira','por mês de venda · barras = valor do mês · área = acumulado','cd-evol');
   s+=fig(evolCombo(C.evol.yms.map(ymLab),[
@@ -1077,7 +1079,7 @@ function drawCartdinStatus(i,bars){
   let acc=0;
   const rows=peds.map(p=>{ acc+=p[2];
     return `<tr class="cartdin-ped-row" data-p="${esc(String(p[0]))}">`
-     +`<td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}</td>`
+     +`<td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
      +`<td class="right">${nf(p[3])}</td><td class="right">${money(p[2])}</td>`
      +`<td class="right">${pct(total?p[2]/total:0,1)}</td><td class="right">${pct(total?acc/total:0,1)}</td></tr>`;}).join('');
   const box=document.getElementById('cartdin-status-detail'); if(!box) return;
@@ -1090,7 +1092,7 @@ function drawCartdinStatus(i,bars){
         ins('auto',{itens:peds.map(x=>({name:x[1]||('Pedido '+x[0]),v:x[2],q:x[3]})),escopo:'pedido',
           escopoPl:'pedidos',universo:'do status '+bucket.toLowerCase(),id:'cartdin-peds-'+bucket,
           tabela:true,preferir:['cauda','estrutura']})):'')+'</div>'
-    +cap('Clique num pedido para ver os itens.')
+    +prLegenda()+cap('Clique num pedido para ver os itens.')
     +'<div id="cartdin-ped-detail"></div>';
   box.querySelectorAll('.cartdin-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
     tr.addEventListener('click',()=>toggleCartdinPedido(tr,peds)); });
@@ -2092,7 +2094,7 @@ function drawPC(){
   let s=`<p class="cap" style="margin:2px 0 10px">${esc((prod?prod[1]:cod))}${id?' · ID '+esc(id):''}</p>`;
   if(!serie.some(([,v])=>v!=null)){ s+=call('Sem consumo de matéria-prima direta (TP=C) registrado para este produto no período/ID selecionado.','warn'); }
   else {
-    const cores=[SER[3],SER[0],SER[6],SER[2]];
+    const cores=[SER[2],SER[0],SER[6],SER[1]];
     s+=fig(line(anosOrd.map((ano,i)=>[`Custo de ${ano}`,anos[ano],cores[i%cores.length]]),MES,{valfmt:v=>money(v,2),w:980,h:320,legend:true}));
     const linhas=[];
     anosOrd.forEach(ano=>{
@@ -4766,7 +4768,7 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
   const X=i=>pl+i*(bw+gap)+bw/2, Ya=v=>pt+ph-ph*v/amax, YB=v=>pt+ph-ph*v/vmax;
   // "poluído": pouco espaço horizontal por ponto para caber a caixinha de valor (~46px) sem colidir
   const apertado=(bw+gap)<46;
-  let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:${w}px;width:100%;height:auto">`+(temPR?PR_HACH:'');
+  let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:${w}px;width:100%;height:auto">`;
   for(let g=0;g<5;g++){const yv=vmax*g/4,yy=pt+ph-ph*g/4; s+=`<line x1="${pl}" y1="${W(yy)}" x2="${pl+pw}" y2="${W(yy)}" stroke="${GRID}"/>`;
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="10.5" fill="${MUT}">${esc(valfmt(yv))}</text>`;}
   /* grupo "evolcombo-dash": eixo direito + linha (com ou sem área) do acumulado — agrupados
@@ -4786,7 +4788,7 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
     series.forEach((se,si)=>{const v=se.values[i]||0; const bh=Math.max(0,ph*v/vmax); const y=pt+ph-ph*(acc+Math.max(0,v))/vmax;
       s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
-      if(temPR&&partes[si]) s+=prRect(x,y,bw,bh,partes[si],v,i);
+      if(temPR&&partes[si]) s+=prRect(x,y,bw,bh,partes[si],v,i,se.color);
       if(v>0 && bh>13) s+=`<text x="${W(x+bw/2)}" y="${W(y+bh/2+3.5)}" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">${esc(valfmt(v))}</text>`;
       acc+=v;});
     if(acc>0) s+=`<text x="${W(x+bw/2)}" y="${W(pt+ph-ph*acc/vmax-8)}" text-anchor="middle" font-size="10" font-weight="700" fill="${INK}">${esc(valfmt(acc))}</text>`;
