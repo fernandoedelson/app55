@@ -8,6 +8,11 @@ ST_ROT = [('ANDAMENTO', 'Em andamento'), ('FINALIZADO', 'Finalizado (estoque)'),
           ('ATRASADO', 'Atrasado')]
 
 
+def _partes_relacionadas(C):
+    """Trechos de nome de cliente tratados como intragrupo (config_apresentacao.json): o desenho marca PR e explica."""
+    return [str(p) for p in (C.blob('PARTES_RELACIONADAS') or []) if p]
+
+
 def calcular_carteira(C, params=None):
     # a Carteira é a posição de fechamento; sem esse arquivo, usa a dinâmica (é o que o Kit faz)
     DATA, CD = C.blob('DATA'), C.blob('CARTDIN_FECH') or C.blob('CARTDIN')
@@ -25,7 +30,7 @@ def calcular_carteira(C, params=None):
         out['ce-status'] = {'stat': stat, 'itens': CD['itens'], 'data_base': CD['data_base'],
                             'maxym': C.maxym_vendas, 'total_base': c['total'], 'aging': c['aging']}
     out['ce-vend'] = {'vend': [x for x in c['vend'] if x[0] not in PSEUDO_VEND]}
-    out['ce-peds'] = {'peds': [[x[0], x[1], x[3]] for x in c['peds'][:12]]}
+    out['ce-peds'] = {'peds': [[x[0], x[1], x[3]] for x in c['peds'][:12]], 'pr': _partes_relacionadas(C)}
     return out
 
 
@@ -57,7 +62,8 @@ def calcular_dinamica(C, params=None):
         'cd-adiados': {'evol': CD['evol_adiado']},
         'cd-previsao': {'evol': CD['andamento_entrega']},
         'cd-vend': {'vend': [x for x in (CD.get('vend') or []) if x[0] not in PSEUDO_VEND], 'tem': bool(CD.get('vend'))},
-        'cd-peds': {'peds': [[o['ped'], o['cliente'], o['status'], o['valor']] for o in peds[:12]]},
+        'cd-peds': {'peds': [[o['ped'], o['cliente'], o['status'], o['valor']] for o in peds[:12]],
+                    'pr': _partes_relacionadas(C)},
         'cd-status-tab': {'status': CD['status']},
     }
 

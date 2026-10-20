@@ -42,10 +42,11 @@ DESENHO.carteira_dinamica=function(P){
     if(V) s+='<div>'+H3('Carteira por vendedor(a)','','cd-vend')
       +(V.tem?table(['Vendedor(a)','Pendente','Pedidos'],V.vend.map(x=>[esc(x[0]),money(x[1]),nf(x[2])]),['left','right','right'],null,ins('auto','auto-cartdin-vend'))
              :call('Coluna "VENDEDORA" não encontrada nesta geração da planilha.','warn'))+'</div>';
-    if(K) s+='<div>'+H3('Maiores pedidos em carteira','','cd-peds')
+    if(K){ window.PARTES_RELACIONADAS=K.pr||[];
+      s+='<div>'+H3('Maiores pedidos em carteira','','cd-peds')
       +table(['Pedido','Cliente','Status','Pendente'],
-         K.peds.map(x=>[esc(String(x[0])),esc(trunc(x[1],22)),esc(x[2].join(' + ')),money(x[3])]),
-         ['left','left','left','right'],null,ins('concentracao','concentracao-ped-carteira'))+'</div>';
+         K.peds.map(x=>[esc(String(x[0])),esc(trunc(x[1],22))+prTag(x[1]),esc(x[2].join(' + ')),money(x[3])]),
+         ['left','left','left','right'],null,ins('concentracao','concentracao-ped-carteira'))+prLegenda()+'</div>'; }
     s+='</div>';
     s+=cap('Pendente = valor ainda em carteira (excluídos cancelados, devoluções e entregues). '
       +'Os 12 maiores pedidos somam todos os status: quando um pedido tem itens em situações diferentes, os dois aparecem na coluna Status.');

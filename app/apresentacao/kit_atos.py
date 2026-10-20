@@ -3,7 +3,7 @@
 
 Não há reconstrução aqui. Os dados da competência (os mesmos blobs que o gerador do Kit grava) são
 serializados do jeito que o gerar_relatorio.montar_html serializa, montados pelo montar_doc do Kit e
-passados pelo gerar_html_atos do Kit — os três copiados literalmente da tag gabarito-v2 em
+passados pelo gerar_html_atos do Kit — os três copiados literalmente da tag gabarito-v3 em
 app/kit_congelado (com hash conferido). Mesma entrada, mesmo código: mesmo HTML, byte a byte.
 
 O documento carrega os dados inteiros do mês (é assim que o Kit funciona: o cálculo roda no

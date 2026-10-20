@@ -170,7 +170,7 @@ function pie3D(items,o={}){ const {valfmt=mi,w=260,colorOf=null,extraHeader=null
 /* table(headers, rows, aligns, foot, ins): `ins` e um destaque de insights.js
    (ou null). A regua entra logo abaixo do quadro, do mesmo jeito que num grafico. */
 function table(headers,rows,aligns,foot,ins){ aligns=aligns||['left'].concat(headers.slice(1).map(_=>'right'));
-  let s='<div class="tw"><table class="dt"><thead><tr>'+headers.map((h,i)=>`<th class="${aligns[i]}">${h}</th>`).join('')+'</tr></thead><tbody>';
+  let s='<div class="tw"><table class="dt"><thead><tr>'+headers.map((h,i)=>`<th class="${aligns[i]}"${memAttr(memoria(h))}>${h}</th>`).join('')+'</tr></thead><tbody>';
   s+=rows.map(r=>'<tr>'+r.map((c,i)=>`<td class="${aligns[i]}">${c==null?'':c}</td>`).join('')+'</tr>').join('');
   s+='</tbody>'; if(foot) s+='<tfoot><tr>'+foot.map((c,i)=>`<td class="${aligns[i]}">${c==null?'':c}</td>`).join('')+'</tr></tfoot>';
   s+='</table></div>';
@@ -248,11 +248,11 @@ function exportCsv(tw){
 function famName(i){return DATA.fam[i];}
 function aggregate(ymMin,ymMax){
   const R=DATA.rows; let total=0,qnt=0; const peds=new Set();
-  const V={},D={},A={},CL={},FM={},CLS={},VF={}; const comp={pf:0,dsr:0,prem:0,pj:0,ger:0,cur:0,rt:0,roy:0}; const monthly={};
+  const V={},D={},A={},CL={},FM={},CLS={},VF={}; const comp={pf:0,dsr:0,prem:0,pj:0,ger:0,cur:0,rt:0,roy:0}; const monthly={}; const monthlyP={},monthlyQ={};
   const gv=(o,k)=> o[k]||(o[k]={v:0,q:0,peds:new Set(),com:0,extra:0});
   for(const r of R){ const ym=r[0]; if(ym<ymMin||ym>ymMax) continue;
     const v=r[1]; total+=v; qnt+=r[2]; if(r[15]>=0) peds.add(r[15]);
-    monthly[ym]=(monthly[ym]||0)+v;
+    monthly[ym]=(monthly[ym]||0)+v; monthlyQ[ym]=(monthlyQ[ym]||0)+r[2]; if(r[15]>=0)(monthlyP[ym]||(monthlyP[ym]=new Set())).add(r[15]);
     const vd=gv(V,r[3]); vd.v+=v; vd.q+=r[2]; if(r[15]>=0)vd.peds.add(r[15]); vd.com+=r[9]+r[10]+r[11]+r[12];
     FM[r[4]]=(FM[r[4]]||0)+v; CL[r[5]]=(CL[r[5]]||0)+v; CLS[r[6]]=(CLS[r[6]]||0)+v;
     (VF[r[3]]||(VF[r[3]]={}));(VF[r[3]][r[4]]=(VF[r[3]][r[4]]||0)+v);
@@ -270,7 +270,7 @@ function aggregate(ymMin,ymMax){
   const fams=Object.keys(FM).map(k=>({name:DATA.fam[k],v:FM[k]})).sort((a,b)=>b.v-a.v);
   const clis=Object.keys(CL).map(k=>({name:DATA.cl[k],idx:+k,v:CL[k]})).sort((a,b)=>b.v-a.v);
   const clss=Object.keys(CLS).map(k=>({name:DATA.cls[k],v:CLS[k]})).sort((a,b)=>b.v-a.v);
-  return {total,qnt,peds:pedN,ticket:pedN?total/pedN:0,vend,desg,arqs,fams,clis,clss,comp,monthly,VF};
+  return {total,qnt,peds:pedN,ticket:pedN?total/pedN:0,vend,desg,arqs,fams,clis,clss,comp,monthly,monthlyP,monthlyQ,VF};
 }
 /* leitura de Pareto: quantos itens do topo de uma lista JÁ ORDENADA desc. concentram `alvo` do total.
    Percorre a lista inteira, não só o que a tabela mostra — o corte costuma cair além do top 10. */
@@ -318,7 +318,62 @@ function clienteItens(cliIdx,ymMin,ymMax){
 }
 
 /* ================= RENDER HELPERS ================= */
-const kpi=(l,v,s='',t='')=>`<div class="kpi${t?' '+t:''}"><div class="kpi-l">${l}</div><div class="kpi-v">${v}</div><div class="kpi-s">${s}</div></div>`;
+/* MEMÓRIA DE CÁLCULO: parar o mouse num cartão ou no cabeçalho de uma coluna calculada mostra como o número é feito.
+   Chave = rótulo (a parte antes de " · " e sem o que vem entre parênteses). Sem entrada, o cartão cujo subtítulo já é uma
+   conta ("Receita Bruta ÷ qtd") usa esse subtítulo. */
+const MEMORIA={
+ 'Venda contratada':'Soma do valor dos pedidos feitos no período (pela data do pedido).',
+ 'Venda':'Soma do valor dos pedidos feitos no período.',
+ 'Pedidos':'Quantidade de pedidos distintos: cada número de pedido conta uma só vez.',
+ 'Ticket médio':'Venda contratada ÷ número de pedidos.',
+ 'Quantidade':'Soma da quantidade de itens.',
+ 'Volume vendido':'Soma da quantidade de itens vendidos no período.',
+ 'Carteira em aberto':'Soma dos pedidos ainda sem nota fiscal emitida (pendente = sem NF).',
+ 'Carteira total':'Soma dos pedidos ainda sem nota fiscal emitida (pendente = sem NF).',
+ 'Atingimento':'Realizado ÷ meta do mesmo período.',
+ 'Meta do ano':'Soma das metas mensais do ano (arquivo de metas).',
+ 'Gap acumulado':'Realizado acumulado − meta acumulada.',
+ 'Gap (real. − meta)':'Realizado − meta.',
+ 'Relações únicas':'Arquitetos distintos (ou o cliente, quando não há arquiteto) com compra líquida positiva no período.',
+ 'Repasses e comissões':'RT de arquitetos + royalties de designers + comissões (PF, PJ, DSR, prêmio) + curadoria/RP + comissão de gerente.',
+ 'Custo de comissão':'Comissão PF + prêmio + comissão PJ + DSR pagos sobre a venda.',
+ 'Saldo atual da dívida':'Aportes acumulados (remessas − recebimentos) + correção e juros acumulados.',
+ '% do saldo que é correção':'Correção e juros acumulados ÷ saldo atual da dívida.',
+ '% Contrib.':'Venda da linha ÷ venda total do período.',
+ '% contrib.':'Venda da linha ÷ venda total do período.',
+ '% do total':'Valor da linha ÷ total da tabela.',
+ '% acumulada':'Soma progressiva dos percentuais, da maior linha para baixo.',
+ '% acumulado':'Soma progressiva dos percentuais, da maior linha para baixo.',
+ '% do mês':'Venda do cliente no mês ÷ venda total do mês.',
+ 'Acumulado':'Soma progressiva: o valor desta linha mais o de todas as linhas acima.',
+ '% custo':'Custo de comissão ÷ venda.',
+ '% roy.':'Royalties ÷ venda do designer.',
+ '% RT':'RT paga ÷ venda associada ao arquiteto.',
+ 'Ticket/pedido':'Venda ÷ número de pedidos.',
+ 'Ticket/item':'Venda ÷ quantidade de itens.',
+ 'Custo comissão':'Comissão PF + prêmio + comissão PJ + DSR.',
+ 'Var. venda a/a':'Venda do período ÷ venda do mesmo período do ano anterior − 1.',
+ 'Var. faturamento a/a':'Faturamento do período ÷ faturamento do mesmo período do ano anterior − 1.',
+ 'R$/hora':'Custo do centro ÷ horas apontadas.',
+ 'Custo/UM':'Custo total ÷ quantidade na unidade de medida.',
+ 'CPV/unidade':'CPV total ÷ quantidade vendida.',
+ 'CPP/unidade':'CPP total ÷ quantidade produzida.',
+ 'CPP/un.':'CPP total ÷ quantidade produzida.'
+};
+const memoria=(r)=>{ const t=String(r==null?'':r).replace(/<[^>]*>/g,'').trim(); if(!t) return '';
+  const k=t.split(' · ')[0].replace(/\s*\(.*$/,'').trim(); return MEMORIA[t]||MEMORIA[k]||''; };
+const memAttr=(m)=>m?` title="${String(m).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" data-memoria`:'';
+/* PARTES RELACIONADAS: clientes do próprio grupo (trechos de nome em config_apresentacao.json → partes_relacionadas).
+   Nas carteiras o cliente leva a etiqueta PR e a legenda explica o que é. */
+function ehPR(nome){ const n=String(nome==null?'':nome).toUpperCase();
+  return (window.PARTES_RELACIONADAS||[]).some(p=>p&&n.includes(String(p).toUpperCase())); }
+const prTag=(nome)=>ehPR(nome)?' <span class="pr-tag" title="Parte relacionada: cliente do próprio grupo">PR</span>':'';
+function prLegenda(){ const ps=(window.PARTES_RELACIONADAS||[]).filter(Boolean); if(!ps.length) return '';
+  return '<div class="pr-legenda"><span class="pr-tag">PR</span> <b>Parte relacionada</b>: cliente do próprio grupo — a venda para ele é intragrupo, não é venda de mercado. '
+    +'Entram os clientes cujo nome contém: '+ps.map(p=>esc(p)).join(', ')+'.</div>'; }
+const kpi=(l,v,s='',t='',x='')=>{ let m=memoria(l)||(/[÷×]/.test(s)?String(l).replace(/<[^>]*>/g,'')+' = '+String(s).replace(/<[^>]*>/g,''):'');
+  if(x) m=(m?m+' ':'')+'Clique para ver mês a mês.';
+  return `<div class="kpi${t?' '+t:''}${x?' clicavel':''}"${x?` data-pe="${x}" tabindex="0" role="button"`:''}${memAttr(m)}><div class="kpi-l">${l}</div><div class="kpi-v">${v}</div><div class="kpi-s">${s}</div></div>`;};
 const call=(t,k='note')=>{const ic={note:'ℹ',ok:'✓',warn:'▲',recon:'⇄'}[k]||'ℹ'; return `<div class="callout ${k}"><span class="ci">${ic}</span><div>${t}</div></div>`;};
 /* H3(titulo, tag, blk): `blk` e o identificador do bloco — o roteiro da apresentacao
    liga/desliga o conteudo por esse id (ver marcarBlocos). Sem `blk` nada muda. */
@@ -689,11 +744,42 @@ function renderSumario(){
 }
 
 /* ---- Análise por período (DINÂMICA) ---- */
+/* Cartões da Análise por período: clicar abre a tabela mês a mês do período (ou dos últimos 12 meses, se o período for mais longo).
+   `d` = {rotulo, total:{venda,peds,ticket,qnt}, rows:[[ym,venda,pedidos,quantidade],…]} — o Kit monta de aggregate(), o app do servidor. */
+function peDados(a,rotulo){ const yms=Object.keys(a.monthly).map(Number).sort((x,y)=>x-y);
+  return {rotulo:rotulo,total:{venda:a.total,peds:a.peds,ticket:a.ticket,qnt:a.qnt},
+    rows:yms.map(y=>[y,a.monthly[y]||0,(a.monthlyP&&a.monthlyP[y])?a.monthlyP[y].size:0,(a.monthlyQ&&a.monthlyQ[y])||0])}; }
+function peKpiTabela(d,qual,todos){
+  const rows=(todos||d.rows.length<=12)?d.rows:d.rows.slice(-12), recorte=rows.length<d.rows.length;
+  const quem={venda:'Venda contratada',peds:'Pedidos',ticket:'Ticket médio',qnt:'Quantidade'}[qual]||'Venda contratada';
+  const tr=rows.map(r=>[ymLab(r[0]),money(r[1]),nf(r[2]),money(r[2]?r[1]/r[2]:0),nf(r[3])]);
+  const foot=recorte?null:['Total do período',money(d.total.venda),nf(d.total.peds),money(d.total.ticket),nf(d.total.qnt)];
+  return '<div class="pe-kpi-cab"><div><b>'+quem+' mês a mês</b> <span class="pe-kpi-sub">'
+      +(recorte?'últimos 12 meses do período ('+d.rows.length+' meses no total)':esc(d.rotulo))+'</span></div>'
+    +'<div class="pe-kpi-acoes">'+(recorte?'<button type="button" class="pe-kpi-todos">Mostrar os '+d.rows.length+' meses</button>':'')
+    +'<button type="button" class="pe-kpi-fechar" aria-label="Fechar tabela">✕</button></div></div>'
+    +table(['Mês','Venda contratada','Pedidos','Ticket médio','Quantidade'],tr,['left','right','right','right','right'],foot)
+    +'<div class="pe-kpi-nota">Ticket médio = venda ÷ pedidos do mês. Um pedido com itens em meses diferentes conta uma vez em cada mês; o total do período conta cada pedido uma só vez.</div>';
+}
+function peKpiLigar(raiz,obter){
+  if(!raiz) return; const cartoes=raiz.querySelectorAll('.kpi[data-pe]'), caixa=raiz.querySelector('.pe-kpi-tab');
+  if(!cartoes.length||!caixa) return;
+  let aberto=null, todos=false;
+  const mostrar=()=>{ cartoes.forEach(c=>c.classList.toggle('aberto',c.dataset.pe===aberto));
+    if(!aberto){ caixa.hidden=true; caixa.innerHTML=''; return; }
+    caixa.dataset.col=aberto; caixa.innerHTML=peKpiTabela(obter(),aberto,todos); caixa.hidden=false; };
+  cartoes.forEach(c=>{ const abre=()=>{ aberto=aberto===c.dataset.pe?null:c.dataset.pe; todos=false; mostrar();
+      if(aberto) caixa.scrollIntoView({block:'nearest',behavior:'smooth'}); };
+    c.addEventListener('click',abre);
+    c.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abre(); } }); });
+  caixa.addEventListener('click',e=>{ if(e.target.closest('.pe-kpi-fechar')){ aberto=null; mostrar(); }
+    else if(e.target.closest('.pe-kpi-todos')){ todos=true; mostrar(); } });
+}
 function renderPeriodo(a,label){
   let s='';
-  s+='<div class="kpis k4">'+kpi('Venda contratada',mi(a.total),label)
-    +kpi('Pedidos',nf(a.peds),'')+kpi('Ticket médio',mi(a.ticket),'por pedido')
-    +kpi('Quantidade',nf(a.qnt),'itens')+'</div>';
+  s+='<div class="kpis k4">'+kpi('Venda contratada',mi(a.total),label,'','venda')
+    +kpi('Pedidos',nf(a.peds),'','','peds')+kpi('Ticket médio',mi(a.ticket),'por pedido','','ticket')
+    +kpi('Quantidade',nf(a.qnt),'itens','','qnt')+'</div><div class="pe-kpi-tab" hidden></div>';
   // monthly within period
   const yms=Object.keys(a.monthly).map(Number).sort((x,y)=>x-y);
   // carteira histórica no período (saldo em aberto no fim de cada mês) — item 5.1 da ata de 26/08.
@@ -855,9 +941,9 @@ function renderCarteira(){
   s+='<div class="two"><div>'+H3('Carteira por vendedor(a)','','ce-vend')+table(['Vendedor(a)','Pendente','Pedidos'],_cvend.map(x=>[esc(x[0]),money(x[1]),nf(x[2])]),['left','right','right'],null,
     ins('auto',{itens:_cvend.map(x=>({name:x[0],v:x[1],q:x[2],peds:x[2]})),escopo:'vendedor(a)',escopoPl:'vendedores',
       universo:'da carteira em aberto',id:'cart-vend',tabela:true,preferir:['divergencia','estrutura']}))+'</div>';
-  s+='<div>'+H3('Maiores pedidos em carteira','','ce-peds')+table(['Pedido','Cliente','Pendente'],c.peds.slice(0,12).map(x=>['FOCCO-'+esc(x[0]),esc(trunc(x[1],22)),money(x[3])]),['left','left','right'],null,
+  s+='<div>'+H3('Maiores pedidos em carteira','','ce-peds')+table(['Pedido','Cliente','Pendente'],c.peds.slice(0,12).map(x=>['FOCCO-'+esc(x[0]),esc(trunc(x[1],22))+prTag(x[1]),money(x[3])]),['left','left','right'],null,
     ins('auto',{itens:c.peds.map(x=>({name:x[1]||('Pedido '+x[0]),v:x[3]})),escopo:'pedido',escopoPl:'pedidos',
-      universo:'da carteira em aberto',id:'cart-peds',tabela:true,preferir:['cauda','estrutura']}))+'</div></div>';
+      universo:'da carteira em aberto',id:'cart-peds',tabela:true,preferir:['cauda','estrutura']}))+prLegenda()+'</div></div>';
   return s;
 }
 /* ---- Carteira dinâmica (fonte: VENDAS LOJA <ano>.xlsx — o nome real vem em CARTDIN.fonte) ---- */
@@ -924,11 +1010,11 @@ function renderCarteiraDinamica(){
     +'</div>';
   s+='<div>'+H3('Maiores pedidos em carteira','','cd-peds')
     +table(['Pedido','Cliente','Status','Pendente'],
-       pedsGlobal.slice(0,12).map(x=>[esc(String(x.ped)),esc(trunc(x.cliente,22)),esc(x.status.join(' + ')),money(x.valor)]),
+       pedsGlobal.slice(0,12).map(x=>[esc(String(x.ped)),esc(trunc(x.cliente,22))+prTag(x.cliente),esc(x.status.join(' + ')),money(x.valor)]),
        ['left','left','left','right'],null,
        ins('concentracao',{itens:pedsGlobal.map(x=>({name:'FOCCO-'+x.ped,v:x.valor})),
          escopo:'pedido',escopoPl:'pedidos',universo:'da carteira',id:'ped-carteira',tabela:true}))
-    +'</div></div>';
+    +prLegenda()+'</div></div>';
   s+=cap('Pendente = valor ainda em carteira (excluídos cancelados, devoluções e entregues). '
     +'Os 12 maiores pedidos somam todos os status: quando um pedido tem itens em situações diferentes, os dois aparecem na coluna Status.');
 
@@ -2316,6 +2402,7 @@ function periodLabel(a,b){ if(a<=200001&&b>=300000)return 'histórico completo (
   if(a%100===1&&b%100===12&&A===B) return 'ano '+A; return ymLab(a)+' – '+ymLab(b);}
 function drawPeriodo(){ const a=aggregate(curMin,curMax); const lab=periodLabel(curMin,curMax);
   document.getElementById('periodo-body').innerHTML=renderPeriodo(a,lab);
+  peKpiLigar(document.getElementById('periodo-body'),()=>peDados(a,lab));
   document.getElementById('periodo-label').textContent='Período: '+lab;
   document.querySelectorAll('.preset').forEach(el=>{el.classList.toggle('on', +el.dataset.a===curMin && +el.dataset.b===curMax);});
   remount('periodo');}

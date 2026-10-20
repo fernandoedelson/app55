@@ -27,7 +27,8 @@ DESENHO.carteira=function(P){
   if(V||D){
     s+='<div class="two">';
     if(V) s+='<div>'+H3('Carteira por vendedor(a)','','ce-vend')+table(['Vendedor(a)','Pendente','Pedidos'],V.vend.map(x=>[esc(x[0]),money(x[1]),nf(x[2])]),['left','right','right'],null,ins('auto','auto-cart-vend'))+'</div>';
-    if(D) s+='<div>'+H3('Maiores pedidos em carteira','','ce-peds')+table(['Pedido','Cliente','Pendente'],D.peds.map(x=>['FOCCO-'+esc(x[0]),esc(trunc(x[1],22)),money(x[2])]),['left','left','right'],null,ins('auto','auto-cart-peds'))+'</div>';
+    if(D){ window.PARTES_RELACIONADAS=D.pr||[];
+      s+='<div>'+H3('Maiores pedidos em carteira','','ce-peds')+table(['Pedido','Cliente','Pendente'],D.peds.map(x=>['FOCCO-'+esc(x[0]),esc(trunc(x[1],22))+prTag(x[1]),money(x[2])]),['left','left','right'],null,ins('auto','auto-cart-peds'))+prLegenda()+'</div>'; }
     s+='</div>';
   }
   return s;

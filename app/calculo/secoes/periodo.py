@@ -63,7 +63,10 @@ def calcular(C, params=None):
     g = agregar(DATA, a, b)
     out = {'periodo.abertura': {'a': a, 'b': b, 'ano_v': C.ano_v, 'maxym': C.maxym_vendas, 'minym': C.minym_vendas,
                                 'anos_fechados': C.anos_fechados(C.ano_v),
-                                'total': g['total'], 'peds': g['peds'], 'ticket': g['ticket'], 'qnt': g['qnt']}}
+                                'total': g['total'], 'peds': g['peds'], 'ticket': g['ticket'], 'qnt': g['qnt'],
+                                # mês a mês, para a tabela que abre ao clicar nos cartões
+                                'mensal': [[y, g['monthly'][y], g['monthly_p'].get(y, 0), g['monthly_q'].get(y, 0)]
+                                           for y in sorted(g['monthly'])]}}
     ch = _carteira_hist(C, g['monthly'])
     if ch:
         out['pe-cart'] = ch

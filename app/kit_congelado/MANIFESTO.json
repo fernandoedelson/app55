@@ -1,6 +1,6 @@
 {
  "arquivos": {
-  "app.js": "7cfb21fc5ee51e8f854c70813c4006d7e1d7b2d89cac2cc85a09f7c1e45e324e",
+  "app.js": "ea0174ecbdccf1c692b951b76b4f6149efc3a177260f9cd713f08dc8ba5107ee",
   "atos.css": "016233a4ca921f0943919d324257074f50f4d15757e65805d7762a9522373016",
   "atos.js": "5ff5ca6fd645afd4aedecb8d909275b245d199ad9ed2a69c95b911e568023f5e",
   "atos_ajustes.js": "b44fc84a2739bc3efef1728a92818bb8b7a62454ba8495a1051d005dceb6d885",
@@ -28,7 +28,7 @@
   "img/p8.jpg": "f7b0c4d9059bba0892995f19674d65aaa81ad6ebe1721d8c1ac9baa45ee26c30",
   "img/p9.jpg": "89d8b0542e582748e3f131d5e194f37d9272542f6ac820ab1a7829e64df9ad41",
   "insights.js": "1fcf2cee47e66084fff6d5b4c062415d78beadc2b1e3dae131b259146e183a73",
-  "style2.css": "16b0999bb69ada666190ba235a0283ca040fa2dc4df16d4d4809d855b9cdb310"
+  "style2.css": "3d1a053ec12391e13d05ecb62d65999f5333d4a20d6677344897809d4c9d6a70"
  },
- "tag": "gabarito-v2"
+ "tag": "gabarito-v3"
 }

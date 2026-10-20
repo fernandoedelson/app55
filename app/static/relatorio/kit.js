@@ -1,5 +1,5 @@
 /* ===== +55 · desenho do relatório =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v2.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v3.
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
@@ -193,7 +193,7 @@ function pie3D(items,o={}){ const {valfmt=mi,w=260,colorOf=null,extraHeader=null
 /* table(headers, rows, aligns, foot, ins): `ins` e um destaque de insights.js
    (ou null). A regua entra logo abaixo do quadro, do mesmo jeito que num grafico. */
 function table(headers,rows,aligns,foot,ins){ aligns=aligns||['left'].concat(headers.slice(1).map(_=>'right'));
-  let s='<div class="tw"><table class="dt"><thead><tr>'+headers.map((h,i)=>`<th class="${aligns[i]}">${h}</th>`).join('')+'</tr></thead><tbody>';
+  let s='<div class="tw"><table class="dt"><thead><tr>'+headers.map((h,i)=>`<th class="${aligns[i]}"${memAttr(memoria(h))}>${h}</th>`).join('')+'</tr></thead><tbody>';
   s+=rows.map(r=>'<tr>'+r.map((c,i)=>`<td class="${aligns[i]}">${c==null?'':c}</td>`).join('')+'</tr>').join('');
   s+='</tbody>'; if(foot) s+='<tfoot><tr>'+foot.map((c,i)=>`<td class="${aligns[i]}">${c==null?'':c}</td>`).join('')+'</tr></tfoot>';
   s+='</table></div>';
@@ -274,7 +274,68 @@ function exportCsv(tw){
 }
 
 /* ================= RENDER HELPERS ================= */
-const kpi=(l,v,s='',t='')=>`<div class="kpi${t?' '+t:''}"><div class="kpi-l">${l}</div><div class="kpi-v">${v}</div><div class="kpi-s">${s}</div></div>`;
+/* MEMÓRIA DE CÁLCULO: parar o mouse num cartão ou no cabeçalho de uma coluna calculada mostra como o número é feito.
+   Chave = rótulo (a parte antes de " · " e sem o que vem entre parênteses). Sem entrada, o cartão cujo subtítulo já é uma
+   conta ("Receita Bruta ÷ qtd") usa esse subtítulo. */
+const MEMORIA={
+ 'Venda contratada':'Soma do valor dos pedidos feitos no período (pela data do pedido).',
+ 'Venda':'Soma do valor dos pedidos feitos no período.',
+ 'Pedidos':'Quantidade de pedidos distintos: cada número de pedido conta uma só vez.',
+ 'Ticket médio':'Venda contratada ÷ número de pedidos.',
+ 'Quantidade':'Soma da quantidade de itens.',
+ 'Volume vendido':'Soma da quantidade de itens vendidos no período.',
+ 'Carteira em aberto':'Soma dos pedidos ainda sem nota fiscal emitida (pendente = sem NF).',
+ 'Carteira total':'Soma dos pedidos ainda sem nota fiscal emitida (pendente = sem NF).',
+ 'Atingimento':'Realizado ÷ meta do mesmo período.',
+ 'Meta do ano':'Soma das metas mensais do ano (arquivo de metas).',
+ 'Gap acumulado':'Realizado acumulado − meta acumulada.',
+ 'Gap (real. − meta)':'Realizado − meta.',
+ 'Relações únicas':'Arquitetos distintos (ou o cliente, quando não há arquiteto) com compra líquida positiva no período.',
+ 'Repasses e comissões':'RT de arquitetos + royalties de designers + comissões (PF, PJ, DSR, prêmio) + curadoria/RP + comissão de gerente.',
+ 'Custo de comissão':'Comissão PF + prêmio + comissão PJ + DSR pagos sobre a venda.',
+ 'Saldo atual da dívida':'Aportes acumulados (remessas − recebimentos) + correção e juros acumulados.',
+ '% do saldo que é correção':'Correção e juros acumulados ÷ saldo atual da dívida.',
+ '% Contrib.':'Venda da linha ÷ venda total do período.',
+ '% contrib.':'Venda da linha ÷ venda total do período.',
+ '% do total':'Valor da linha ÷ total da tabela.',
+ '% acumulada':'Soma progressiva dos percentuais, da maior linha para baixo.',
+ '% acumulado':'Soma progressiva dos percentuais, da maior linha para baixo.',
+ '% do mês':'Venda do cliente no mês ÷ venda total do mês.',
+ 'Acumulado':'Soma progressiva: o valor desta linha mais o de todas as linhas acima.',
+ '% custo':'Custo de comissão ÷ venda.',
+ '% roy.':'Royalties ÷ venda do designer.',
+ '% RT':'RT paga ÷ venda associada ao arquiteto.',
+ 'Ticket/pedido':'Venda ÷ número de pedidos.',
+ 'Ticket/item':'Venda ÷ quantidade de itens.',
+ 'Custo comissão':'Comissão PF + prêmio + comissão PJ + DSR.',
+ 'Var. venda a/a':'Venda do período ÷ venda do mesmo período do ano anterior − 1.',
+ 'Var. faturamento a/a':'Faturamento do período ÷ faturamento do mesmo período do ano anterior − 1.',
+ 'R$/hora':'Custo do centro ÷ horas apontadas.',
+ 'Custo/UM':'Custo total ÷ quantidade na unidade de medida.',
+ 'CPV/unidade':'CPV total ÷ quantidade vendida.',
+ 'CPP/unidade':'CPP total ÷ quantidade produzida.',
+ 'CPP/un.':'CPP total ÷ quantidade produzida.'
+};
+
+const memoria=(r)=>{ const t=String(r==null?'':r).replace(/<[^>]*>/g,'').trim(); if(!t) return '';
+  const k=t.split(' · ')[0].replace(/\s*\(.*$/,'').trim(); return MEMORIA[t]||MEMORIA[k]||''; };
+
+const memAttr=(m)=>m?` title="${String(m).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" data-memoria`:'';
+
+/* PARTES RELACIONADAS: clientes do próprio grupo (trechos de nome em config_apresentacao.json → partes_relacionadas).
+   Nas carteiras o cliente leva a etiqueta PR e a legenda explica o que é. */
+function ehPR(nome){ const n=String(nome==null?'':nome).toUpperCase();
+  return (window.PARTES_RELACIONADAS||[]).some(p=>p&&n.includes(String(p).toUpperCase())); }
+
+const prTag=(nome)=>ehPR(nome)?' <span class="pr-tag" title="Parte relacionada: cliente do próprio grupo">PR</span>':'';
+
+function prLegenda(){ const ps=(window.PARTES_RELACIONADAS||[]).filter(Boolean); if(!ps.length) return '';
+  return '<div class="pr-legenda"><span class="pr-tag">PR</span> <b>Parte relacionada</b>: cliente do próprio grupo — a venda para ele é intragrupo, não é venda de mercado. '
+    +'Entram os clientes cujo nome contém: '+ps.map(p=>esc(p)).join(', ')+'.</div>'; }
+
+const kpi=(l,v,s='',t='',x='')=>{ let m=memoria(l)||(/[÷×]/.test(s)?String(l).replace(/<[^>]*>/g,'')+' = '+String(s).replace(/<[^>]*>/g,''):'');
+  if(x) m=(m?m+' ':'')+'Clique para ver mês a mês.';
+  return `<div class="kpi${t?' '+t:''}${x?' clicavel':''}"${x?` data-pe="${x}" tabindex="0" role="button"`:''}${memAttr(m)}><div class="kpi-l">${l}</div><div class="kpi-v">${v}</div><div class="kpi-s">${s}</div></div>`;};
 
 const call=(t,k='note')=>{const ic={note:'ℹ',ok:'✓',warn:'▲',recon:'⇄'}[k]||'ℹ'; return `<div class="callout ${k}"><span class="ci">${ic}</span><div>${t}</div></div>`;};
 
@@ -309,6 +370,41 @@ const ytdLab=ym=>'Jan–'+MES[(ym%100)-1];
 const MES_LONGO=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 function mesLongo(ym){ return MES_LONGO[(ym%100)-1]+' / '+Math.floor(ym/100); }
+
+/* ---- Análise por período (DINÂMICA) ---- */
+/* Cartões da Análise por período: clicar abre a tabela mês a mês do período (ou dos últimos 12 meses, se o período for mais longo).
+   `d` = {rotulo, total:{venda,peds,ticket,qnt}, rows:[[ym,venda,pedidos,quantidade],…]} — o Kit monta de aggregate(), o app do servidor. */
+function peDados(a,rotulo){ const yms=Object.keys(a.monthly).map(Number).sort((x,y)=>x-y);
+  return {rotulo:rotulo,total:{venda:a.total,peds:a.peds,ticket:a.ticket,qnt:a.qnt},
+    rows:yms.map(y=>[y,a.monthly[y]||0,(a.monthlyP&&a.monthlyP[y])?a.monthlyP[y].size:0,(a.monthlyQ&&a.monthlyQ[y])||0])}; }
+
+function peKpiTabela(d,qual,todos){
+  const rows=(todos||d.rows.length<=12)?d.rows:d.rows.slice(-12), recorte=rows.length<d.rows.length;
+  const quem={venda:'Venda contratada',peds:'Pedidos',ticket:'Ticket médio',qnt:'Quantidade'}[qual]||'Venda contratada';
+  const tr=rows.map(r=>[ymLab(r[0]),money(r[1]),nf(r[2]),money(r[2]?r[1]/r[2]:0),nf(r[3])]);
+  const foot=recorte?null:['Total do período',money(d.total.venda),nf(d.total.peds),money(d.total.ticket),nf(d.total.qnt)];
+  return '<div class="pe-kpi-cab"><div><b>'+quem+' mês a mês</b> <span class="pe-kpi-sub">'
+      +(recorte?'últimos 12 meses do período ('+d.rows.length+' meses no total)':esc(d.rotulo))+'</span></div>'
+    +'<div class="pe-kpi-acoes">'+(recorte?'<button type="button" class="pe-kpi-todos">Mostrar os '+d.rows.length+' meses</button>':'')
+    +'<button type="button" class="pe-kpi-fechar" aria-label="Fechar tabela">✕</button></div></div>'
+    +table(['Mês','Venda contratada','Pedidos','Ticket médio','Quantidade'],tr,['left','right','right','right','right'],foot)
+    +'<div class="pe-kpi-nota">Ticket médio = venda ÷ pedidos do mês. Um pedido com itens em meses diferentes conta uma vez em cada mês; o total do período conta cada pedido uma só vez.</div>';
+}
+
+function peKpiLigar(raiz,obter){
+  if(!raiz) return; const cartoes=raiz.querySelectorAll('.kpi[data-pe]'), caixa=raiz.querySelector('.pe-kpi-tab');
+  if(!cartoes.length||!caixa) return;
+  let aberto=null, todos=false;
+  const mostrar=()=>{ cartoes.forEach(c=>c.classList.toggle('aberto',c.dataset.pe===aberto));
+    if(!aberto){ caixa.hidden=true; caixa.innerHTML=''; return; }
+    caixa.dataset.col=aberto; caixa.innerHTML=peKpiTabela(obter(),aberto,todos); caixa.hidden=false; };
+  cartoes.forEach(c=>{ const abre=()=>{ aberto=aberto===c.dataset.pe?null:c.dataset.pe; todos=false; mostrar();
+      if(aberto) caixa.scrollIntoView({block:'nearest',behavior:'smooth'}); };
+    c.addEventListener('click',abre);
+    c.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abre(); } }); });
+  caixa.addEventListener('click',e=>{ if(e.target.closest('.pe-kpi-fechar')){ aberto=null; mostrar(); }
+    else if(e.target.closest('.pe-kpi-todos')){ todos=true; mostrar(); } });
+}
 
 /* ---- Custos de Produção / CPV (dinâmico por período) ---- */
 function custosMesLab(ym){ return MES[(ym%100)-1]+'/'+String(Math.floor(ym/100)).slice(2); }

@@ -20,6 +20,7 @@ def agregar(DATA, ym_min, ym_max):
     V, D, A, CL, FM, CLS, VF = {}, {}, {}, {}, {}, {}, {}
     comp = {'pf': 0, 'dsr': 0, 'prem': 0, 'pj': 0, 'ger': 0, 'cur': 0, 'rt': 0, 'roy': 0}
     monthly = {}
+    monthly_q, monthly_p = {}, {}
 
     def gv(o, k):
         if k not in o:
@@ -36,6 +37,9 @@ def agregar(DATA, ym_min, ym_max):
         if r[15] >= 0:
             peds.add(r[15])
         monthly[ym] = monthly.get(ym, 0) + v
+        monthly_q[ym] = monthly_q.get(ym, 0) + r[2]
+        if r[15] >= 0:
+            monthly_p.setdefault(ym, set()).add(r[15])
         vd = gv(V, r[3])
         vd['v'] += v
         vd['q'] += r[2]
@@ -85,7 +89,7 @@ def agregar(DATA, ym_min, ym_max):
     clss = desc([{'name': DATA['cls'][k], 'v': CLS[k]} for k in ordem(CLS)], 'v')
     return {'total': total, 'qnt': qnt, 'peds': ped_n, 'ticket': total / ped_n if ped_n else 0, 'vend': vend,
             'desg': desg, 'arqs': arqs, 'fams': fams, 'clis': clis, 'clss': clss, 'comp': comp,
-            'monthly': monthly, 'VF': VF}
+            'monthly': monthly, 'monthly_q': monthly_q, 'monthly_p': {k: len(s) for k, s in monthly_p.items()}, 'VF': VF}
 
 
 def concentracao(lista, total, alvo):

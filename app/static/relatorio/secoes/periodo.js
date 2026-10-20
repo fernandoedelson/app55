@@ -8,12 +8,19 @@ function _pePeriodo(A,a,b){ if(a<=200001&&b>=300000)return 'histórico completo 
   if(a===b) return ymLab(a).replace('/','/20'); const Y1=Math.floor(a/100),Y2=Math.floor(b/100);
   if(a%100===1&&b%100===12&&Y1===Y2) return 'ano '+Y1; return ymLab(a)+' – '+ymLab(b);}
 
+/* os cartões abrem a tabela mês a mês do período: os números chegam do servidor em periodo.abertura.mensal */
+function _peLigar(P){
+  const A=P['periodo.abertura']; if(!A) return;
+  peKpiLigar(document.getElementById('periodo-body'),()=>({rotulo:_pePeriodo(A,A.a,A.b),
+    total:{venda:A.total,peds:A.peds,ticket:A.ticket,qnt:A.qnt},rows:A.mensal||[]}));
+}
+
 function _peCorpo(P){
   let s='';
   const A=P['periodo.abertura'];
-  if(A) s+='<div class="kpis k4">'+kpi('Venda contratada',mi(A.total),_pePeriodo(A,A.a,A.b))
-    +kpi('Pedidos',nf(A.peds),'')+kpi('Ticket médio',mi(A.ticket),'por pedido')
-    +kpi('Quantidade',nf(A.qnt),'itens')+'</div>';
+  if(A) s+='<div class="kpis k4">'+kpi('Venda contratada',mi(A.total),_pePeriodo(A,A.a,A.b),'','venda')
+    +kpi('Pedidos',nf(A.peds),'','','peds')+kpi('Ticket médio',mi(A.ticket),'por pedido','','ticket')
+    +kpi('Quantidade',nf(A.qnt),'itens','','qnt')+'</div><div class="pe-kpi-tab" hidden></div>';
   const CH=P['pe-cart'];
   if(CH){
     s+=H3('Carteira em aberto — posição mês a mês','saldo reconstruído da data do pedido e da NF','pe-cart');
@@ -126,6 +133,7 @@ DESENHO_POS.periodo=function(sec,ctx){
   async function corpo(){
     const P=await ctx.buscar(f);
     document.getElementById('periodo-body').innerHTML=_peCorpo(P);
+    _peLigar(P);
     document.getElementById('periodo-label').textContent='Período: '+_pePeriodo(A,f.de,f.ate);
     marca(); ctx.remarcar();
   }
@@ -134,4 +142,5 @@ DESENHO_POS.periodo=function(sec,ctx){
   document.getElementById('f-apply').addEventListener('click',()=>{let a=+de.value,b=+ate.value; if(a>b){const t=a;a=b;b=t;} f.de=a; f.ate=b; corpo();});
   de.value=f.de; ate.value=f.ate;
   marca();
+  _peLigar(ctx.payload);
 };

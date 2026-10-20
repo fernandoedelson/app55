@@ -138,7 +138,7 @@
         btn.type = 'button';
         btn.className = 'cmt-mini';
         btn.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); abrir(btn.dataset.bloco, btn); });
-        el.appendChild(btn);
+        el.insertBefore(btn, el.firstChild);
       }
       const tipo = el.classList.contains('fig') ? 'gráfico' : 'tabela';
       const chave = bloco + '|' + r.rotulo;
