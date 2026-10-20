@@ -7,7 +7,7 @@ Especificação: https://claude.ai/code/artifact/c8c0c6ac-211a-4534-8e0c-8c90336
 
 | Fase | Situação |
 | --- | --- |
-| 0. Arrumar o Kit (datas, defeitos) | concluída — Kit na tag `gabarito-v1`; `gabarito-v2` em 20/10/2026 (leituras novas dos Custos, vindas do Kit 8) e `gabarito-v3` no mesmo dia (memória de cálculo ao passar o mouse, cartões do período que abrem a tabela mês a mês, etiqueta PR nas carteiras) |
+| 0. Arrumar o Kit (datas, defeitos) | concluída — Kit na tag `gabarito-v1`; `gabarito-v2` em 20/10/2026 (leituras novas dos Custos, vindas do Kit 8) , `gabarito-v3` (memória de cálculo, cartões do período, etiqueta PR) e `gabarito-v4` (valor de PR hachurado nos gráficos e tabelas das carteiras), os dois no mesmo dia |
 | 1. Gabarito | concluída — `C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design\_referencia\gabarito\2026-07` |
 | 2. Fundação (login, perfis, permissões, auditoria, ver como, catálogo) | concluída localmente |
 | 3. Cálculo no servidor (17 seções, 122 blocos) | concluída — igual ao gabarito bloco a bloco |
@@ -90,7 +90,7 @@ nesse processo de revisão.
 aprovado**: menu lateral que recolhe, fotos, capítulos, modo Apresentar, zoom com laser e tudo o mais.
 Não há reconstrução: `app/apresentacao/kit_atos.py` serializa os dados da competência como o
 `montar_html` do Kit e passa pelo `montar_doc` e pelo `gerar_html_atos.py` do próprio Kit, copiados
-literalmente da tag `gabarito-v3` para `app/kit_congelado/` (`ferramentas/extrair_kit_atos.py`, com
+literalmente da tag `gabarito-v4` para `app/kit_congelado/` (`ferramentas/extrair_kit_atos.py`, com
 MANIFESTO.json de hashes conferido antes de cada geração). O teste
 `tests/test_apresentacao_kit.py` compara a resposta da rota com `relatorio_atos.html` do gabarito.
 

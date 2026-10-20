@@ -16,7 +16,7 @@ import subprocess
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT = r'C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design'
-TAG = 'gabarito-v2'   # o parser não mudou na v3; NÃO rodar: sobrescreve o recorte (ate_ym) feito à mão em parse_vendas
+TAG = 'gabarito-v4'   # ao rodar, REAPLICAR o recorte (ate_ym) em parse_vendas: ver tests/test_recorte.py e ferramentas/reaplicar_recorte.py
 DESTINO = os.path.join(RAIZ, 'app', 'importacao', 'kit_parser.py')
 
 CABECALHO = '''# -*- coding: utf-8 -*-

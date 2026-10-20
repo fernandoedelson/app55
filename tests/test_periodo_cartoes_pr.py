@@ -39,3 +39,26 @@ def test_kit_tem_memoria_de_calculo_e_legenda_pr():
     assert 'function prLegenda' in kit and 'function peKpiLigar' in kit
     css = open(os.path.join(RAIZ, 'app', 'static', 'relatorio', 'style2.css'), encoding='utf-8').read()
     assert '.pe-kpi-tab' in css and '.pr-tag' in css
+
+
+@precisa_dados
+def test_carteiras_mandam_o_valor_de_pr_por_status_faixa_vendedor_e_mes():
+    C = comp_mod.Competencia('2026-07', REAL)
+    base = carteira.calcular_carteira(C, {})
+    assert base['carteira.abertura']['pr']['total'] > 0
+    st = base['ce-status']
+    assert len(st['pr_stat']) == len(st['stat']) and abs(sum(st['pr_stat']) - st['pr_total']) < 1
+    assert isinstance(base['ce-vend']['pr'], dict) and set(st['pr_base']['aging']) <= {x[0] for x in st['aging']}
+    din = carteira.calcular_dinamica(C, {})
+    assert abs(sum(din['cd-status']['pr_status']) - din['carteira_dinamica.abertura']['pr_total']) < 1
+    assert len(din['cd-evol']['pr'][0]) == len(din['cd-evol']['evol']['yms'])
+    assert len(din['cd-adiados']['pr'][0]) == len(din['cd-adiados']['evol']['yms'])
+    assert len(din['cd-previsao']['pr'][0]) == len(din['cd-previsao']['evol']['yms'])
+    # PR nunca passa do total de cada recorte
+    assert all(p <= v + 0.01 for p, v in zip(din['cd-evol']['pr'][0], din['cd-evol']['evol']['vendas']))
+
+
+def test_kit_desenha_o_pr_nos_graficos():
+    kit = open(os.path.join(RAIZ, 'app', 'static', 'relatorio', 'kit.js'), encoding='utf-8').read()
+    for nome in ('PR_HACH', 'prRect', 'prCap', 'prSoma', 'partes=null'):
+        assert nome in kit

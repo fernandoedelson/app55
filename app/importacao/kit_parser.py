@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Leitura das planilhas — GERADO por ferramentas/extrair_parser.py a partir do gerar_relatorio.py
-do Kit na tag gabarito-v2. Não editar à mão: é o mesmo código que leu as fontes do gabarito.
+do Kit na tag gabarito-v4. Não editar à mão: é o mesmo código que leu as fontes do gabarito.
 
 A montagem do HTML não vem junto (isso é do Kit). As pastas de cada competência entram por
 definir_pastas(); o resto do arquivo é cópia literal.
@@ -219,6 +219,18 @@ def carregar_designers():
     return mapa
 
 # ---------------- 1) BASE COMERCIAL ----------------
+def _partes_rel():
+    """Trechos de nome de cliente tratados como parte relacionada (config_apresentacao.json > partes_relacionadas)."""
+    try:
+        cfg = json.load(open(os.path.join(AQUI, 'config_apresentacao.json'), encoding='utf-8'))
+        return [str(p).upper() for p in (cfg.get('partes_relacionadas') or []) if p]
+    except Exception:
+        return []
+
+def _e_pr(cliente, pats):
+    n = str(cliente or '').upper()
+    return any(p in n for p in pats)
+
 def parse_vendas(path, ate_ym=None):
     print('  base comercial:', os.path.basename(path))
     designers = carregar_designers()
@@ -278,6 +290,7 @@ def parse_vendas(path, ate_ym=None):
         if d: ref = d.date() if ref is None else max(ref, d.date())
     ref = ref or datetime.date(2026,6,30)
     cart_aging=defaultdict(lambda:[0.0,0]); cart_vend=defaultdict(lambda:[0.0,0]); cart_ped={}; cart_total=0.0
+    pr_pats=_partes_rel(); pr_total=0.0; pr_aging=defaultdict(float); pr_vend=defaultdict(float)
     for r in data:
         v=num(r[C['venda']]); d=dtv(r[C['ped']])
         if v is None or v<=0 or not d: continue
@@ -292,6 +305,7 @@ def parse_vendas(path, ate_ym=None):
         cart_aging[bucket][0]+=v; cart_aging[bucket][1]+=1
         vn=apelido('vendedor',nm(r[C['vend']])) or 'Não informado'; cart_vend[vn][0]+=v; cart_vend[vn][1]+=1
         pk=nm(r[C['focco']]) or nm(r[C['dsl']]) or nm(r[C['dsf']]) or ''; cli=apelido('cliente',nm(r[C['cli']])) or ''
+        if pr_pats and _e_pr(cli,pr_pats): pr_total+=v; pr_aging[bucket]+=v; pr_vend[vn]+=v
         if pk:
             if pk not in cart_ped: cart_ped[pk]=[cli,vn,0.0]
             cart_ped[pk][2]+=v
@@ -321,7 +335,10 @@ def parse_vendas(path, ate_ym=None):
         aging=[[b,round(cart_aging[b][0]),cart_aging[b][1]] for b in order if b in cart_aging],
         vend=sorted([[k,round(v[0]),v[1]] for k,v in cart_vend.items()],key=lambda x:-x[1])[:12],
         peds=sorted([[k,c[0],c[1],round(c[2])] for k,c in cart_ped.items()],key=lambda x:-x[3])[:15],
-        hist=carteira_hist)
+        hist=carteira_hist,
+        # parte relacionada (PR) dentro do pendente: total, por faixa de espera e por vendedor(a)
+        pr=(dict(total=round(pr_total),aging={k:round(x) for k,x in pr_aging.items()},vend={k:round(x) for k,x in pr_vend.items()})
+            if pr_pats else None))
     print('    linhas de venda:', len(rows), '| total R$ %s' % format(tot,',.0f'), '| ref carteira', ref)
     # camada 3 da auditoria de nomes: relatório de proximidade p/ revisão manual (item 10.5)
     relatorio_proximidade('vendedores', VD.l)
@@ -988,6 +1005,7 @@ def parse_carteira_dinamica():
     andamento_entrega={}  # ym entrega -> valor (só ANDAMENTO)
     ped_bucket={}          # bucket -> {pedido: {'cliente':..,'valor':..,'itens':..,'linhas':[[produto,qdt,valor,data_venda,data_entrega]]}}
     vend_tot={}            # vendedora -> {'valor':.., 'pedidos':set()}
+    pr_pats=_partes_rel(); pr_tot=0.0; pr_status={}; pr_vend={}; pr_evol={}; pr_atraso={}; pr_adiado={}; pr_entrega={}
 
     for r in ws.iter_rows(min_row=3, values_only=True):
         if not r: continue
@@ -1001,23 +1019,31 @@ def parse_carteira_dinamica():
         bucket = STATUS_BUCKET.get(status_raw, 'FINALIZADO')  # status residuais (ex. ESTOQUE) somam a FINALIZADO, como na planilha legada
 
         total+=v; itens+=1
+        ehpr = bool(pr_pats) and _e_pr(cliente, pr_pats)
         if pedido is not None: pedidos.add(pedido)
         status_tot[bucket]=status_tot.get(bucket,0)+v
+        if ehpr: pr_tot+=v; pr_status[bucket]=pr_status.get(bucket,0)+v
 
         vn = nm(r[C_VENDEDORA]) or 'Não informado'
         vt = vend_tot.setdefault(vn, {'valor':0.0,'pedidos':set()})
         vt['valor'] += v
         if pedido is not None: vt['pedidos'].add(pedido)
+        if ehpr: pr_vend[vn]=pr_vend.get(vn,0)+v
 
         if dven:
             ym=dven.year*100+dven.month
             em=evol_mensal.setdefault(ym,{'v':0,'atraso':0}); em['v']+=v
             if bucket=='ATRASADO': em['atraso']+=v
             if bucket=='ADIADO': adiado_mensal[ym]=adiado_mensal.get(ym,0)+v
+            if ehpr:
+                pr_evol[ym]=pr_evol.get(ym,0)+v
+                if bucket=='ATRASADO': pr_atraso[ym]=pr_atraso.get(ym,0)+v
+                if bucket=='ADIADO': pr_adiado[ym]=pr_adiado.get(ym,0)+v
 
         if bucket=='ANDAMENTO' and dent:
             ym2=dent.year*100+dent.month
             andamento_entrega[ym2]=andamento_entrega.get(ym2,0)+v
+            if ehpr: pr_entrega[ym2]=pr_entrega.get(ym2,0)+v
 
         if pedido is not None:
             pe=ped_bucket.setdefault(bucket,{}).setdefault(pedido,{'cliente':cliente,'valor':0.0,'itens':0,'linhas':[]})
@@ -1060,6 +1086,11 @@ def parse_carteira_dinamica():
         total=round(total,2), itens=itens, pedidos=len(pedidos),
         status=status_list, status_pedidos=status_pedidos, vend=vend_list,
         evol=dict(yms=yms_e, vendas=evol_vendas, atrasados=evol_atraso, acum=acumula(evol_vendas)),
+        # parte relacionada (PR): o mesmo corte de cada gráfico, alinhado às mesmas listas de meses
+        pr=(dict(total=round(pr_tot,2), status={k:round(x,2) for k,x in pr_status.items()},
+                 evol=dict(vendas=[round(pr_evol.get(y,0),2) for y in yms_e], atrasados=[round(pr_atraso.get(y,0),2) for y in yms_e]),
+                 adiado=[round(pr_adiado.get(y,0),2) for y in yms_a], entrega=[round(pr_entrega.get(y,0),2) for y in yms_g],
+                 vend={k:round(x,2) for k,x in pr_vend.items()}) if pr_pats else None),
         evol_adiado=dict(yms=yms_a, valor=ad_vals, acum=acumula(ad_vals)),
         andamento_entrega=dict(yms=yms_g, valor=g_vals, acum=acumula(g_vals)),
     )

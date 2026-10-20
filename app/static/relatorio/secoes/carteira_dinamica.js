@@ -14,33 +14,37 @@ DESENHO.carteira_dinamica=function(P){
      +kpi('Carteira total',mi(A.total),A.itens+' itens')
      +kpi('Pedidos',nf(A.pedidos))
      +kpi('Posição',A.data_base)
+     +(A.pr_total>0?kpi('Partes relacionadas (PR)',mi(A.pr_total),pct(A.total?A.pr_total/A.total:0,0)+' da carteira'):'')
      +'</div>';
   }
   const S=P['cd-status'];
   if(S){
     s+=H3('Classificação da carteira por status','','cd-status');
-    s+=`<div class="fig" id="cartdin-status-fig">${pareto(S.status,{valfmt:v=>mi(v,1),colors:[SER[0],GOOD,WARN,BAD],clickable:true})}`
+    s+=`<div class="fig" id="cartdin-status-fig">${pareto(S.status,{valfmt:v=>mi(v,1),colors:[SER[0],GOOD,WARN,BAD],clickable:true,partes:S.pr_status||null})}`
      +`${window.INSRT?INSRT.strip(ins('carteiraAtrasoConcentrado','carteira-atraso-concentrado')||ins('auto','auto-cartdin-status')):''}</div>`;
-    s+=cap('Clique em uma barra para ver os pedidos daquele status.');
+    s+=cap('Clique em uma barra para ver os pedidos daquele status.'+(S.pr_total>0?' Hachurado = parte relacionada (PR): '+mi(S.pr_total,1)+' ('+pct(S.total?S.pr_total/S.total:0,0)+' da carteira).':''));
   }
   const E=P['cd-evol'];
   if(E){ const C=E.evol;
     s+=H3('Evolutiva mensal da carteira','por mês de venda · barras = valor do mês · área = acumulado','cd-evol');
     s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Vendas',values:C.vendas,color:SER[0]},{name:'Atrasados',values:C.atrasados,color:BAD}],
-      C.acum,{valfmt:v=>mi(v,1)}),ins('auto','auto-cartdin-evol')); }
+      C.acum,{valfmt:v=>mi(v,1),partes:E.pr||null}),ins('auto','auto-cartdin-evol'));
+    if(E.pr) s+=prCap(prSoma(E.pr[0]),prSoma(C.vendas),'das vendas em carteira'); }
   const D=P['cd-adiados'];
   if(D){ const C=D.evol;
     s+=H3('Carteira de pedidos adiados','evolutiva mensal · barras = valor do mês · área = acumulado','cd-adiados');
-    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Adiado',values:C.valor,color:WARN}],C.acum,{valfmt:v=>mi(v,1)}),ins('carteiraAdiadoTicket','carteira-adiado-ticket')); }
+    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Adiado',values:C.valor,color:WARN}],C.acum,{valfmt:v=>mi(v,1),partes:D.pr||null}),ins('carteiraAdiadoTicket','carteira-adiado-ticket'));
+    if(D.pr) s+=prCap(prSoma(D.pr[0]),prSoma(C.valor),'dos pedidos adiados'); }
   const R=P['cd-previsao'];
   if(R){ const C=R.evol;
     s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
-    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Previsto',values:C.valor,color:SER[0]}],C.acum,{valfmt:v=>mi(v,1)}),ins('carteiraPicoEntrega','carteira-pico-entrega')||ins('auto','auto-cartdin-entrega')); }
+    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Previsto',values:C.valor,color:SER[0]}],C.acum,{valfmt:v=>mi(v,1),partes:R.pr||null}),ins('carteiraPicoEntrega','carteira-pico-entrega')||ins('auto','auto-cartdin-entrega'));
+    if(R.pr) s+=prCap(prSoma(R.pr[0]),prSoma(C.valor),'da previsão de faturamento'); }
   const V=P['cd-vend'], K=P['cd-peds'];
   if(V||K){
     s+='<div class="two">';
     if(V) s+='<div>'+H3('Carteira por vendedor(a)','','cd-vend')
-      +(V.tem?table(['Vendedor(a)','Pendente','Pedidos'],V.vend.map(x=>[esc(x[0]),money(x[1]),nf(x[2])]),['left','right','right'],null,ins('auto','auto-cartdin-vend'))
+      +(V.tem?table(['Vendedor(a)','Pendente','Pedidos'].concat(V.pr?['Do qual PR']:[]),V.vend.map(x=>[esc(x[0]),money(x[1]),nf(x[2])].concat(V.pr?[money(V.pr[x[0]]||0)]:[])),['left','right','right'].concat(V.pr?['right']:[]),null,ins('auto','auto-cartdin-vend'))
              :call('Coluna "VENDEDORA" não encontrada nesta geração da planilha.','warn'))+'</div>';
     if(K){ window.PARTES_RELACIONADAS=K.pr||[];
       s+='<div>'+H3('Maiores pedidos em carteira','','cd-peds')

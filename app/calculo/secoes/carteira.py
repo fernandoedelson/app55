@@ -19,7 +19,8 @@ def calcular_carteira(C, params=None):
     c = DATA['carteira']
     # o aging vem logo depois do quadro de status; sem carteira dinâmica não há esse título e o
     # aging passa a pertencer à abertura da seção (é assim que o Kit marca os blocos)
-    out = {'carteira.abertura': {'maxym': C.maxym_vendas, 'total': c['total']}}
+    pr_cd = (CD or {}).get('pr')
+    out = {'carteira.abertura': {'maxym': C.maxym_vendas, 'total': c['total'], 'pr': c.get('pr')}}
     stat = []
     if CD:
         mapa = dict(CD['status'])
@@ -28,8 +29,11 @@ def calcular_carteira(C, params=None):
         out['carteira.abertura']['aging'] = c['aging']
     else:
         out['ce-status'] = {'stat': stat, 'itens': CD['itens'], 'data_base': CD['data_base'],
-                            'maxym': C.maxym_vendas, 'total_base': c['total'], 'aging': c['aging']}
-    out['ce-vend'] = {'vend': [x for x in c['vend'] if x[0] not in PSEUDO_VEND]}
+                            'maxym': C.maxym_vendas, 'total_base': c['total'], 'aging': c['aging'],
+                        # parte relacionada (PR): por status (carteira dinâmica) e por faixa/vendedor (base)
+                        'pr_base': c.get('pr'), 'pr_total': pr_cd['total'] if pr_cd else None,
+                        'pr_stat': [pr_cd['status'].get(k, 0) for k, _ in ST_ROT] if pr_cd else None}
+    out['ce-vend'] = {'vend': [x for x in c['vend'] if x[0] not in PSEUDO_VEND], 'pr': (c.get('pr') or {}).get('vend')}
     out['ce-peds'] = {'peds': [[x[0], x[1], x[3]] for x in c['peds'][:12]], 'pr': _partes_relacionadas(C)}
     return out
 
@@ -52,16 +56,21 @@ def calcular_dinamica(C, params=None):
     peds = [pc[k] for k in ordem_chaves_js(pc)]
     peds.sort(key=lambda o: -o['valor'])
     fonte = CD.get('fonte')
+    pr = CD.get('pr')
     # detalhe por status sem os itens de cada pedido (os itens vêm por detalhamento)
     por_status = {b: [p[:4] for p in lst] for b, lst in (CD.get('status_pedidos') or {}).items()}
     return {
         'carteira_dinamica.abertura': {'fonte': fonte, 'data_base': CD['data_base'], 'total': CD['total'],
-                                       'itens': CD['itens'], 'pedidos': CD['pedidos']},
-        'cd-status': {'status': CD['status'], 'pedidos': por_status},
-        'cd-evol': {'evol': CD['evol']},
-        'cd-adiados': {'evol': CD['evol_adiado']},
-        'cd-previsao': {'evol': CD['andamento_entrega']},
-        'cd-vend': {'vend': [x for x in (CD.get('vend') or []) if x[0] not in PSEUDO_VEND], 'tem': bool(CD.get('vend'))},
+                                       'itens': CD['itens'], 'pedidos': CD['pedidos'],
+                                       'pr_total': pr['total'] if pr else None},
+        'cd-status': {'status': CD['status'], 'pedidos': por_status, 'total': CD['total'],
+                      'pr_status': [pr['status'].get(x[0], 0) for x in CD['status']] if pr else None,
+                      'pr_total': pr['total'] if pr else None},
+        'cd-evol': {'evol': CD['evol'], 'pr': [pr['evol']['vendas'], pr['evol']['atrasados']] if pr else None},
+        'cd-adiados': {'evol': CD['evol_adiado'], 'pr': [pr['adiado']] if pr else None},
+        'cd-previsao': {'evol': CD['andamento_entrega'], 'pr': [pr['entrega']] if pr else None},
+        'cd-vend': {'vend': [x for x in (CD.get('vend') or []) if x[0] not in PSEUDO_VEND], 'tem': bool(CD.get('vend')),
+                    'pr': pr['vend'] if pr else None},
         'cd-peds': {'peds': [[o['ped'], o['cliente'], o['status'], o['valor']] for o in peds[:12]],
                     'pr': _partes_relacionadas(C)},
         'cd-status-tab': {'status': CD['status']},
