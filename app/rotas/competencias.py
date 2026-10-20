@@ -61,6 +61,7 @@ def ver(codigo):
     secoes = [dict(s, blocos=C.blocos_da_secao(s['id'])) for s in C.SECOES]
     return render_template('fechamento/competencia.html', comp=comp, bases=motor.BASES, reuso=servico.reuso(codigo),
                            bases_pasta=servico.BASES_PASTA, processando=ult.get('estado') == 'processando',
+                           resumo_exclusao=servico.resumo_da_exclusao(codigo),
                            arquivos=servico.arquivos(codigo), faltando=servico.faltando(codigo),
                            passado=servico.mudou_o_passado(codigo), secoes=secoes,
                            blocos_publicados=publicadas,
@@ -223,6 +224,30 @@ def situacao(codigo):
         return redirect(url_for('competencias.ver', codigo=codigo))
     flash('Competência %s agora está "%s".' % (codigo, status), 'ok')
     return redirect(url_for('competencias.ver', codigo=codigo))
+
+
+@bp.route('/<codigo>/excluir', methods=['POST'])
+def excluir(codigo):
+    """Exclui a competência em qualquer situação. Só o administrador, e só digitando o código do mês."""
+    if not g.usuario['admin']:
+        abort(403)
+    if (request.form.get('confirmar') or '').strip() != codigo:
+        flash('Para excluir, digite o código do mês (%s) no campo de confirmação.' % codigo, 'erro')
+        return redirect(url_for('competencias.ver', codigo=codigo))
+    if _ANDAMENTO.get(codigo, {}).get('estado') == 'processando':
+        flash('Este mês está sendo processado agora: espere terminar para excluir.', 'erro')
+        return redirect(url_for('competencias.ver', codigo=codigo))
+    try:
+        r = servico.excluir(codigo)
+    except ValueError as e:
+        flash(str(e), 'erro')
+        return redirect(url_for('competencias.index'))
+    _ANDAMENTO.pop(codigo, None)
+    auditoria.registrar('competencia.excluir', '%s · %d planilhas, %d comentários, %d encaminhamentos, %d blocos publicados'
+                        % (codigo, r['planilhas'], r['comentarios'], r['encaminhamentos'], r['blocos_publicados']))
+    flash('Competência %s excluída (%d planilhas, %d comentários e %d encaminhamentos saíram junto).'
+          % (codigo, r['planilhas'], r['comentarios'], r['encaminhamentos']), 'ok')
+    return redirect(url_for('competencias.index'))
 
 
 @bp.route('/<codigo>/descartar', methods=['POST'])

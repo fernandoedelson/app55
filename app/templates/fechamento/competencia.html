@@ -211,6 +211,21 @@
   <button class="btn btn-sm btn-perigo" type="submit">Descartar rascunho</button>
 </form>
 {% endif %}
+
+{% if pode('admin') %}
+<h2 class="mt-lg" id="excluir">Excluir esta competência</h2>
+<p class="muted">Apaga o mês inteiro, em qualquer situação: as {{ resumo_exclusao.planilhas }} planilhas enviadas, os dados
+  processados, {{ resumo_exclusao.blocos_publicados }} blocos publicados, {{ resumo_exclusao.comentarios }} comentários e
+  {{ resumo_exclusao.encaminhamentos }} encaminhamentos. <b>Não tem volta.</b> Para recomeçar um mês, exclua e crie de novo.</p>
+<form method="post" action="{{ url_for('competencias.excluir', codigo=comp.codigo) }}" class="actions"
+      data-confirmar="{{ comp.codigo }} será apagada por completo. Não dá para desfazer."
+      data-confirmar-titulo="Excluir a competência?" data-confirmar-ok="Excluir" data-confirmar-tom="perigo">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label class="campo">Digite <b>{{ comp.codigo }}</b> para confirmar
+    <input name="confirmar" autocomplete="off" required pattern="{{ comp.codigo }}" placeholder="{{ comp.codigo }}"></label>
+  <button class="btn btn-sm btn-perigo" type="submit">Excluir a competência</button>
+</form>
+{% endif %}
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='envio_lote.js') }}"></script>
 <script src="{{ url_for('static', filename='processar.js') }}"></script>

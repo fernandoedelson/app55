@@ -370,6 +370,39 @@ def mudar_status(codigo, status, login, prazo=None):
     con.commit()
 
 
+def resumo_da_exclusao(codigo):
+    """O que sai junto com a competência — mostrado antes de confirmar."""
+    con = get_db()
+    conta = lambda tabela: con.execute('SELECT COUNT(*) FROM %s WHERE competencia=?' % tabela, (codigo,)).fetchone()[0]
+    return {'planilhas': conta('competencia_arquivos'), 'blocos_publicados': conta('competencia_blocos'),
+            'comentarios': conta('comentarios'), 'encaminhamentos': conta('encaminhamentos'),
+            'tem_dados': codigo in comp_mod.disponiveis(current_app.config)}
+
+
+def excluir(codigo):
+    """Exclui a competência INTEIRA, em qualquer situação: registro, planilhas enviadas, dados processados,
+    blocos publicados, comentários, encaminhamentos, roteiro e a apresentação gerada. Não tem volta.
+    Quem chama já conferiu que é administrador e que o código foi digitado."""
+    comp = obter(codigo)
+    if not comp and codigo not in comp_mod.disponiveis(current_app.config):
+        raise ValueError('competência não encontrada.')
+    resumo = resumo_da_exclusao(codigo)
+    con = get_db()
+    # o banco primeiro (numa transação): se falhar, os arquivos continuam; as tabelas sem chave estrangeira
+    # (reaproveitamento e roteiro da apresentação) saem à mão, o resto sai em cascata
+    con.execute('DELETE FROM competencia_reuso WHERE competencia=?', (codigo,))
+    con.execute('DELETE FROM apresentacao_roteiro WHERE competencia=?', (codigo,))
+    con.execute('DELETE FROM competencias WHERE codigo=?', (codigo,))
+    con.commit()
+    shutil.rmtree(pasta_fontes(codigo), ignore_errors=True)
+    shutil.rmtree(pasta_dados(codigo), ignore_errors=True)
+    html = os.path.join(current_app.config['DATA_DIR'], 'apresentacoes', codigo + '_atos.html')
+    if os.path.isfile(html):
+        os.remove(html)
+    comp_mod.esquecer(pasta_dados(codigo))
+    return resumo
+
+
 def apagar_rascunho(codigo):
     """Só rascunho sem dados publicados: some a pasta de fontes e o registro."""
     comp = obter(codigo)
