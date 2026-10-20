@@ -1,5 +1,5 @@
 /* ===== +55 · desenho do relatório =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v1.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v2.
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
@@ -107,15 +107,16 @@ function line(series,xlabels,o={}){ const {valfmt=mi,w=860,h=340}=o; const pt=18
   let leg = series.length>1||o.legend ? '<div class="legend">'+series.map(([nm,,c])=>`<span class="lg"><i style="background:${c}"></i>${esc(nm)}</span>`).join('')+'</div>':'';
   return leg+s+'</svg>';}
 
-function heatmap(rows,cols,data,o={}){ const {valfmt=(v=>nf(v/1000,0)),padLeft=60,w=880,cellh=30}=o; const padTop=26;
+function heatmap(rows,cols,data,o={}){ const {valfmt=(v=>nf(v/1000,0)),padLeft=60,w=880,cellh=30,colTrunc=true}=o; const padTop=26;
   const ncol=cols.length,cellw=(w-padLeft-10)/ncol,h=padTop+rows.length*cellh+6;
   const all=[]; rows.forEach(r=>cols.forEach(c=>all.push((data[r]&&data[r][c])||0))); const vmax=Math.max(...all,1);
   const ramp=v=>{const t=Math.pow(v/vmax,0.7); return RAMP[Math.min(RAMP.length-1,Math.floor(t*(RAMP.length-1)+.001))];};
   const maxch=Math.floor((padLeft-12)/6.4);
   /* o rótulo de coluna era escrito inteiro e colidia com o vizinho sempre que o
      nome passava da largura da célula — trunca pela largura real e guarda o
-     nome cheio no hover. */
-  const maxcol=Math.max(4,Math.floor((cellw-10)/6.6));
+     nome cheio no hover. colTrunc:false escreve o nome inteiro — para rótulos curtos como
+     "Mar/25", que cabem na célula (heatmap de volume da seção Custos, como no v2). */
+  const maxcol=colTrunc?Math.max(4,Math.floor((cellw-10)/6.6)):Infinity;
   let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:100%;height:auto">`;
   cols.forEach((c,j)=>{s+=`<text x="${W(padLeft+j*cellw+cellw/2)}" y="${padTop-8}" text-anchor="middle" font-size="10.5" fill="${MUT}">${esc(trunc(c,maxcol))}<title>${esc(c)}</title></text>`;});
   rows.forEach((r,i)=>{const y=padTop+i*cellh;
@@ -526,7 +527,11 @@ function stackedCols(labels,series,o={}){ const {valfmt=v=>mi(v,1),w=980,h=320,s
   for(let g=0;g<5;g++){const yv=vmax*g/4,yy=pt+ph-ph*g/4; s+=`<line x1="${pl}" y1="${W(yy)}" x2="${pl+pw}" y2="${W(yy)}" stroke="${GRID}"/>`;
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="10.5" fill="${MUT}">${esc(valfmt(yv))}</text>`;}
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
-    series.forEach((se,si)=>{const v=se.values[i]||0; const bh=ph*v/vmax; const y=pt+ph-ph*(acc+v)/vmax;
+    series.forEach((se,si)=>{const v=se.values[i]||0;
+      /* pacote com saldo negativo no mês (estorno maior que o lançado, ex. Outros jan/26) não tem
+         altura para empilhar: fica fora do desenho, mas segue no total e nas tabelas. */
+      if(v<=0) return;
+      const bh=ph*v/vmax; const y=pt+ph-ph*(acc+v)/vmax;
       s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))} (${pct(totals[i]?v/totals[i]:0,1)} do período)</title></rect>`;
       // valor dentro do proprio pacote, como no evolCombo. Faixa baixa demais nao recebe
       // rotulo: o texto sairia por cima do pacote vizinho em vez de identificar o seu.

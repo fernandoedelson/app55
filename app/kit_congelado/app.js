@@ -85,15 +85,16 @@ function line(series,xlabels,o={}){ const {valfmt=mi,w=860,h=340}=o; const pt=18
   let leg = series.length>1||o.legend ? '<div class="legend">'+series.map(([nm,,c])=>`<span class="lg"><i style="background:${c}"></i>${esc(nm)}</span>`).join('')+'</div>':'';
   return leg+s+'</svg>';}
 
-function heatmap(rows,cols,data,o={}){ const {valfmt=(v=>nf(v/1000,0)),padLeft=60,w=880,cellh=30}=o; const padTop=26;
+function heatmap(rows,cols,data,o={}){ const {valfmt=(v=>nf(v/1000,0)),padLeft=60,w=880,cellh=30,colTrunc=true}=o; const padTop=26;
   const ncol=cols.length,cellw=(w-padLeft-10)/ncol,h=padTop+rows.length*cellh+6;
   const all=[]; rows.forEach(r=>cols.forEach(c=>all.push((data[r]&&data[r][c])||0))); const vmax=Math.max(...all,1);
   const ramp=v=>{const t=Math.pow(v/vmax,0.7); return RAMP[Math.min(RAMP.length-1,Math.floor(t*(RAMP.length-1)+.001))];};
   const maxch=Math.floor((padLeft-12)/6.4);
   /* o rótulo de coluna era escrito inteiro e colidia com o vizinho sempre que o
      nome passava da largura da célula — trunca pela largura real e guarda o
-     nome cheio no hover. */
-  const maxcol=Math.max(4,Math.floor((cellw-10)/6.6));
+     nome cheio no hover. colTrunc:false escreve o nome inteiro — para rótulos curtos como
+     "Mar/25", que cabem na célula (heatmap de volume da seção Custos, como no v2). */
+  const maxcol=colTrunc?Math.max(4,Math.floor((cellw-10)/6.6)):Infinity;
   let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:100%;height:auto">`;
   cols.forEach((c,j)=>{s+=`<text x="${W(padLeft+j*cellw+cellw/2)}" y="${padTop-8}" text-anchor="middle" font-size="10.5" fill="${MUT}">${esc(trunc(c,maxcol))}<title>${esc(c)}</title></text>`;});
   rows.forEach((r,i)=>{const y=padTop+i*cellh;
@@ -1005,21 +1006,7 @@ const _PRESET_ANO_CU=[ANO_C+' ('+ytdLab(MAXYM_CUSTOS||101)+')',ANO_C*100+1,MAXYM
 const _PRESET_12M_CU=['Últimos 12m',ymShift(MAXYM_CUSTOS||101,-11),MAXYM_CUSTOS];
 const CUSTOS_PRESETS=[['Histórico completo',200001,300000],..._PRESET_ANO_ANT_CU,_PRESET_ANO_CU,_PRESET_12M_CU];
 let cuMin=200001,cuMax=300000;
-/* ===== Reconciliação: NDVAL666 (matéria-prima), Valorização_Ordens (centro de custo) e Razão CC
-   (tipo de conta) são ledgers/recortes diferentes do total oficial (CPV_Acumulado ou, na seção
-   Operacional, o novo CPP) — por isso não fecham exatamente com t.mat/t.mod/t.ggf. Para que toda
-   a leitura (Executivo × CPV e Operacional × CPP) fique correlacionada ao Painel de Indicadores,
-   escala cada abertura proporcionalmente (mantém os pesos relativos internos) até o total bater
-   exatamente com a fonte oficial. Muta "a" in place — todo consumidor downstream (tabelas e
-   drill-down) já lê os valores reconciliados. */
-
-/* Divide a.operacionais.PRODUTIVO.itens (Razão CC) em Mão de Obra ("Pessoal") e GGF, escalando
-   proporcionalmente para fechar com mod/ggf informados — usado só onde essa abertura é necessária
-   (Custos Operacionais do Executivo), sem mutar "a" (mantém a.operacionais intacto p/ Apoio×Produtivo). */
-
 function custosAgg(ymMin,ymMax,excl,src){
-  /* a janela viaja junto com o agregado: as regras de destaque precisam dela
-     para recortar o CPV pelo mesmo periodo que o grafico mostra */
   const C=window.CUSTOS, inR=ym=>ym>=ymMin&&ym<=ymMax;
   const cpvRows=(src==='cpp')?C.cpp:C.cpv, prodRows=(src==='cpp')?C.produtos_cpp:C.produtos;
   let mat=0,mod=0,ggf=0,custo=0,qtd=0; const grpMap={},mesMap={},volGrpMes={},cpvGrpMes={};
@@ -1068,7 +1055,7 @@ function custosAgg(ymMin,ymMax,excl,src){
   for(const [ym,prod,v] of C.assistencia){ if(!inR(ym))continue; assMes[ym]=(assMes[ym]||0)+v; assProd[prod]=(assProd[prod]||0)+v; }
   const assMensal=Object.keys(assMes).map(Number).sort((a,b)=>a-b).map(ym=>[ym,assMes[ym]]);
   const assPorProduto=Object.entries(assProd).map(([k,v])=>[k,v]).sort((a,b)=>b[1]-a[1]).slice(0,15);
-  return {ymMin,ymMax, total:{mat,mod,ggf,custo,qtd}, meses, grupos, produtos, materiais, materiaisTop, operacionais, cc, ccTotal, volGrpMes, cpvGrpMes, mesesYm,
+  return {ymMin,ymMax,total:{mat,mod,ggf,custo,qtd}, meses, grupos, produtos, materiais, materiaisTop, operacionais, cc, ccTotal, volGrpMes, cpvGrpMes, mesesYm,
     retrabalho:{mensal:retMensal,total:retMensal.reduce((s,x)=>s+x[1],0),porItem:retPorItem},
     assistencia:{mensal:assMensal,total:assMensal.reduce((s,x)=>s+x[1],0),porProduto:assPorProduto}};
 }
@@ -1213,26 +1200,392 @@ let cxMin=Math.max(ANO_C*100+1,MINYM_CUSTOS||0),cxMax=MAXYM_CUSTOS;
 
 /* ===== Custos — Executivo: drill-down (categoria de material e grupo de produto) + tabela CPV por grupo ===== */
 let cxLastA=null,cxLastPrev=null,cxLastLab=null,cxLastLabPrev=null,cxGrpExpanded=false,cxMatSel=null;
-let cxgMinA=MINYM_CUSTOS,cxgMaxA=MINYM_CUSTOS&&Math.min(ymShift(MINYM_CUSTOS,5),MAXYM_CUSTOS),cxgMinB=Math.max(ANO_C*100+1,MINYM_CUSTOS||0),cxgMaxB=MAXYM_CUSTOS,cxgAggA=null,cxgAggB=null,cxgLabA='',cxgLabB='',cxgDriverSel=null;
-
-/* ===== Filtro dinâmico Período A × B, específico da "CPV por grupo de produtos" e dos
-   "Drivers de Impacto no CPV" — desacoplado do filtro global da leitura executiva (cxMin/cxMax),
-   para permitir comparar quaisquer dois períodos sem alterar o resto da seção Executivo. Ao
-   carregar, replica o comparativo atual (B=período corrente, A=anterior automático). ===== */
-
-
-
-/* ===== Drivers de Impacto no CPV: decompõe a variação de CPV entre Período A e B em Mix (produto
-   entrou/saiu da curva), Volume (mesma curva, quantidade mudou) e Custo (CPV unitário mudou).
-   Fórmulas (conforme especificado): Mix = Δqtde × CPV unitário do período com volume > 0, só
-   quando exatamente um dos dois períodos tem qtde zero; Volume = Δqtde × CPV unitário do Período B
-   (base), só quando nenhum dos dois é zero; Custo = ΔCPV unitário × qtde do Período A (mês em
-   comparação), só quando nenhum dos dois é zero — isso faz Mix/Volume/Custo somarem exatamente
-   ΔCusto do item em todos os casos, sem sobreposição. ===== */
-
-
-
+let cxgMinA=ymShift(MAXYM_CUSTOS,-1),cxgMaxA=ymShift(MAXYM_CUSTOS,-1),cxgMinB=MAXYM_CUSTOS,cxgMaxB=MAXYM_CUSTOS,cxgAggA=null,cxgAggB=null,cxgLabA='',cxgLabB='',cxgDriverSel=null;
 const cxgDMoney=v=>`<span style="color:${v<=0?GOOD:BAD};font-weight:600">${v>0?'+':''}${money(v)}</span>`;
+
+/* ===== Motor de leitura executiva (Custos — Executivo) ================================================
+   Todo quadro explicativo nasce de uma decomposição por PRODUTO (SKU) e cita os produtos e valores que a
+   sustentam — o texto já traz a causa, em vez de mandar "investigar". Duas réguas, sempre nomeadas:
+   (1) CPV MÉDIO POR UNIDADE (R$/un) = MIX + CUSTO. Mix = composição do que foi vendido, a custo unitário
+       constante; custo = os mesmos produtos ficando mais caros/baratos. Volume não move a média.
+       U* = CPV/un de B se vendesse o mix de B ao custo unitário de A (produto novo entra ao próprio custo);
+       mix = U* − UA ; custo = UB − U* ; mix + custo = UB − UA (exato).
+   (2) CPV TOTAL (R$) = MIX + VOLUME + CUSTO por produto — as mesmas fórmulas dos Drivers de Impacto
+       (cxgImpact), que somam exatamente ΔCPV. ====================================================== */
+const cxSg=v=>Math.abs(v)<0.5?'R$ 0':(v<0?'-':'+')+money(Math.abs(v));   // sinal explícito: +R$ 1.234 / -R$ 1.234 / R$ 0
+const cxCol=v=>`<span style="color:${v<=0?GOOD:BAD};font-weight:600">${cxSg(v)}</span>`;   // idem, colorido (vermelho = pressiona o CPV)
+const cxAbsPct=v=>pct(Math.abs(v),1);                                  // magnitude, quando o verbo já indica o sentido
+const cxUn=q=>nf(Math.round(q))+' un.';
+const cxMod=n=>nf(n)+(n===1?' modelo':' modelos');
+const cxNomes=(arr,n,fmt)=>{ const t=arr.slice(0,n).map(fmt).join('; '); const r=arr.length-n; return r>0?t+'; +'+r+(r===1?' outro':' outros'):t; };
+const cxCn=txt=>'<span class="cn">'+txt+'</span> ';
+function cxUnitBridge(merged){
+  // sA/sB = custo de itens SEM unidade no período (componentes/semi-acabados do CPP e produtos com custo apurado
+  // num período e unidades concluídas em outro). Ficam fora de mix/custo e aparecem à parte (semU), para a
+  // soma sempre fechar com a variação do CPV/CPP por unidade.
+  let QA=0,CA=0,QB=0,CB=0,ref=0,cBoth=0,cBothA=0,nBoth=0,sA=0,sB=0;
+  merged.forEach(p=>{
+    if(p.qtyA>0){ QA+=p.qtyA; CA+=p.custoA; } else sA+=p.custoA;       // custo sem unidade no período A
+    if(p.qtyB>0){ QB+=p.qtyB; CB+=p.custoB; } else sB+=p.custoB;       // custo sem unidade no período B
+    if(p.qtyB>0){ const uB=p.custoB/p.qtyB, uA=p.qtyA>0?p.custoA/p.qtyA:uB; ref+=p.qtyB*uA;
+      if(p.qtyA>0){ nBoth++; cBoth+=p.custoB; cBothA+=p.qtyB*uA; } } });
+  if(!(QA>0&&QB>0)) return null;
+  const UAf=CA/QA, UBf=CB/QB, Us=ref/QB, semU=sB/QB-sA/QA;
+  return {UA:UAf+sA/QA,UB:UBf+sB/QB,dU:(UBf+sB/QB)-(UAf+sA/QA),mixU:Us-UAf,rateU:UBf-Us,semU,QA,QB,CA:CA+sA,CB:CB+sB,nBoth,rateCont:cBothA>0?cBoth/cBothA-1:null};
+}
+function cxSkuStats(merged,side){
+  const q='qty'+side, c='custo'+side;
+  const rows=merged.filter(p=>p[q]>0).map(p=>({q:p[q],c:p[c],u:p[c]/p[q]}));
+  if(!rows.length) return {n:0,q:0,c:0,min:0,max:0,avg:0};
+  const Q=rows.reduce((s,r)=>s+r.q,0), Cc=rows.reduce((s,r)=>s+r.c,0), us=rows.map(r=>r.u);
+  return {n:rows.length,q:Q,c:Cc,min:Math.min(...us),max:Math.max(...us),avg:Cc/Q};
+}
+function cxPvm(merged){
+  const rows=merged.map(p=>({...p,...cxgImpact(p.qtyA,p.custoA,p.qtyB,p.custoB)}));
+  const sum=k=>rows.reduce((s,r)=>s+r[k],0);
+  const sem=rows.reduce((s2,r)=>s2+((r.custoB-r.custoA)-r.total),0);   // custo sem unidade no período: fecha a soma com ΔCPV/ΔCPP
+  return {rows,mix:sum('mix'),vol:sum('vol'),cst:sum('cst'),total:sum('total'),sem,
+    entradas:rows.filter(r=>r.qtyA===0&&r.qtyB>0), saidas:rows.filter(r=>r.qtyB===0&&r.qtyA>0), mantidos:rows.filter(r=>r.qtyA>0&&r.qtyB>0)};
+}
+/* matéria-prima de uma categoria: CONSUMO × PREÇO × itens novos/saídos, item a item (razão NDVAL, valores
+   brutos antes do ajuste proporcional — por isso os índices, adimensionais, são o que vale comparar). */
+function cxMatBridge(cat,aggA,aggB){
+  const C=window.CUSTOS;
+  const pega=agg=>{ const m={}; for(const [ym,c,item,um,qtd,custo] of C.materiais_item){ if(c!==cat||ym<agg.ymMin||ym>agg.ymMax) continue;
+    const o=m[item]||(m[item]={q:0,c:0,um}); o.q+=qtd; o.c+=custo; if(um) o.um=um; } return m; };
+  const A=pega(aggA), B=pega(aggB);
+  let cons=0,preco=0,novos=0,saidos=0,qNum=0,qDen=0,pNum=0,pDen=0,nNovos=0,nSaidos=0; const itens=[];
+  new Set([...Object.keys(A),...Object.keys(B)]).forEach(k=>{
+    const a=A[k], b=B[k];
+    if(a&&b&&a.q>0&&b.q>0){ const pA=a.c/a.q, pB=b.c/b.q, ec=(b.q-a.q)*pA, ep=(pB-pA)*b.q;
+      cons+=ec; preco+=ep; qNum+=b.q*pA; qDen+=a.q*pA; pNum+=b.q*pB; pDen+=b.q*pA;
+      itens.push({item:k,um:b.um||a.um,qA:a.q,qB:b.q,pA,pB,eff:ec+ep,tipo:'mantido'}); }
+    else if(b&&b.c>0&&!(a&&a.q>0)){ novos+=b.c; nNovos++; itens.push({item:k,um:b.um,qA:0,qB:b.q,pA:0,pB:b.q?b.c/b.q:0,eff:b.c,tipo:'novo'}); }
+    else if(a&&a.c>0&&!(b&&b.q>0)){ saidos-=a.c; nSaidos++; itens.push({item:k,um:a.um,qA:a.q,qB:0,pA:a.q?a.c/a.q:0,pB:0,eff:-a.c,tipo:'saiu'}); }
+  });
+  itens.sort((x,y)=>Math.abs(y.eff)-Math.abs(x.eff));
+  return {cons,preco,novos,saidos,nNovos,nSaidos,qIdx:qDen?qNum/qDen-1:null,pIdx:pDen?pNum/pDen-1:null,itens};
+}
+/* unidades produzidas (produto acabado, CPP) na janela — dá a escala das horas apontadas */
+function cxVolProd(ymMin,ymMax){ let q=0; for(const r of window.CUSTOS.cpp){ if(r[0]>=ymMin&&r[0]<=ymMax) q+=r[2]; } return q; }
+function cxCausaUnit(br){
+  const den=Math.abs(br.mixU)+Math.abs(br.rateU), sMix=den?Math.abs(br.mixU)/den:0;
+  const causa=Math.abs(br.dU)<0.005*br.UA?'ESTÁVEL':(sMix>=0.6?'MIX':(sMix<=0.4?'CUSTO':'MIX e CUSTO'));
+  return {causa,sMix};
+}
+/* Grupo: por que o CPV/un mudou entre A e B — conclusão + evidências por modelo */
+function cxLeitGrupo(g,aggA,aggB,labA,labB){
+  const merged=cxgMergeProdutos(aggA,aggB).filter(p=>p.grp===g);
+  const br=cxUnitBridge(merged); if(!br) return null;
+  const pv=cxPvm(merged), sa=cxSkuStats(merged,'A'), sb=cxSkuStats(merged,'B');
+  const LA=esc(labA), LB=esc(labB);
+  const nome=p=>esc(trunc(p.prod,42));
+  const uA=p=>p.custoA/p.qtyA, uB=p=>p.custoB/p.qtyB;
+  const ent=pv.entradas.slice().sort((x,y)=>y.custoB-x.custoB), sai=pv.saidas.slice().sort((x,y)=>y.custoA-x.custoA);
+  const mant=pv.mantidos.slice().sort((x,y)=>Math.abs(y.cst)-Math.abs(x.cst));
+  const {causa,sMix}=cxCausaUnit(br);
+  let concl=cxCn('Conclusão')+`<b>${esc(g)}</b>: CPV/un ${br.dU>=0?'subiu':'caiu'} <b>${cxAbsPct(br.UB/br.UA-1)}</b> (${money(br.UA)} → ${money(br.UB)}), `
+    +(causa==='ESTÁVEL'?'variação desprezível.':`causa principal <b>${causa}</b> — mix ${cxSg(br.mixU)}/un (${pct(sMix,0)}) e custo ${cxSg(br.rateU)}/un (${pct(1-sMix,0)}).`);
+  let leit='';
+  if(causa==='MIX'||causa==='MIX e CUSTO')
+    leit+=br.nBoth===0
+      ? ` Nenhum modelo foi vendido nos dois períodos: a variação vem de <b>qual</b> modelo foi vendido — o mix de ${LB} ficou ${br.mixU>0?'mais caro':'mais barato'} que o de ${LA}, e não há como o custo dos mesmos modelos ter mudado.`
+      : ` O mix de ${LB} ficou ${br.mixU>0?'mais caro':'mais barato'} que o de ${LA} (a composição das vendas mudou).`;
+  if(causa==='CUSTO'||causa==='MIX e CUSTO')
+    leit+=` Nos dois períodos foram vendidos ${cxMod(br.nBoth)}, e o CPV/un deles ${br.rateU>0?'subiu':'caiu'} ${spct(br.rateCont)} em média ponderada`
+      +(mant[0]?` (maior efeito: ${nome(mant[0])}, ${money(uA(mant[0]))} → ${money(uB(mant[0]))}/un).`:'.');
+  if(causa==='MIX'&&br.nBoth>0&&br.rateCont!=null) leit+=` O custo dos modelos vendidos nos dois períodos variou ${spct(br.rateCont)} — peso de ${pct(1-sMix,0)} da variação do CPV/un.`;
+  const comp=(s,lab)=>`<b>${lab}</b>: ${cxUn(s.q)} de ${cxMod(s.n)}`+(s.n>1?` (CPV/un de ${money(s.min)} a ${money(s.max)}; média ${money(s.avg)})`:` (${money(s.avg)}/un)`);
+  const ev=[comp(sa,LA)+' · '+comp(sb,LB)+'.'];
+  if(ent.length) ev.push(`Entraram (não vendidos em ${LA}): `+cxNomes(ent,3,p=>`${nome(p)} (${cxUn(p.qtyB)} a ${money(uB(p))})`)+'.');
+  if(sai.length) ev.push(`Saíram (vendidos em ${LA}, não em ${LB}): `+cxNomes(sai,3,p=>`${nome(p)} (${cxUn(p.qtyA)} a ${money(uA(p))})`)+'.');
+  if(mant.length) ev.push(`Vendidos nos dois períodos: ${cxMod(mant.length)}, CPV/un ${spct(br.rateCont)} em média ponderada.`);
+  ev.push(`CPV total do grupo ${spct(br.CB/br.CA-1)} (${money(br.CA)} → ${money(br.CB)}) = mix ${cxCol(pv.mix)} · volume ${cxCol(pv.vol)} · custo ${cxCol(pv.cst)} (fórmulas dos Drivers de Impacto).`);
+  return {concl:concl+leit, ev:ev.join('<br>'), br, pv};
+}
+/* Sem período anterior: descreve o grupo de maior CPV pelos modelos que o compõem */
+function cxLeitGrupoSolo(g,agg,totCusto){
+  const row=agg.grupos.find(r=>r[0]===g); if(!row) return null;
+  const lst=agg.produtos.filter(p=>p.grp===g&&p.qtd>0).map(p=>({prod:p.prod,q:p.qtd,c:p.custo,u:p.custo/p.qtd})).sort((x,y)=>y.c-x.c);
+  if(!lst.length) return null;
+  const us=lst.map(x=>x.u);
+  return {concl:cxCn('Conclusão')+`<b>${esc(g)}</b> concentra o maior CPV: ${mi(row[5])} (${pct(totCusto?row[5]/totCusto:0,0)} do total), ${cxUn(row[1])} a ${money(row[1]?row[5]/row[1]:0)}/un.`,
+    ev:`${cxMod(lst.length)} vendidos (CPV/un de ${money(Math.min(...us))} a ${money(Math.max(...us))}); maior peso: ${esc(trunc(lst[0].prod,42))} (${money(lst[0].c)}, ${pct(row[5]?lst[0].c/row[5]:0,0)} do grupo).`};
+}
+/* Os 7 pontos que importam — cada um traz CONCLUSÃO (o que aconteceu e por quê) + EVIDÊNCIA (modelos,
+   itens, centros e valores que sustentam). Base do CPV = a mesma do Painel de Indicadores (CPV_Acumulado completo do
+   período, inclusive COMPONENTES; só o grupo MATERIAIS fica fora), para que CPV, unidades e CPV/un fechem com o arquivo. */
+function cxPontos(a,prev,lab,labPrev){
+  const t=a.total, LB=esc(lab), LA=labPrev?esc(labPrev):'';
+  const tX=t, pX=prev?prev.total:null;
+  const temPrev=!!(pX&&pX.qtd>0&&pX.custo>0&&tX.qtd>0);
+  const u=(o,k)=>o.qtd?o[k]/o.qtd:0;
+  const pts=[];
+
+  // ---------- 1) Onde está o custo ----------
+  { const comps=[['Matéria-prima','MAT','mat'],['Mão de obra','M.O','mod'],['GGF','GGF','ggf']];
+    const sh=k=>tX.custo?tX[k]/tX.custo:0;
+    const topC=comps.map(c=>({nome:c[0],k:c[2],v:tX[c[2]]})).sort((x,y)=>y.v-x.v)[0];
+    const main=cxCn('Conclusão')+`<b>${topC.nome}</b> é o maior componente do CPV: ${pct(sh(topC.k),0)} (${mi(topC.v)} de ${mi(tX.custo)}) — MAT ${pct(sh('mat'),0)} · M.O ${pct(sh('mod'),0)} · GGF ${pct(sh('ggf'),0)}.`;
+    let ev='';
+    if(temPrev){
+      const dU=u(tX,'custo')-u(pX,'custo');
+      const parts=comps.map(c=>({sig:c[1],d:u(tX,c[2])-u(pX,c[2])}));
+      const den=parts.reduce((s2,x)=>s2+Math.abs(x.d),0)||1;
+      parts.sort((x,y)=>Math.abs(y.d)-Math.abs(x.d));
+      ev=`CPV por unidade ${cxSg(dU)} (${money(u(pX,'custo'))} → ${money(u(tX,'custo'))}): `+parts.map(x=>`${x.sig} ${cxSg(x.d)}/un (${pct(Math.abs(x.d)/den,0)})`).join(' · ')+'.';
+      if(pX.ggf>0){
+        const gD=tX.ggf/pX.ggf-1, vD=tX.qtd/pX.qtd-1, gu=u(tX,'ggf')-u(pX,'ggf');
+        ev+=` GGF total ${spct(gD)} frente a volume ${spct(vD)}: `+(vD<0
+          ?(gD>vD?`o GGF não acompanhou a queda de vendas, o que elevou o GGF por unidade (${cxSg(gu)}/un).`:`o GGF caiu tanto quanto (ou mais que) as vendas (${cxSg(gu)}/un por unidade).`)
+          :(gD<vD?`o GGF cresceu menos que as vendas, diluindo o GGF por unidade (${cxSg(gu)}/un).`:`o GGF cresceu tanto quanto (ou mais que) as vendas (${cxSg(gu)}/un por unidade).`));
+      }
+    } else ev='Sem período anterior para comparar a evolução por componente.';
+    pts.push(['1','Onde está o custo',main,ev]);
+  }
+
+  // ---------- 2) CPV por unidade ----------
+  { let main='',ev='';
+    if(temPrev){
+      const m2=cxgMergeProdutos(prev,a), br=cxUnitBridge(m2);
+      if(br){
+        const pvm=cxPvm(m2), {causa,sMix}=cxCausaUnit(br);
+        main=cxCn('Conclusão')+`CPV médio por peça ${br.dU>=0?'subiu':'caiu'} <b>${cxAbsPct(br.UB/br.UA-1)}</b> (${money(br.UA)} → ${money(br.UB)}) com volume ${spct(br.QB/br.QA-1)} (${nf(Math.round(br.QA))} → ${nf(Math.round(br.QB))} un.)`
+          +(causa==='ESTÁVEL'?': variação desprezível.':`: causa principal <b>${causa}</b> — mix ${cxSg(br.mixU)}/un (${pct(sMix,0)}) e custo ${cxSg(br.rateU)}/un (${pct(1-sMix,0)}).`);
+        const entC=pvm.entradas.reduce((s2,r)=>s2+r.custoB,0), saiC=pvm.saidas.reduce((s2,r)=>s2+r.custoA,0);
+        ev=`<b>Mix</b> (composição vendida): ${cxMod(pvm.entradas.length)} entraram (${money(entC)} de CPV) e ${cxMod(pvm.saidas.length)} saíram (${money(saiC)}). <b>Custo</b>: ${cxMod(br.nBoth)} vendidos nos dois períodos, CPV/un ${br.rateCont==null?'sem base de comparação':spct(br.rateCont)} em média ponderada.`;
+        if(causa==='MIX') ev+=` → Predomina a troca para produtos mais ${br.mixU>0?'caros':'baratos'} (${pct(sMix,0)}); o custo dos mesmos produtos explica o restante (${pct(1-sMix,0)}).`;
+        else if(causa==='CUSTO') ev+=` → Predomina o custo unitário dos próprios produtos (${pct(1-sMix,0)}); a troca de mix explica o restante (${pct(sMix,0)}).`;
+        else if(causa==='MIX e CUSTO') ev+=` → Mix e custo ${(br.mixU*br.rateU)<0?'têm sinais opostos e se compensam parcialmente':'atuam na mesma direção e se reforçam'}.`;
+      }
+    }
+    if(!main){ main=`CPV médio de <b>${money(u(tX,'custo'))}</b> por peça, sobre ${nf(Math.round(tX.qtd))} unidades.`; ev='Sem período anterior para separar o efeito de mix do efeito de custo.'; }
+    pts.push(['2','CPV por unidade',main,ev]);
+  }
+
+  // ---------- 3) Material em foco ----------
+  { const catPrev={}; if(prev) prev.materiais.forEach(([c,v])=>catPrev[c]=v);
+    let mov=null;
+    if(prev){ const m=a.materiais.map(([c,v])=>[c,v,catPrev[c]||0,v-(catPrev[c]||0)]).filter(x=>x[2]>0).sort((x,y)=>Math.abs(y[3])-Math.abs(x[3])); if(m.length) mov=m[0]; }
+    let main='—',ev='';
+    if(mov){
+      const [cat,vB,vA,d]=mov, br=cxMatBridge(cat,prev,a);
+      const parts=[['CONSUMO',br.cons],['PREÇO',br.preco],['ITENS NOVOS/SAÍDOS',br.novos+br.saidos]].sort((x,y)=>Math.abs(y[1])-Math.abs(x[1]));
+      const den=parts.reduce((s2,p)=>s2+Math.abs(p[1]),0)||1;
+      main=cxCn('Conclusão')+`<b>${esc(cat)}</b> foi a categoria que mais ${d>=0?'subiu':'caiu'}: ${mi(vB)} vs ${mi(vA)} (${spct(vB/vA-1)}; ${cxSg(d)}) — causa principal <b>${parts[0][0]}</b> (${pct(Math.abs(parts[0][1])/den,0)} do movimento nos registros do razão).`;
+      const fmtI=it=>it.tipo==='mantido'
+        ?`${esc(trunc(it.item,34))} (consumo ${spct(it.qB/it.qA-1)}, preço ${spct(it.pB/it.pA-1)})`
+        :`${esc(trunc(it.item,34))} (${it.tipo==='novo'?'item novo':'saiu'}: ${money(Math.abs(it.eff))})`;
+      ev=`Consumo ${br.qIdx==null?'—':spct(br.qIdx)} a preços constantes · preço médio ${br.pIdx==null?'—':spct(br.pIdx)} nos mesmos itens · ${br.nNovos} ${br.nNovos===1?'item novo':'itens novos'} (${money(br.novos)}) e ${br.nSaidos} ${br.nSaidos===1?'item que saiu':'itens que saíram'} (${money(-br.saidos)}). Itens de maior efeito: `+(br.itens.length?cxNomes(br.itens,3,fmtI):'—')+'.';
+    } else {
+      const top=a.materiais[0];
+      if(top){ const it=(a.materiaisTop[top[0]]||[])[0];
+        main=cxCn('Conclusão')+`<b>${esc(top[0])}</b> é a maior categoria de matéria-prima: ${mi(top[1])} (${pct(t.mat?top[1]/t.mat:0,0)} da MP direta).`;
+        ev=(it?`Item de maior peso: ${esc(trunc(it[0],40))} (${mi(it[1])}, ${pct(top[1]?it[1]/top[1]:0,0)} da categoria). `:'')+'Sem período anterior para medir consumo × preço.'; }
+    }
+    pts.push(['3','Material em foco',main,ev]);
+  }
+
+  // ---------- 4) Grupo pressionado ----------
+  { let main='',ev='';
+    const gruposX=a.grupos;
+    if(temPrev){
+      const gp={}; prev.grupos.forEach(g=>gp[g[0]]={q:g[1],c:g[5]});
+      const cand=gruposX.filter(g=>g[5]>tX.custo*0.05&&g[1]>0).map(g=>{ const p=gp[g[0]], uB=g[5]/g[1], uA=p&&p.q?p.c/p.q:0; return uA?{g:g[0],uA,uB,d:uB/uA-1}:null; })
+        .filter(Boolean).sort((x,y)=>y.d-x.d);
+      const sel=cand[0];
+      if(sel&&sel.d>0.005){ const L=cxLeitGrupo(sel.g,prev,a,labPrev,lab); if(L){ main=L.concl; ev=L.ev; } }
+      else if(sel){
+        main=cxCn('Conclusão')+`Nenhum grupo relevante (≥5% do CPV) teve alta de CPV/un: todos ficaram estáveis ou em queda. A menor queda foi em <b>${esc(sel.g)}</b> (${spct(sel.d)}: ${money(sel.uA)} → ${money(sel.uB)}).`;
+        ev='Critério: maior variação percentual do CPV por unidade entre os grupos que representam pelo menos 5% do CPV do período.';
+      }
+    }
+    if(!main){ const top=gruposX[0], L=top?cxLeitGrupoSolo(top[0],a,tX.custo):null; if(L){ main=L.concl; ev=L.ev+' Sem período anterior para medir pressão.'; } else main='—'; }
+    pts.push(['4','Grupo pressionado',main,ev]);
+  }
+
+  // ---------- 5) Custo evitável ----------
+  { const retT=a.retrabalho.total, assT=a.assistencia.total, evT=retT+assT, base=a.ccTotal.custoRaw;
+    const pRet=prev?prev.retrabalho.total:0, pAss=prev?prev.assistencia.total:0, pEv=pRet+pAss, pBase=prev?prev.ccTotal.custoRaw:0;
+    const chg=(cur,old)=>old>0?` (${spct(cur/old-1)} vs ${LA})`:'';
+    let main,ev=[];
+    if(!(evT>0)) main=cxCn('Conclusão')+'Sem retrabalho nem assistência técnica registrados no período.';
+    else {
+      main=cxCn('Conclusão')+`Custo evitável de <b>${mi(evT)}</b> = ${pct(base?evT/base:0,1)} do custo de produção`
+        +(prev&&pEv>0?`, ${cxSg(evT-pEv)} vs ${LA} (${pct(pBase?pEv/pBase:0,1)} do custo de produção então)`:'')
+        +`: retrabalho ${mi(retT)}${chg(retT,pRet)} + assistência técnica ${mi(assT)}${chg(assT,pAss)}.`;
+      const retCC={}, retProd={}; a.retrabalho.porItem.forEach(x=>{ retCC[x[0]]=(retCC[x[0]]||0)+x[2]; retProd[x[1]]=(retProd[x[1]]||0)+x[2]; });
+      const ccTop=Object.entries(retCC).sort((x,y)=>y[1]-x[1]), prTop=Object.entries(retProd).sort((x,y)=>y[1]-x[1]);
+      const assTop=a.assistencia.porProduto, ass5=assTop.slice(0,5).reduce((s2,x)=>s2+x[1],0);
+      ev.push(`Assistência técnica pesa ${pct(assT/evT,0)} do custo evitável e retrabalho ${pct(retT/evT,0)}.`);
+      if(assT>0&&assTop.length) ev.push(`<b>Assistência</b>: ${Math.min(5,assTop.length)} ${Math.min(5,assTop.length)===1?'produto concentra':'produtos concentram'} ${pct(ass5/assT,0)} (maior: ${esc(trunc(assTop[0][0],40))}, ${money(assTop[0][1])}).`);
+      if(retT>0&&ccTop.length) ev.push(`<b>Retrabalho</b>: ${pct(ccTop[0][1]/retT,0)} em ${esc(ccTop[0][0])}`+(ccTop[1]?` e ${pct(ccTop[1][1]/retT,0)} em ${esc(ccTop[1][0])}`:'')+(prTop[0]?`; maior produto: ${esc(trunc(prTop[0][0],40))} (${money(prTop[0][1])}, ${pct(prTop[0][1]/retT,0)} do retrabalho)`:'')+'.');
+    }
+    pts.push(['5','Custo evitável',main,ev.join('<br>')]);
+  }
+
+  // ---------- 6) Eficiência fabril ----------
+  { const hB=a.ccTotal.horas, cB=a.ccTotal.custoRaw, tB=a.ccTotal.taxaRaw;
+    const hA=prev?prev.ccTotal.horas:0, cA=prev?prev.ccTotal.custoRaw:0, tA=prev?prev.ccTotal.taxaRaw:0;
+    let main=cxCn('Conclusão')+`Taxa média de <b>${money(tB)}/h</b>`;
+    const ev=[];
+    if(prev&&tA>0&&hA>0&&cA>0){
+      const cD=cB/cA-1, hD=hB/hA-1;
+      main+=` (${spct(tB/tA-1)} vs ${LA}: ${money(tA)}/h): absorção ${spct(cD)} (${mi(cA,2)} → ${mi(cB,2)}) e horas apontadas ${spct(hD)} (${nf(Math.round(hA))} h → ${nf(Math.round(hB))} h) — a ${tB>=tA?'alta':'queda'} vem principalmente ${Math.abs(hD)>=Math.abs(cD)?'das <b>horas</b>':'da <b>absorção</b>'}.`;
+    } else main+=` (${mi(cB)} absorvidos em ${nf(Math.round(hB))} h apontadas).`;
+    const vpB=cxVolProd(a.ymMin,a.ymMax), vpA=prev?cxVolProd(prev.ymMin,prev.ymMax):0;
+    if(vpB>0&&hB>0){
+      const hpB=hB/vpB, hpA=(vpA>0&&hA>0)?hA/vpA:null;
+      let l=`Horas por unidade produzida: <b>${nf(hpB,1)} h/un.</b>`+(hpA!=null?` (${nf(hpA,1)} em ${LA})`:'')+` — produção de ${nf(Math.round(vpB))} un.`+(vpA>0?` (${nf(Math.round(vpA))} em ${LA})`:'')+'.';
+      if(hpA!=null&&hpB<0.75*hpA&&vpB>=0.9*vpA) l+=' Produção estável com bem menos horas: antes de ler como ganho de produtividade, conferir se o apontamento de horas (NDPRO359) está completo.';
+      ev.push(l);
+    }
+    const ccs=a.cc.filter(x=>x[4]>0&&x[7]>0), ccCaro=ccs.slice().sort((x,y)=>y[7]-x[7])[0], ccHoras=ccs.slice().sort((x,y)=>y[4]-x[4])[0];
+    if(ccCaro){ const shH=hB?ccCaro[4]/hB:0;
+      let l=`Centro mais caro por hora: <b>${esc(ccCaro[0])}</b> a ${money(ccCaro[7])}/h, com ${nf(Math.round(ccCaro[4]))} h (${pct(shH,1)} das horas)`;
+      if(shH<0.05) l+=' — taxa sensível a poucas horas apontadas';
+      l+=(ccHoras&&ccHoras[0]!==ccCaro[0])?`; maior volume de horas: ${esc(ccHoras[0])} (${pct(hB?ccHoras[4]/hB:0,0)}) a ${money(ccHoras[7])}/h.`:'.';
+      ev.push(l);
+    }
+    pts.push(['6','Eficiência fabril',main,ev.join('<br>')]);
+  }
+
+  // ---------- 7) CPV do período ----------
+  { let main='',ev='';
+    if(!temPrev) main='Sem período anterior disponível para decompor a variação do CPV em volume, mix e custo neste recorte.';
+    else {
+      const m7=cxgMergeProdutos(prev,a), pv=cxPvm(m7), br=cxUnitBridge(m7), gd=cxgGroupDriversOf(m7);
+      const CA=pX.custo, CB=tX.custo, dC=CB-CA;
+      const ef=[['VOLUME',pv.vol],['MIX',pv.mix],['CUSTO',pv.cst]].sort((x,y)=>Math.abs(y[1])-Math.abs(x[1]));
+      const liq=pv.mix+pv.cst;
+      main=cxCn('Conclusão')+`O CPV ${dC>=0?'subiu':'caiu'} <b>${cxAbsPct(CB/CA-1)}</b> (${cxSg(dC)}: ${mi(CA,2)} → ${mi(CB,2)}) frente a ${LA}. Efeito dominante: <b>${ef[0][0]}</b> ${cxCol(ef[0][1])}, seguido de ${ef[1][0].toLowerCase()} ${cxCol(ef[1][1])} e ${ef[2][0].toLowerCase()} ${cxCol(ef[2][1])}.`;
+      if(Math.sign(pv.vol)*Math.sign(liq)<0&&Math.abs(liq)>0.05*Math.abs(dC))
+        main+=` Sem o efeito volume, o CPV teria ${liq>0?'subido':'caído'} ${money(Math.abs(liq))} (mix + custo): o volume ${Math.abs(pv.vol)>Math.abs(liq)?'mais que compensou':'compensou em parte'} esse movimento.`;
+      const topG=(k)=>{ const l=gd.slice().sort((x,y)=>Math.abs(y[k])-Math.abs(x[k])).filter(g=>Math.abs(g[k])>=1).slice(0,3); return l.length?l.map(g=>`${esc(g.grp)} ${cxCol(g[k])}`).join(' · '):'nenhum grupo com efeito relevante'; };
+      const entC=pv.entradas.reduce((s2,r)=>s2+r.custoB,0), saiC=pv.saidas.reduce((s2,r)=>s2+r.custoA,0);
+      ev=[`<b>Volume</b> ${cxCol(pv.vol)}: unidades vendidas ${spct(br.QB/br.QA-1)} (${nf(Math.round(br.QA))} → ${nf(Math.round(br.QB))}) — maiores: ${topG('vol')}.`,
+        `<b>Mix</b> ${cxCol(pv.mix)}: ${cxMod(pv.entradas.length)} ${pv.entradas.length===1?'entrou':'entraram'} (${cxSg(entC)}) e ${cxMod(pv.saidas.length)} ${pv.saidas.length===1?'saiu':'saíram'} (${cxSg(-saiC)}) — maiores: ${topG('mix')}.`,
+        `<b>Custo</b> ${cxCol(pv.cst)}: ${cxMod(pv.mantidos.length)} vendidos nos dois períodos, CPV/un ${br.rateCont==null?'sem base':spct(br.rateCont)} em média ponderada — maiores: ${topG('cst')}.`,
+        ...(Math.abs(pv.sem)>=1?[`<b>Itens sem unidade vendida</b> ${cxCol(pv.sem)}: linhas de CPV sem quantidade (ajustes), fora de volume, mix e custo.`]:[]),
+        'Mesmas fórmulas por produto da seção "Drivers de Impacto no CPV" (que permite comparar quaisquer dois meses).'].join('<br>');
+    }
+    pts.push(['7','CPV do período',main,ev]);
+  }
+  return pts;
+}
+/* ===== Leituras dos demais quadros do Executivo: cada uma conclui o que a tabela/gráfico mostra, com números ===== */
+function cxConc(vals,alvo){
+  const tot=vals.reduce((s2,v)=>s2+v,0); if(!(tot>0)) return {n:0,tot:0,top3:0};
+  let acc=0,n=0; for(const v of vals){ acc+=v; n++; if(acc>=alvo*tot) break; }
+  return {n,tot,top3:vals.slice(0,3).reduce((s2,v)=>s2+v,0)/tot};
+}
+/* "CPV por grupo de produtos" (Período A × B do filtro próprio) */
+function cxLeituraGrupos(){
+  const A=cxgAggA,B=cxgAggB; if(!A||!B) return '';
+  const tA=A.total,tB=B.total; if(!(tA.qtd>0&&tB.qtd>0&&tA.custo>0)) return '';
+  const gA={}; A.grupos.forEach(g=>gA[g[0]]={q:g[1],c:g[5]});
+  const rows=B.grupos.map(g=>({g:g[0],qB:g[1],cB:g[5],qA:(gA[g[0]]||{}).q||0,cA:(gA[g[0]]||{}).c||0}));
+  A.grupos.forEach(g=>{ if(!B.grupos.find(x=>x[0]===g[0])) rows.push({g:g[0],qB:0,cB:0,qA:g[1],cA:g[5]}); });
+  rows.forEach(r=>{ r.d=r.cB-r.cA; });
+  const rel=rows.slice().sort((x,y)=>x.d-y.d)[0], pre=rows.slice().sort((x,y)=>y.d-x.d)[0];
+  const uA=tA.custo/tA.qtd, uB=tB.custo/tB.qtd;
+  const un=rows.filter(r=>r.qA>0&&r.qB>0&&r.cB>0.05*tB.custo).map(r=>({g:r.g,uA:r.cA/r.qA,uB:r.cB/r.qB})).map(r=>({...r,d:r.uB/r.uA-1})).sort((x,y)=>y.d-x.d);
+  let t=`<b>Leitura</b> (${esc(cxgLabA)} → ${esc(cxgLabB)}): o CPV ${tB.custo>=tA.custo?'subiu':'caiu'} <b>${cxAbsPct(tB.custo/tA.custo-1)}</b> (${mi(tA.custo,2)} → ${mi(tB.custo,2)}) com volume ${spct(tB.qtd/tA.qtd-1)} (${nf(Math.round(tA.qtd))} → ${nf(Math.round(tB.qtd))} un.) e CPV médio/un ${spct(uB/uA-1)} (${money(uA)} → ${money(uB)}).`;
+  if(rel&&rel.d<0) t+=` Maior redução de CPV: <b>${esc(rel.g)}</b> ${cxCol(rel.d)}${rel.qA>0?` (unidades ${spct(rel.qB/rel.qA-1)})`:''}.`;
+  if(pre&&pre.d>0) t+=` Maior aumento: <b>${esc(pre.g)}</b> ${cxCol(pre.d)}${pre.qA>0?` (unidades ${spct(pre.qB/pre.qA-1)})`:' (não vendido no período A)'}.`;
+  if(un[0]&&un[0].d>0.005) t+=` Maior alta de CPV/un entre grupos com ≥5% do CPV: <b>${esc(un[0].g)}</b> ${spct(un[0].d)} (${money(un[0].uA)} → ${money(un[0].uB)}).`;
+  t+=' A decomposição em mix, volume e custo de cada grupo está em "Drivers de Impacto no CPV", logo abaixo.';
+  return call(t,'note');
+}
+/* "Onde o CPV se concentra" */
+function cxLeituraConcentracao(a,sig,und){
+  sig=sig||'CPV'; und=und||'vendidas';
+  const g=a.grupos.filter(x=>x[0]!=='MATERIAIS'), tot=g.reduce((s2,x)=>s2+x[5],0), Q=g.reduce((s2,x)=>s2+x[1],0); if(!(tot>0&&Q>0&&g.length)) return '';
+  const c=cxConc(g.map(x=>x[5]),0.8), top=g[0];
+  const shC=top[5]/tot, shQ=top[1]/Q;
+  const un=g.filter(x=>x[1]>0).map(x=>({g:x[0],u:x[5]/x[1]})).sort((x,y)=>x.u-y.u), uMin=un[0], uMax=un[un.length-1];
+  let t=`<b>Leitura:</b> ${c.n} de ${g.length} grupos concentram 80% do ${sig} (${mi(tot,2)}); os três maiores (${g.slice(0,3).map(x=>esc(x[0])).join(', ')}) respondem por ${pct(c.top3,0)}. `
+    +`<b>${esc(top[0])}</b> pesa ${pct(shC,0)} do ${sig} com ${pct(shQ,0)} das unidades ${und} (${sig}/un de ${money(top[1]?top[5]/top[1]:0)} contra média de ${money(tot/Q)})`
+    +(shC>shQ*1.2?': o peso do grupo vem do custo por peça, não do volume.':(shQ>shC*1.2?': o grupo pesa mais em unidades que em '+sig+' (peça de custo baixo).':': peso proporcional entre unidades e '+sig+'.'));
+  if(uMin&&uMax&&uMin.g!==uMax.g) t+=` ${sig}/un varia de ${money(uMin.u)} (${esc(uMin.g)}) a ${money(uMax.u)} (${esc(uMax.g)}).`;
+  return call(t,'note');
+}
+/* "Composição da matéria-prima no CPV" */
+function cxLeituraMP(a,prev){
+  const m=a.materiais, tot=m.reduce((s2,x)=>s2+x[1],0); if(!(tot>0)||m.length<2) return '';
+  const c=cxConc(m.map(x=>x[1]),0.8);
+  let t=`<b>Leitura:</b> ${m.slice(0,2).map(x=>`<b>${esc(x[0])}</b> (${pct(x[1]/tot,0)})`).join(' e ')} somam ${pct((m[0][1]+m[1][1])/tot,0)} da matéria-prima (${mi(tot,2)}); ${c.n} de ${m.length} categorias bastam para 80%.`;
+  if(prev){ const cp={}; prev.materiais.forEach(([k,v])=>cp[k]=v);
+    const ptot=prev.materiais.reduce((s2,x)=>s2+x[1],0)||1;
+    const mv=m.filter(x=>cp[x[0]]>0).map(x=>({k:x[0],d:x[1]/tot-cp[x[0]]/ptot,sB:x[1]/tot})).sort((x,y)=>Math.abs(y.d)-Math.abs(x.d))[0];
+    if(mv&&Math.abs(mv.d)>=0.01) t+=` Maior mudança de participação vs anterior: <b>${esc(mv.k)}</b> ${mv.d>0?'+':''}${nf(mv.d*100,1)} p.p. (de ${pct(cp[mv.k]/ptot,0)} para ${pct(mv.sB,0)}). A causa (consumo × preço × itens) está no ponto 3 de "Os pontos que importam".`; }
+  return call(t,'note');
+}
+/* "Absorção por centro de custo no CPV" */
+function cxLeituraCentros(a,prev,raw){
+  // raw=true (Executivo): absorção cheia [6]/[7]; raw=false (Operacional): valores da tabela [3]/[5]
+  const iC=raw===false?3:6, iT=raw===false?5:7, A=raw===false?a.ccTotal.custo:a.ccTotal.custoRaw, TX=raw===false?a.ccTotal.taxa:a.ccTotal.taxaRaw, H=a.ccTotal.horas;
+  const cc=a.cc.filter(x=>x[iC]>0); if(!(A>0&&H>0&&cc.length)) return '';
+  const top3=cc.slice().sort((x,y)=>y[iC]-x[iC]).slice(0,3);
+  const shA=top3.reduce((s2,x)=>s2+x[iC],0)/A, shH=top3.reduce((s2,x)=>s2+x[4],0)/H;
+  let t=`<b>Leitura:</b> ${top3.map(x=>esc(x[0])).join(', ')} concentram ${pct(shA,0)} da absorção (${mi(top3.reduce((s2,x)=>s2+x[iC],0),2)}) e ${pct(shH,0)} das horas apontadas. A taxa de cada centro é absorção ÷ horas: `
+    +top3.map(x=>`${esc(x[0])} ${money(x[iT])}/h`).join(' · ')+`; média da fábrica ${money(TX)}/h.`;
+  if(prev){ const pc={}; prev.cc.forEach(x=>pc[x[0]]=x);
+    const mv=cc.filter(x=>pc[x[0]]&&pc[x[0]][iT]>0&&pc[x[0]][4]>0&&pc[x[0]][iC]>0&&x[4]/H>=0.05)
+      .map(x=>({cc:x[0],d:x[iT]/pc[x[0]][iT]-1,tA:pc[x[0]][iT],tB:x[iT],hD:x[4]/pc[x[0]][4]-1,cD:x[iC]/pc[x[0]][iC]-1})).sort((x,y)=>Math.abs(y.d)-Math.abs(x.d))[0];
+    if(mv) t+=` Maior mudança de taxa entre centros com ≥5% das horas: <b>${esc(mv.cc)}</b> ${spct(mv.d)} (${money(mv.tA)} → ${money(mv.tB)}/h; absorção ${spct(mv.cD)}, horas ${spct(mv.hD)}).`; }
+  const poucos=cc.filter(x=>x[4]/H<0.05).sort((x,y)=>y[iT]-x[iT])[0];
+  if(poucos&&poucos[iT]>1.5*TX) t+=` Atenção: <b>${esc(poucos[0])}</b> mostra ${money(poucos[iT])}/h com apenas ${nf(Math.round(poucos[4]))} h (${pct(poucos[4]/H,1)} das horas) — taxa sensível a poucas horas apontadas.`;
+  return call(t,'note');
+}
+/* "Absorção por tipo de conta no CPV" */
+function cxLeituraContas(itens,totMO,totGGF){
+  const tot=totMO+totGGF; if(!(tot>0)) return '';
+  const ggf=itens.filter(x=>x[1]==='GGF').sort((x,y)=>y[2]-x[2]); if(!ggf.length||!(totGGF>0)) return '';
+  const c=cxConc(ggf.map(x=>x[2]),0.8);
+  const dep=ggf.filter(x=>/deprecia|amortiza/i.test(x[0])), ctrl=ggf.filter(x=>!/deprecia|amortiza/i.test(x[0]));
+  let t=`<b>Leitura:</b> Mão de Obra (conta Pessoal) responde por ${pct(totMO/tot,0)} da absorção produtiva e GGF por ${pct(totGGF/tot,0)}. Dentro do GGF (${mi(totGGF,2)}), as maiores contas são ${ggf.slice(0,3).map(x=>`${esc(x[0])} (${pct(x[2]/totGGF,0)})`).join(', ')}; ${c.n} de ${ggf.length} contas formam 80% do GGF.`;
+  if(dep.length){ const dv=dep.reduce((s2,x)=>s2+x[2],0);
+    t+=` Depreciação e amortização (${mi(dv,2)}, ${pct(dv/totGGF,0)} do GGF) é custo contábil de ativos já adquiridos e não se reduz no curto prazo; as maiores contas gerenciáveis são ${ctrl.slice(0,3).map(x=>`${esc(x[0])} (${mi(x[2],2)}, ${pct(x[2]/totGGF,0)})`).join(', ')}.`; }
+  return call(t,'note');
+}
+/* pico mensal e média de uma série [[ym,valor],...] */
+function cxPico(serie){
+  if(!serie||serie.length<2) return null;
+  const media=serie.reduce((s2,m)=>s2+m[1],0)/serie.length, pk=serie.slice().sort((x,y)=>y[1]-x[1])[0];
+  return {ym:pk[0],v:pk[1],media,x:media?pk[1]/media:0,n:serie.length};
+}
+/* Retrabalho: concentração por centro × produto e pico mensal (Executivo e Operacional) */
+function cxLeituraRetrabalho(r){
+  const tot=r.total; if(!(tot>0)||!r.porItem.length) return '';
+  const cc={}; r.porItem.forEach(x=>{ cc[x[0]]=(cc[x[0]]||0)+x[2]; });
+  const ccs=Object.entries(cc).sort((x,y)=>y[1]-x[1]);
+  const pares=cxConc(r.porItem.map(x=>x[2]),0.8), pk=cxPico(r.mensal);
+  let t=`<b>Leitura:</b> ${ccs.slice(0,2).map(([k,v])=>`<b>${esc(k)}</b> (${pct(v/tot,0)})`).join(' e ')} concentram ${pct(ccs.slice(0,2).reduce((s2,x)=>s2+x[1],0)/tot,0)} do retrabalho (${mi(tot,2)}); `
+    +`${pares.n} de ${r.porItem.length} combinações centro × produto formam 80% do total — o item de maior peso é ${esc(trunc(r.porItem[0][1],40))} em ${esc(r.porItem[0][0])} (${money(r.porItem[0][2])}, ${pct(r.porItem[0][2]/tot,0)}).`;
+  if(pk) t+=` Pico mensal em ${custosMesLab(pk.ym)} (${money(pk.v)}, ${nf(pk.x,1)}× a média de ${money(pk.media)}/mês).`;
+  return call(t,'note');
+}
+/* Assistência técnica: concentração por produto e pico mensal */
+function cxLeituraAssistencia(as){
+  const tot=as.total; if(!(tot>0)||!as.porProduto.length) return '';
+  const pk=cxPico(as.mensal);
+  let t=`<b>Leitura:</b> ${Math.min(5,as.porProduto.length)} produtos concentram ${pct(as.porProduto.slice(0,5).reduce((s2,x)=>s2+x[1],0)/tot,0)} da assistência técnica (${mi(tot,2)}); o maior é ${esc(trunc(as.porProduto[0][0],44))} (${money(as.porProduto[0][1])}, ${pct(as.porProduto[0][1]/tot,0)}).`;
+  if(pk) t+=` Pico mensal em ${custosMesLab(pk.ym)} (${money(pk.v)}, ${nf(pk.x,1)}× a média de ${money(pk.media)}/mês).`;
+  return call(t,'note');
+}
+/* Drivers: resumo executivo do total (antes da tabela por grupo) */
+function cxgResumoDrivers(groups){
+  const sum=k=>groups.reduce((s2,g)=>s2+g[k],0);
+  const CA=sum('custoA'), CB=sum('custoB'), tot=sum('total'); if(!(CA>0)) return '';
+  const ef=[['MIX',sum('mix')],['VOLUME',sum('vol')],['CUSTO',sum('cst')]].sort((x,y)=>Math.abs(y[1])-Math.abs(x[1]));
+  const dom=g=>[['mix',g.mix],['volume',g.vol],['custo',g.cst]].sort((x,y)=>Math.abs(y[1])-Math.abs(x[1]))[0][0];
+  const alivio=groups.filter(g=>g.total<0).sort((x,y)=>x.total-y.total)[0], pressao=groups.filter(g=>g.total>0).sort((x,y)=>y.total-x.total)[0];
+  let t=`<b>Resumo.</b> O CPV ${tot<=0?'caiu':'subiu'} <b>${cxAbsPct(CB/CA-1)}</b> (${cxSg(tot)}: ${mi(CA,2)} → ${mi(CB,2)}) entre ${esc(cxgLabA)} e ${esc(cxgLabB)}. Efeito dominante: <b>${ef[0][0]}</b> ${cxCol(ef[0][1])}, seguido de ${ef[1][0].toLowerCase()} ${cxCol(ef[1][1])} e ${ef[2][0].toLowerCase()} ${cxCol(ef[2][1])}.`;
+  if(alivio) t+=` Maior alívio: <b>${esc(alivio.grp)}</b> ${cxCol(alivio.total)} (principalmente ${dom(alivio)}).`;
+  t+=pressao?` Maior pressão: <b>${esc(pressao.grp)}</b> ${cxCol(pressao.total)} (principalmente ${dom(pressao)}).`:' Nenhum grupo pressionou o CPV no período.';
+  return call(t,tot>0?'warn':'ok');
+}
 
 /* seleciona de 3 a 5 produtos: sempre os 3 maiores impactos absolutos, estendendo até 5 só
    enquanto o próximo item ainda for relevante (≥15% do maior impacto do grupo). */
@@ -1330,95 +1683,23 @@ function renderCustosX(a,prev,lab,labPrev){
    +kpi('Custo evitável',mi(evit),pct(evitPct,1)+' do custo de produção'+(prev&&pEvit?' · '+dC(evit,pEvit):''),evitPct>0.04?'warn':'ok')
    +kpi('Taxa média fabril',money(a.ccTotal.taxaRaw)+'/h',prev&&prev.ccTotal.taxaRaw?dC(a.ccTotal.taxaRaw,prev.ccTotal.taxaRaw)+' vs anterior':nf(Math.round(a.ccTotal.horas))+' h apontadas')
    +'</div>';
+  // Conciliação com o arquivo CPV_Acumulado: total do arquivo no período = CPV do relatório + grupo MATERIAIS.
+  { let mq=0,mc=0; window.CUSTOS.cpv.forEach(r=>{ if(r[0]>=a.ymMin&&r[0]<=a.ymMax&&r[1]==='MATERIAIS'){ mq+=r[2]; mc+=r[6]; } });
+    const fq=t.qtd+mq, fc=t.custo+mc;
+    s+=cap(`<b>Conciliação com o arquivo CPV_Acumulado</b> (${esc(lab)}): o arquivo soma <b>${money(fc)}</b> em <b>${nf(Math.round(fq))} un.</b> = <b>${money(fq?fc/fq:0,2)}/un.</b>`
+      +(mc>0||mq>0
+        ?` O relatório usa ${money(t.custo)} em ${nf(Math.round(t.qtd))} un. (${money(un,2)}/un.) porque deixa de fora o grupo MATERIAIS: ${money(mc)} e ${nf(Math.round(mq))} de quantidade (m², m, kg, L e peças), que são insumos como tecido, couro e ferragens vendidos avulsos, e não móveis.`
+        :` O relatório usa exatamente esse total (inclusive o grupo Componentes): o único grupo do arquivo que fica fora do Executivo, MATERIAIS (insumos vendidos avulsos), não tem lançamentos no período.`)); }
 
   // ===== 2) Os pontos que importam =====
-  // Todas as análises abaixo desconsideram o grupo "COMPONENTES" — o impacto dele não é
-  // relevante e o foco deve ser produtos acabados vendidos. Recalcula total e grupos "sem
-  // Componentes" (tX/gruposX) só para esta subseção; o Painel de Indicadores acima e as
-  // demais subseções continuam com o CPV cheio (incluindo Componentes).
-  const compA=a.grupos.find(g=>g[0]==='COMPONENTES');
-  const tX={qtd:t.qtd-(compA?compA[1]:0),mat:t.mat-(compA?compA[2]:0),mod:t.mod-(compA?compA[3]:0),
-    ggf:t.ggf-(compA?compA[4]:0),custo:t.custo-(compA?compA[5]:0)};
-  const gruposX=a.grupos.filter(g=>g[0]!=='COMPONENTES');
-  const compPrev0=prev?prev.grupos.find(g=>g[0]==='COMPONENTES'):null;
-  const prevTotalX=prev?{qtd:prev.total.qtd-(compPrev0?compPrev0[1]:0),custo:prev.total.custo-(compPrev0?compPrev0[5]:0)}:null;
-  const unX=tX.qtd?tX.custo/tX.qtd:0;
-  const pUnX=prev&&prevTotalX.qtd?prevTotalX.custo/prevTotalX.qtd:0;
-  const compMax=[['Matéria-prima',tX.mat],['Mão de obra',tX.mod],['GGF',tX.ggf]].sort((x,y)=>y[1]-x[1])[0];
+  // Cada ponto traz CONCLUSÃO + EVIDÊNCIA por produto (motor em cxPontos). Todos os pontos usam a MESMA base do
+  // Painel de Indicadores: CPV_Acumulado completo do período (todos os grupos, inclusive COMPONENTES), menos o
+  // grupo MATERIAIS — que a conciliação logo abaixo dos indicadores mostra separadamente.
   const catPrev={}; if(prev) prev.materiais.forEach(([c,v])=>catPrev[c]=v);
-  let catMove=null;
-  if(prev){ const movs=a.materiais.map(([c,v])=>[c,v,catPrev[c]||0,v-(catPrev[c]||0)]).filter(x=>x[2]>0).sort((x,y)=>y[3]-x[3]);
-    if(movs.length) catMove=movs[0]; }
-  const catTop=a.materiais[0];
-  const grpPrev={}; if(prev) prev.grupos.forEach(g=>grpPrev[g[0]]={q:g[1],c:g[5]});
-  const grpTop=gruposX[0];
-  let grpPress=null;
-  if(prev){ const cand=gruposX.filter(g=>g[5]>tX.custo*0.05&&g[1]).map(g=>{
-      const uA=g[5]/g[1], gp=grpPrev[g[0]], uB=gp&&gp.q?gp.c/gp.q:0;
-      return uB?[g[0],uA,uB,uA/uB-1]:null; }).filter(Boolean).sort((x,y)=>y[3]-x[3]);
-    if(cand.length) grpPress=cand[0]; }
-  const retMap={}; a.retrabalho.porItem.forEach(x=>{retMap[x[1]]=(retMap[x[1]]||0)+x[2];});
-  const retTopProd=Object.entries(retMap).sort((x,y)=>y[1]-x[1])[0]||null;
-  const ccCaro=a.cc.filter(x=>x[7]>0).sort((x,y)=>y[7]-x[7])[0];
-  const unTrend=(prev&&pUnX)?(unX>pUnX?'subiu':'caiu'):null;
-  /* decomposição volume × mix × custo real: separa quanto da variação do CPV vem de
-     (a) vender mais/menos no total, (b) vender uma combinação diferente de grupos
-     (mix) e (c) mudança real de custo unitário dentro de cada grupo — evita atribuir
-     a queda do CPV médio a "custo" quando na verdade é troca de mix. (Sem Componentes.) */
-  const QA=prev?prevTotalX.qtd:0, QB=tX.qtd;
-  const uAavg=QA?prevTotalX.custo/QA:0;
-  const volEff=prev?(QB-QA)*uAavg:0;
-  let mixEff=0, costEff=0, topMixG=null, topCostG=null;
-  if(prev){
-    const grpUnitA={}; prev.grupos.forEach(g=>{grpUnitA[g[0]]=g[1]?g[5]/g[1]:0;});
-    const efeitos=gruposX.map(g=>{
-      const qB=g[1], uB=qB?g[5]/qB:0, uA=grpUnitA[g[0]]||0;
-      return [g[0], qB*(uA-uAavg), qB*(uB-uA)];
-    });
-    mixEff=efeitos.reduce((s2,e)=>s2+e[1],0);
-    costEff=efeitos.reduce((s2,e)=>s2+e[2],0);
-    topMixG=efeitos.slice().sort((x,y)=>Math.abs(y[1])-Math.abs(x[1]))[0];
-    topCostG=efeitos.slice().sort((x,y)=>Math.abs(y[2])-Math.abs(x[2]))[0];
-  }
-  let conclusao='';
-  if(prev){
-    const aMix=Math.abs(mixEff), aCost=Math.abs(costEff), aVol=Math.abs(volEff);
-    const opostos=(mixEff*costEff)<0;
-    if(aMix>=aCost&&aMix>=aVol){
-      conclusao='Ou seja, a variação do CPV médio é explicada majoritariamente por troca de mix de produtos vendidos'
-        +(opostos?' — o custo unitário real dentro de cada grupo caminhou na direção oposta, mascarada pelo efeito de mix':'')
-        +', e não por uma redução ou alta real de custo dentro dos grupos.';
-    } else if(aCost>=aMix&&aCost>=aVol){
-      conclusao='Ou seja, houve uma variação real de custo unitário dentro dos grupos de produto'
-        +(opostos?', em parte compensada (ou mascarada) pelo efeito de mix':'')
-        +', e não apenas troca de mix.';
-    } else {
-      conclusao='Ou seja, o principal fator foi o volume total vendido, com efeitos secundários de mix e de custo unitário.';
-    }
-  }
-  const cpvNote=!prev?'Sem período anterior disponível para comparar volume, mix e custo neste recorte.'
-    :'O CPV total (sem Componentes) '+(tX.custo>=prevTotalX.custo?'subiu':'caiu')+' '+spct(prevTotalX.custo?tX.custo/prevTotalX.custo-1:0)+' ('+money(tX.custo-prevTotalX.custo)+') frente a '+esc(labPrev)+'. Decompondo a variação: '
-      +'volume contribuiu com '+(volEff>=0?'+':'')+mi(volEff)+' ('+(QB>=QA?'cresceu':'recuou')+' '+spct(QA?QB/QA-1:0)+' em unidades vendidas); '
-      +'mix de produtos contribuiu com '+(mixEff>=0?'+':'')+mi(mixEff)+(topMixG?' (puxado por '+esc(topMixG[0])+', cujo custo unitário está '+(topMixG[1]<0?'abaixo':'acima')+' da média do período anterior)':'')+'; '
-      +'custo unitário real dentro dos grupos contribuiu com '+(costEff>=0?'+':'')+mi(costEff)+(topCostG?' (maior variação em '+esc(topCostG[0])+')':'')+'. '
-      +conclusao;
-  const pts=[
-   ['1','Onde está o custo',compMax[0]+' é o maior componente do CPV: '+pct(tX.custo?compMax[1]/tX.custo:0,0)+' ('+mi(compMax[1])+'). Composição: MAT '+pct(tX.custo?tX.mat/tX.custo:0,0)+' · M.O '+pct(tX.custo?tX.mod/tX.custo:0,0)+' · GGF '+pct(tX.custo?tX.ggf/tX.custo:0,0)+'.'],
-   ['2','CPV por unidade',unTrend
-      ? 'O CPV médio por peça '+unTrend+' para '+money(unX)+' ('+spct(unX/pUnX-1)+' vs '+labPrev+'). Volume de '+nf(Math.round(tX.qtd))+' un.'
-      : 'CPV médio de '+money(unX)+' por peça, sobre '+nf(Math.round(tX.qtd))+' unidades no período.'],
-   ['3','Material em foco',catMove
-      ? esc(catMove[0])+' foi a categoria que mais subiu: '+mi(catMove[1])+' vs '+mi(catMove[2])+' antes ('+spct(catMove[2]?catMove[1]/catMove[2]-1:0)+').'
-      : (catTop?esc(catTop[0])+' é a categoria de matéria-prima mais relevante: '+mi(catTop[1])+' ('+pct(t.mat?catTop[1]/t.mat:0,0)+' da MP direta).':'—')],
-   ['4','Grupo pressionado',grpPress
-      ? 'CPV unitário de '+esc(grpPress[0])+' subiu '+spct(grpPress[3])+': '+money(grpPress[1])+' vs '+money(grpPress[2])+' — investigar mix, material e retrabalho.'
-      : (grpTop?esc(grpTop[0])+' concentra o maior CPV: '+mi(grpTop[5])+' ('+pct(tX.custo?grpTop[5]/tX.custo:0,0)+' do total), CPV/un de '+money(grpTop[1]?grpTop[5]/grpTop[1]:0)+'.':'—')],
-   ['5','Custo evitável',mi(evit)+' entre retrabalho ('+mi(a.retrabalho.total)+') e assistência técnica ('+mi(a.assistencia.total)+') — '+pct(evitPct,1)+' do custo de produção.'+(retTopProd?' Maior ofensor: '+esc(trunc(retTopProd[0],38))+' ('+money(retTopProd[1])+').':'')],
-   ['6','Eficiência fabril','Taxa média de '+money(a.ccTotal.taxaRaw)+'/hora'+(prev&&prev.ccTotal.taxaRaw?' ('+spct(a.ccTotal.taxaRaw/prev.ccTotal.taxaRaw-1)+' vs anterior)':'')+(ccCaro?'; centro mais caro: '+esc(ccCaro[0])+' a '+money(ccCaro[7])+'/h.':'.')],
-   ['7','CPV do período',cpvNote],
-  ];
+  const pts=cxPontos(a,prev,lab,labPrev);
   s+='<h3>Os pontos que importam'+(labPrev?' <span class="tag">vs '+esc(labPrev)+'</span>':'')+'</h3>';
-  s+='<div class="prov prov3">'+pts.map((p,i)=>`<div class="pv${i===pts.length-1?' pv-wide':''}"><div class="pv-n">${p[0]}</div><div><b>${p[1]}</b><p>${p[2]}</p></div></div>`).join('')+'</div>';
+  s+='<div class="prov prov-auto">'+pts.map((p,i)=>`<div class="pv${i===pts.length-1?' pv-wide':''}"><div class="pv-n">${p[0]}</div><div><b>${p[1]}</b><p>${p[2]}</p>${p[3]?`<p class="ev">${p[3]}</p>`:''}</div></div>`).join('')+'</div>';
+  s+=cap('<b>Como ler:</b> <b>Mix</b> = composição do que foi vendido (modelos que entram ou saem da curva e a troca por modelos mais caros ou mais baratos); <b>Volume</b> = quantidade vendida dos mesmos modelos; <b>Custo</b> = CPV por unidade dos mesmos modelos. Tudo é calculado por produto (SKU) e a soma dos três efeitos fecha com a variação do CPV. Os pontos 1, 2, 4 e 7 usam a mesma base do Painel de Indicadores: o CPV_Acumulado completo do período, com todos os grupos (inclusive Componentes) — veja a conciliação com o arquivo acima. No ponto 3, os valores por item vêm do razão de consumo (NDVAL) antes do ajuste proporcional ao CPV; os percentuais de consumo e preço são comparáveis entre os períodos.');
 
   // ===== 3) CPV por grupo de produtos — comparativo Período A × B (um mês cada), filtro próprio =====
   cxgMinB=cxMax; cxgMaxB=cxMax; cxgAggB=custosAgg(cxgMinB,cxgMaxB,['MATERIAIS']); cxgLabB=custosPeriodLabel(cxgMinB,cxgMaxB);
@@ -1428,19 +1709,11 @@ function renderCustosX(a,prev,lab,labPrev){
   cxgDriverSel=null;
   s+=buildCxgFilterBar();
   s+='<div id="cx-grp-wrap">'+renderCxGrpTable()+'</div>';
-  s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(
-      ins('auto',{itens:a.grupos.map(g=>({name:g[0],v:g[5],q:g[1]})),escopo:'grupo',
-        escopoPl:'grupos de produto',universo:'do CPV',id:'cx-grupos',tabela:true,
-        preferir:['divergencia','estrutura']})):'')+'</div>';
   s+='<div id="cx-topprod-section" class="hidden-section">';
   s+='<div class="sec-head-flex">'+H3('Ranking de produtos vendidos - CPV','curva 80/20 · até 20 produtos · use a busca para achar qualquer produto da base','cx-ranking')
     +'<button id="cx-topprod-close" type="button" class="dr-close">Fechar &#10005;</button></div>';
   s+=`<div class="searchbar"><input id="cx-prodsearch" type="search" placeholder="Buscar produto na base completa (${nf(cxgAggB.produtos.length)} itens)…" autocomplete="off"></div>`;
   s+='<div id="cx-topprod">'+buildTopProdTableCx(cxgAggB.produtos,cxgAggB,'')+'</div>';
-  s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(
-      ins('auto',{itens:cxgAggB.produtos.map(x=>({name:x.prod,v:x.custo,q:x.qtd})),escopo:'produto',
-        escopoPl:'produtos',universo:'do CPV',id:'cx-produtos',tabela:true,
-        preferir:['cauda','estrutura']})):'')+'</div>';
   s+=cap('Ranking por CPV total no Período B selecionado acima, limitado aos 20 produtos de maior custo. "Demais produtos" agrupa o restante da base para fechar com o total geral.');
   s+='</div>';
 
@@ -1451,14 +1724,11 @@ function renderCustosX(a,prev,lab,labPrev){
       {name:'Matéria-prima',values:a.meses.map(m=>m[1]),color:SER[0]},
       {name:'Mão de obra',values:a.meses.map(m=>m[2]),color:SER[2]},
       {name:'GGF',values:a.meses.map(m=>m[3]),color:SER[1]},
-    ],{valfmt:v=>mi(v,1),w:Math.min(980,Math.max(320,80*a.meses.length+150)),subLabels:a.meses.map(m=>nf(m[5])+' un.'),subTitle:'Vol. vendas'}),
-    prev?ins('cpvMix',{custosA:[a.ymMin,a.ymMax],custosB:[prev.ymMin,prev.ymMax]}):null);
+    ],{valfmt:v=>mi(v,1),w:Math.min(980,Math.max(320,80*a.meses.length+150)),subLabels:a.meses.map(m=>nf(m[5])+' un.'),subTitle:'Vol. vendas'}));
     s+='<div class="two"><div>'+H3('CPV médio por unidade','','cx-unidade')
-      +fig(line([['CPV/un',a.meses.map(m=>m[5]?m[4]/m[5]:0),SER[0]]],a.meses.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v,0),w:520,h:250}),
-        ins('custoUnitarioVolume',{meses:a.meses,rotulo:'vendidas',id:'cpv'}))+'</div>';
+      +fig(line([['CPV/un',a.meses.map(m=>m[5]?m[4]/m[5]:0),SER[0]]],a.meses.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v,0),w:520,h:250}))+'</div>';
     s+='<div>'+H3('Volume vendido (un.)','','cx-volume')
-      +fig(line([['Volume',a.meses.map(m=>m[5]),SER[2]]],a.meses.map(m=>custosMesLab(m[0])),{valfmt:v=>nf(v,0),w:520,h:250}),
-        ins('serieOscilacao',{labels:a.meses.map(m=>custosMesLab(m[0])),vals:a.meses.map(m=>m[5]),id:'cx-volume',fmt:v=>nf(Math.round(v))+' peças',verbo:'entregou'}))+'</div></div>';
+      +fig(line([['Volume',a.meses.map(m=>m[5]),SER[2]]],a.meses.map(m=>custosMesLab(m[0])),{valfmt:v=>nf(v,0),w:520,h:250}))+'</div></div>';
   }
 
   // ===== 5) Onde o CPV se concentra (grupos) — gráfico e "tabela" são o mesmo elemento (SVG),
@@ -1469,13 +1739,12 @@ function renderCustosX(a,prev,lab,labPrev){
     extraCols:[
       {header:'% do CPV',w:55,get:(it,k)=>pct(t.custo?grpTop8[k][5]/t.custo:0,1)},
       {header:'CPV/un',w:80,get:(it,k)=>money(grpTop8[k][1]?grpTop8[k][5]/grpTop8[k][1]:0)},
-    ]}),
-    ins('auto',{itens:a.grupos.map(g=>({name:g[0],v:g[5],q:g[1]})),escopo:'grupo',
-      escopoPl:'grupos de produto',universo:'do CPV',id:'cx-concentra',preferir:['cauda']}));
+    ]}));
+  s+=cxLeituraConcentracao(a);
   s+=cap('Para ver os produtos de cada grupo, use a tabela "CPV por grupo de produtos" acima — clique na linha do grupo.');
 
   // ===== 5b) Drivers de Impacto no CPV — usa o mesmo filtro A/B da subseção 3 =====
-  s+='<div id="cxg-drivers-wrap">'+driversComRegua()+'</div>';
+  s+='<div id="cxg-drivers-wrap">'+renderCxgDrivers()+'</div>';
 
   // ===== 6) Composição da matéria-prima =====
   // gráfico e legenda são o mesmo elemento (pie3D), então a linha da categoria na legenda e na
@@ -1483,10 +1752,8 @@ function renderCustosX(a,prev,lab,labPrev){
   s+=H3('Composição da matéria-prima no CPV','categorias de maior peso · clique na categoria (fatia ou legenda) para ver os principais materiais','cx-materia');
   s+='<div id="cx-mat-pie">'+fig(pie3D(a.materiais,{valfmt:v=>money(v),w:200,colorOf:nm=>CUSTOS_MAT_COLORS[nm]||SER[0],
     extraHeader:prev?('vs '+labPrev):null,
-    extraCol:prev?((it)=>dC(+it[1],catPrev[it[0]]||0)):null}),
-    ins('auto',{itens:a.materiais.map(x=>({name:x[0],v:x[1]})),escopo:'categoria',
-      escopoPl:'categorias de material',universo:'da matéria-prima',id:'cx-materiais',
-      preferir:['estrutura','cauda']}))+'</div>';
+    extraCol:prev?((it)=>dC(+it[1],catPrev[it[0]]||0)):null}))+'</div>';
+  s+=cxLeituraMP(a,prev);
   s+=cap('Categorias escaladas proporcionalmente para fechar exatamente com o total de Matéria-prima do CPV ('+money(t.mat)+') mostrado na leitura executiva.');
   s+='<div id="cx-matdetail"></div>';
 
@@ -1497,8 +1764,8 @@ function renderCustosX(a,prev,lab,labPrev){
   s+=table(['Centro de custo','MOD','GGF','Absorção CPV','Absorção Total','Horas apontadas','R$/hora'],
     a.cc.map(x=>[esc(x[0]),money(x[1]),money(x[2]),money(x[3]),money(x[6]),nf(Math.round(x[4])),x[7]?money(x[7]):'—']),
     ['left','right','right','right','right','right','right'],
-    ['Total',money(a.cc.reduce((s2,x)=>s2+x[1],0)),money(a.cc.reduce((s2,x)=>s2+x[2],0)),money(a.ccTotal.custo),money(a.ccTotal.custoRaw),nf(Math.round(a.ccTotal.horas)),money(a.ccTotal.taxaRaw)],
-    ins('taxaHoraCC',{cc:a.cc,id:'cpv'}));
+    ['Total',money(a.cc.reduce((s2,x)=>s2+x[1],0)),money(a.cc.reduce((s2,x)=>s2+x[2],0)),money(a.ccTotal.custo),money(a.ccTotal.custoRaw),nf(Math.round(a.ccTotal.horas)),money(a.ccTotal.taxaRaw)]);
+  s+=cxLeituraCentros(a,prev);
   s+=cap('"Absorção CPV" é MOD+GGF escalado para fechar com o CPV Total da leitura executiva. "Absorção Total" é o valor cheio absorvido no período (mesma base da seção Custos — Operacional) — a taxa hora (R$/hora) usa este total, não o escalado ao CPV.');
   const moggfItens=moggfPorTipoDeConta(a,t.mod,t.ggf);
   const totMO=moggfItens.filter(x=>x[1]==='Mão de Obra').reduce((s2,x)=>s2+x[2],0);
@@ -1512,10 +1779,8 @@ function renderCustosX(a,prev,lab,labPrev){
   s+=table(['Tipo de conta','Classificação','Valor','% do total'],
     moggfItens.sort((x,y)=>y[2]-x[2]).map(x=>[esc(x[0]),x[1],money(x[2]),pct(totMoggf?x[2]/totMoggf:0,1)]),
     ['left','left','right','right'],
-    ['Total','',money(totMoggf),'100,0%'],
-    ins('auto',{itens:moggfItens.map(x=>({name:x[0],v:x[2]})),escopo:'tipo de conta',
-      escopoPl:'tipos de conta',universo:'do custo produtivo',id:'cx-conta',tabela:true,
-      preferir:['estrutura','cauda']}));
+    ['Total','',money(totMoggf),'100,0%']);
+  s+=cxLeituraContas(moggfItens,totMO,totGGFconta);
   s+=cap('Classificação por tipo de conta produtiva: "Pessoal" (salários e encargos) compõe Mão de Obra; os demais tipos de conta produtivos (materiais de consumo, terceiros, facilities, manutenção, aluguel/fretes, depreciação etc.) compõem GGF.');
 
   // ===== 7) Custo evitável =====
@@ -1533,35 +1798,25 @@ function renderCustosX(a,prev,lab,labPrev){
   s+='<div class="kpis k3">'+kpi('Retrabalho total',mi(a.retrabalho.total),lab+ytdTxt(ytdAgg&&ytdAgg.retrabalho.total))
     +kpi('% do custo de produção',pct(retPctX,2),'vs. custo total absorvido',retPctX>0.02?'warn':'ok')
     +kpi('Item mais afetado',a.retrabalho.porItem.length?esc(trunc(a.retrabalho.porItem[0][1],30)):'—',a.retrabalho.porItem.length?money(a.retrabalho.porItem[0][2]):'')+'</div>';
-  if(a.retrabalho.mensal.length>1) s+=fig(line([['Custo de retrabalho',a.retrabalho.mensal.map(m=>m[1]),BAD]],a.retrabalho.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}),
-    ins('custoEvitavel',{ret:a.retrabalho,ass:a.assistencia,base:a.ccTotal.custoRaw||a.ccTotal.custo}));
+  if(a.retrabalho.mensal.length>1) s+=fig(line([['Custo de retrabalho',a.retrabalho.mensal.map(m=>m[1]),BAD]],a.retrabalho.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}));
   const retCCx={}; a.retrabalho.porItem.forEach(x=>{retCCx[x[0]]=(retCCx[x[0]]||0)+x[2];});
   const retParetoX=Object.entries(retCCx).sort((x,y)=>y[1]-x[1]).slice(0,12).map(([k,v])=>[trunc(k,22),v]);
   if(retParetoX.length>2){
     s+=H3('Pareto de retrabalho por centro de custo','onde se concentra o custo evitável','cx-retrabalho-pareto');
-    s+=fig(pareto(retParetoX,{valfmt:v=>money(v,0),w:900,h:300}),
-      ins('auto',{itens:retParetoX.map(x=>({name:x[0],v:x[1]})),escopo:'centro de custo',
-        escopoPl:'centros de custo',universo:'do retrabalho',id:'cx-retrabalho',
-        preferir:['estrutura','cauda','relacao']}));
-    s+=cap('A linha tracejada acumula a participação: os primeiros centros de custo concentram a maior parte do retrabalho — ponto de partida para o plano de ação da fábrica.');
+    s+=fig(pareto(retParetoX,{valfmt:v=>money(v,0),w:900,h:300}));
+    s+=cap('A linha tracejada acumula a participação de cada centro de custo no retrabalho total; a leitura numérica está logo abaixo da tabela.');
   }
   s+=table(['Centro de custo','Produto retrabalhado','Custo de retrabalho','% do retrabalho total'],
-    a.retrabalho.porItem.slice(0,25).map(x=>[esc(x[0]),esc(trunc(x[1],48)),money(x[2]),pct(a.retrabalho.total?x[2]/a.retrabalho.total:0)]),['left','left','right','right'],null,
-    ins('auto',{itens:a.retrabalho.porItem.map(x=>({name:x[1],v:x[2]})),escopo:'produto',
-      escopoPl:'produtos',universo:'do retrabalho',id:'retrab-item',tabela:true,
-      preferir:['estrutura','relacao']}));
+    a.retrabalho.porItem.slice(0,25).map(x=>[esc(x[0]),esc(trunc(x[1],48)),money(x[2]),pct(a.retrabalho.total?x[2]/a.retrabalho.total:0)]),['left','left','right','right']);
+  s+=cxLeituraRetrabalho(a.retrabalho);
 
   s+=H3('Custo de assistência técnica','evolução mensal · por produto','cx-assistencia');
   s+='<div class="kpis k2">'+kpi('Assist. técnica total',mi(a.assistencia.total),lab+ytdTxt(ytdAgg&&ytdAgg.assistencia.total))
     +kpi('% do custo de produção',pct(assPctX,2),'vs. custo total absorvido',assPctX>0.03?'warn':'ok')+'</div>';
-  if(a.assistencia.mensal.length>1) s+=fig(line([['Custo de assistência técnica',a.assistencia.mensal.map(m=>m[1]),WARN]],a.assistencia.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}),
-    ins('serieOscilacao',{labels:a.assistencia.mensal.map(m=>custosMesLab(m[0])),
-      vals:a.assistencia.mensal.map(m=>m[1]),id:'assist'}));
+  if(a.assistencia.mensal.length>1) s+=fig(line([['Custo de assistência técnica',a.assistencia.mensal.map(m=>m[1]),WARN]],a.assistencia.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}));
   s+=H3('Maiores custos de assistência técnica por produto','','cx-assistencia-prod');
-  s+=table(['Produto','Custo de assistência técnica'],a.assistencia.porProduto.map(x=>[esc(trunc(x[0],60)),money(x[1])]),['left','right'],null,
-    ins('auto',{itens:a.assistencia.porProduto.map(x=>({name:x[0],v:x[1]})),escopo:'produto',
-      escopoPl:'produtos',universo:'da assistência técnica',id:'assist-prod',tabela:true,
-      preferir:['estrutura','cauda']}));
+  s+=table(['Produto','Custo de assistência técnica'],a.assistencia.porProduto.map(x=>[esc(trunc(x[0],60)),money(x[1])]),['left','right']);
+  s+=cxLeituraAssistencia(a.assistencia);
 
   s+=call('Esta é a leitura executiva. O detalhamento técnico completo — absorção por centro de custo, horas apontadas e explosão de custo ao nível zero — está na seção <b>Custos — Operacional</b>.','note');
   return s;
@@ -1716,8 +1971,7 @@ function drawPC(){
   if(!serie.some(([,v])=>v!=null)){ s+=call('Sem consumo de matéria-prima direta (TP=C) registrado para este produto no período/ID selecionado.','warn'); }
   else {
     const cores=[SER[3],SER[0],SER[6],SER[2]];
-    s+=fig(line(anosOrd.map((ano,i)=>[`Custo de ${ano}`,anos[ano],cores[i%cores.length]]),MES,{valfmt:v=>money(v,2),w:980,h:320,legend:true}),
-      ins('comparaAnos',{anos:anos,ordem:anosOrd,id:'pc'}));
+    s+=fig(line(anosOrd.map((ano,i)=>[`Custo de ${ano}`,anos[ano],cores[i%cores.length]]),MES,{valfmt:v=>money(v,2),w:980,h:320,legend:true}));
     const linhas=[];
     anosOrd.forEach(ano=>{
       const vals=anos[ano];
@@ -1768,6 +2022,73 @@ function initProdSearch(){
     },220);
   });
 }
+/* ===== Leituras do Operacional (CPP): mesma régua do Executivo, agora sobre produção ===== */
+function cxCV(vs){ const n=vs.length; if(n<3) return null; const m=vs.reduce((s2,v)=>s2+v,0)/n; if(!m) return null; return Math.sqrt(vs.reduce((s2,v)=>s2+(v-m)*(v-m),0)/(n-1))/Math.abs(m); }
+/* Caixa "Leitura rápida" do painel: o essencial, com números e sem recomendação sem lastro */
+function opLeituraRapida(a,retPct,assPct){
+  const t=a.total, ev=a.retrabalho.total+a.assistencia.total; if(!(t.custo>0&&t.qtd>0)) return {txt:'',kind:'note'};
+  const cmp=[['Matéria-prima',t.mat],['Mão de obra',t.mod],['GGF',t.ggf]].sort((x,y)=>y[1]-x[1])[0];
+  let txt=`<b>Leitura rápida.</b> CPP de ${mi(t.custo,2)} para ${nf(Math.round(t.qtd))} un. produzidas (${money(t.custo/t.qtd)}/un); <b>${cmp[0]}</b> é a maior parcela (${pct(cmp[1]/t.custo,0)}). `
+    +`Custo evitável: retrabalho ${mi(a.retrabalho.total)} + assistência técnica ${mi(a.assistencia.total)} = ${mi(ev)} (${pct(retPct+assPct,1)} do custo de produção)`
+    +(ev>0?`, dos quais ${pct(a.assistencia.total/ev,0)} são assistência técnica`:'')+'.';
+  if(a.mesesYm.length>=4) txt+=' Quanto do GGF é fixo (e por que o CPP/un oscila com o volume) está na leitura abaixo do gráfico de CPP desmembrado.';
+  return {txt,kind:(retPct+assPct)>0.04?'warn':'note'};
+}
+/* regressão linear simples y = a + b·x (a = parte fixa, b = parte variável por unidade) */
+function cxOls(xs,ys){
+  const n=xs.length; if(n<4) return null;
+  const mx=xs.reduce((s2,v)=>s2+v,0)/n, my=ys.reduce((s2,v)=>s2+v,0)/n; let sxy=0,sxx=0,syy=0;
+  for(let i=0;i<n;i++){ const dx=xs[i]-mx, dy=ys[i]-my; sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy; }
+  if(!(sxx>0&&syy>0)) return null;
+  const b=sxy/sxx; return {a:my-b*mx,b,r2:sxy*sxy/(sxx*syy),my,mx,n};
+}
+/* GGF × volume: quanto do GGF é fixo? (regressão mensal, só meses com MOD/GGF apurado) */
+function opLeituraDesmembrado(a){
+  const t=a.total; if(!(t.custo>0&&t.qtd>0)) return '';
+  const all=a.meses.filter(x=>x[5]>0);
+  const sem=all.filter(x=>(x[2]+x[3])===0), m=all.filter(x=>(x[2]+x[3])>0);
+  let txt=`<b>Leitura:</b> CPP médio de ${money(t.custo/t.qtd)}/un (${nf(Math.round(t.qtd))} un. em ${nf(all.length)} ${all.length===1?'mês':'meses'}). `;
+  if(sem.length) txt+=`Atenção: ${sem.map(x=>custosMesLab(x[0])).join(', ')} ${sem.length===1?'tem':'têm'} só matéria-prima (MOD e GGF só existem a partir de jun/25, início da Valorização_Ordens), então o CPP e o CPP/un ${sem.length===1?'desse mês estão subestimados':'desses meses estão subestimados'} e puxam para baixo o CPP médio do período. `;
+  if(m.length>=4){
+    const q=m.map(x=>x[5]), g=m.map(x=>x[3]), gu=m.map(x=>x[3]/x[5]), cu=m.map(x=>x[4]/x[5]);
+    const iMax=q.indexOf(Math.max(...q)), iMin=q.indexOf(Math.min(...q)), cvG=cxCV(g), cvQ=cxCV(q), ols=cxOls(q,g);
+    txt+=`Nos ${m.length} meses com MOD/GGF apurado (${custosMesLab(m[0][0])} a ${custosMesLab(m[m.length-1][0])}): o volume oscilou ${pct(cvQ,0)} ao mês (${nf(Math.round(Math.min(...q)))} a ${nf(Math.round(Math.max(...q)))} un.) e o GGF total só ${pct(cvG,0)} (${mi(Math.min(...g),2)} a ${mi(Math.max(...g),2)}). `;
+    if(ols){ const fixo=Math.max(0,Math.min(1,ols.a/ols.my));
+      txt+=`A regressão mensal GGF = ${mi(ols.a,2)} + ${money(ols.b)} × unidades (R² = ${nf(ols.r2,2)}) indica que ${ols.r2<0.3&&fixo>=0.6?`cerca de <b>${pct(fixo,0)} do GGF médio é fixo</b> — o volume explica apenas ${pct(ols.r2,0)} da variação`:(ols.r2>=0.6?`o GGF acompanha o volume (custo predominantemente variável)`:`a relação entre GGF e volume é parcial (${pct(ols.r2,0)} da variação explicada pelo volume)`)}. `;
+      if(ols.r2<0.3&&fixo>=0.6) txt+=`Por isso o GGF por unidade varia de ${money(gu[iMax])} em ${custosMesLab(m[iMax][0])} (${nf(Math.round(q[iMax]))} un., CPP ${money(cu[iMax])}/un) a ${money(gu[iMin])} em ${custosMesLab(m[iMin][0])} (${nf(Math.round(q[iMin]))} un., CPP ${money(cu[iMin])}/un): produzir mais dilui o custo unitário.`; }
+  } else if(!sem.length) txt+='Selecione um período com pelo menos 4 meses com MOD/GGF apurado para medir quanto do GGF é fixo.';
+  return call(txt,sem.length?'warn':'note');
+}
+function opLeituraVolume(a,grpOrd){
+  const ms=a.mesesYm; if(ms.length<2) return '';
+  const tot=ms.map(ym=>grpOrd.reduce((s2,g)=>s2+((a.volGrpMes[g]||{})[ym]||0),0)), T=tot.reduce((s2,v)=>s2+v,0); if(!(T>0)) return '';
+  const iMax=tot.indexOf(Math.max(...tot)), iMin=tot.indexOf(Math.min(...tot));
+  const byG=grpOrd.map(g=>({g,q:ms.reduce((s2,ym)=>s2+((a.volGrpMes[g]||{})[ym]||0),0)})).filter(x=>x.q>0).sort((x,y)=>y.q-x.q);
+  const mat=(a.grupos.find(g=>g[0]==='MATERIAIS')||[0,0])[1];
+  let txt=`<b>Leitura:</b> ${nf(Math.round(T))} un. em ${ms.length} meses (média de ${nf(Math.round(T/ms.length))} un./mês${mat>0?`; o grupo MATERIAIS, com ${nf(Math.round(mat))} un., não é exibido neste quadro e por isso o total é menor que o do painel`:''}); pico em ${custosMesLab(ms[iMax])} (${nf(Math.round(tot[iMax]))} un.) e vale em ${custosMesLab(ms[iMin])} (${nf(Math.round(tot[iMin]))} un.).`;
+  if(byG.length>=2) txt+=` ${esc(byG[0].g)} lidera com ${pct(byG[0].q/T,0)} das unidades, seguido de ${esc(byG[1].g)} (${pct(byG[1].q/T,0)}).`;
+  return call(txt,'note');
+}
+function opLeituraApoio(a){
+  const P=a.operacionais.PRODUTIVO, A=a.operacionais['AUXILIAR/APOIO'], tot=P.total+A.total; if(!(tot>0)) return '';
+  const top=(l,n)=>l.slice(0,n).map(x=>`${esc(x[0])} (${mi(x[1],2)})`).join(', ');
+  const t=`<b>Leitura:</b> a fábrica (produtivo) concentra ${pct(P.total/tot,0)} do custo operacional (${mi(P.total,2)}) e apoio/auxiliar ${pct(A.total/tot,0)} (${mi(A.total,2)}), que fica fora do CPP. Maiores contas produtivas: ${top(P.itens,3)}. Maiores contas de apoio: ${top(A.itens,3)}.`;
+  return call(t,'note');
+}
+/* Bloco comparativo (Período atual × comparação): mesma decomposição por produto do Executivo, sobre CPP */
+function opLeituraComparativo(a,b,la,lb){
+  const m=cxgMergeProdutos(b,a), br=cxUnitBridge(m); if(!br) return '';
+  const pv=cxPvm(m), gd=cxgGroupDriversOf(m), {causa,sMix}=cxCausaUnit(br);
+  const CA=b.total.custo, CB=a.total.custo; if(!(CA>0)) return '';
+  const ef=[['VOLUME',pv.vol],['MIX',pv.mix],['CUSTO',pv.cst]]; if(Math.abs(pv.sem)>=1) ef.push(['ITENS SEM VOLUME',pv.sem]);
+  ef.sort((x,y)=>Math.abs(y[1])-Math.abs(x[1]));
+  const resto=ef.slice(1).map(e=>`${e[0].toLowerCase()} ${cxCol(e[1])}`); const restoTxt=resto.length>1?resto.slice(0,-1).join(', ')+' e '+resto[resto.length-1]:resto[0];
+  const topG=k=>{ const l=gd.slice().sort((x,y)=>Math.abs(y[k])-Math.abs(x[k])).filter(g=>Math.abs(g[k])>=1).slice(0,2); return l.length?l.map(g=>`${esc(g.grp)} ${cxCol(g[k])}`).join(' · '):'—'; };
+  let t=`<b>Leitura:</b> o CPP ${CB>=CA?'subiu':'caiu'} <b>${cxAbsPct(CB/CA-1)}</b> (${cxSg(CB-CA)}: ${mi(CA,2)} → ${mi(CB,2)}) com volume produzido ${spct(br.QB/br.QA-1)} (${nf(Math.round(br.QA))} → ${nf(Math.round(br.QB))} un.). Efeito dominante: <b>${ef[0][0]}</b> ${cxCol(ef[0][1])}, seguido de ${restoTxt}. `
+    +`CPP médio por unidade ${spct(br.UB/br.UA-1)} (${money(br.UA)} → ${money(br.UB)})`+(causa==='ESTÁVEL'?': variação desprezível.':`, causa principal <b>${causa}</b> (mix ${cxSg(br.mixU)}/un, ${pct(sMix,0)}; custo ${cxSg(br.rateU)}/un, ${pct(1-sMix,0)}${Math.abs(br.semU)>=1?`; itens sem volume próprio ${cxSg(br.semU)}/un`:''}).`);
+  t+=`<span class="cxev"><b>Volume</b> ${cxCol(pv.vol)} — maiores grupos: ${topG('vol')}.<br><b>Mix</b> ${cxCol(pv.mix)} — ${cxMod(pv.entradas.length)} ${pv.entradas.length===1?'entrou':'entraram'} e ${cxMod(pv.saidas.length)} ${pv.saidas.length===1?'saiu':'saíram'} da produção — maiores grupos: ${topG('mix')}.<br><b>Custo</b> ${cxCol(pv.cst)} — ${cxMod(pv.mantidos.length)} produzidos nos dois períodos, CPP/un ${br.rateCont==null?'sem base':spct(br.rateCont)} — maiores grupos: ${topG('cst')}.${Math.abs(pv.sem)>=1?`<br><b>Itens sem volume</b> ${cxCol(pv.sem)} — custo apurado em um período sem unidade concluída nele (componentes e semi-acabados, cuja quantidade já está no produto "pai", ou produto cujas unidades fecharam só no outro período); a soma de volume, mix, custo e itens sem volume fecha com a variação do CPP.`:''}<br>Fórmulas por produto: mix = produto produzido em só um período (CPP cheio que entrou ou saiu); volume = Δ unidades × CPP/un do período atual; custo = Δ CPP/un × unidades do período de comparação.</span>`;
+  return call(t,'note');
+}
 function renderCompare(a){
   if(cbMin==null) return '';
   const b=custosAgg(cbMin,cbMax,null,'cpp'); reconcileCustos(b);
@@ -1797,6 +2118,7 @@ function renderCompare(a){
       const uA=g[1]?g[5]/g[1]:0, gb=grpB[g[0]], uB=gb&&gb.q?gb.c/gb.q:0;
       return [esc(g[0]),money(uA),uB?money(uB):'—',uB?dv(uA,uB):'—'];
     }),['left','right','right','right'])+'</div></div>';
+  s+=opLeituraComparativo(a,b,la,lb);
   s+=call('Nas linhas de custo, <b>verde = caiu</b> (bom) e <b>vermelho = subiu</b>. Volume usa a convenção inversa. Use "Limpar comparação" no filtro para fechar este bloco.','note');
   return s;
 }
@@ -1809,9 +2131,8 @@ function renderCustosBody(a){
   // ---- Dashboard de KPIs ----
   s+=H3('Painel de indicadores — visão executiva','','cu-painel');
   const kpiCount=9+(ccCaro?1:0), kpiRem=kpiCount%4, kpiSpan=kpiRem?4-kpiRem:0;
-  const leituraTxt='Leitura rápida: cada R$1 de retrabalho e assistência técnica é custo evitável — some '+mi(a.retrabalho.total+a.assistencia.total)+' ('+pct(retPct+assPct,1)+' do custo de produção interno) que não agrega valor ao produto. GGF responde por '+pct(t.custo?t.ggf/t.custo:0,0)+' do CPP — a maior alavanca de eficiência é a absorção de custo fixo fabril por unidade produzida.';
-  const leituraKind=(retPct+assPct)>0.04?'warn':'note';
-  const leituraHtml=call(leituraTxt,leituraKind);
+  const lr=opLeituraRapida(a,retPct,assPct);
+  const leituraHtml=call(lr.txt,lr.kind);
   s+='<div class="kpis">'
    +kpi('CPP Total',mi(t.custo),custosPeriodLabel(cuMin,cuMax))
    +kpi('Volume Produzido',nf(Math.round(t.qtd))+' un.','base do CPP (ordens de produção)')
@@ -1829,40 +2150,31 @@ function renderCustosBody(a){
 
   // ---- 1) Custo de Produção Desmembrado ----
   s+=H3('Custo de Produção Desmembrado — CPP','matéria-prima, mão de obra e GGF · mensal · volume de produção no eixo','cu-desmembrado');
-  const _insAbs=ins('cpvAbsorcao',{custosA:[a.ymMin,a.ymMax]});
   if(a.meses.length>=1){
     const nMeses=a.meses.length; const wChart=Math.min(980,Math.max(220,80*nMeses+150));
     s+=fig(stackedCols(a.meses.map(m=>custosMesLab(m[0])),[
       {name:'Matéria-prima (MAT)',values:a.meses.map(m=>m[1]),color:SER[0]},
       {name:'Mão de obra (M.O)',values:a.meses.map(m=>m[2]),color:SER[2]},
       {name:'GGF',values:a.meses.map(m=>m[3]),color:SER[1]},
-    ],{valfmt:v=>mi(v,1),w:wChart,subLabels:a.meses.map(m=>nf(m[5])+' un.'),subTitle:'Vol. produção'}),
-    _insAbs);
+    ],{valfmt:v=>mi(v,1),w:wChart,subLabels:a.meses.map(m=>nf(m[5])+' un.'),subTitle:'Vol. produção'}));
   }
   s+=table(['Componente','Valor total','% do CPP'],[
     ['Matéria-prima (MAT)',money(t.mat),pct(t.custo?t.mat/t.custo:0)],
     ['Mão de obra (M.O)',money(t.mod),pct(t.custo?t.mod/t.custo:0)],
     ['Gastos Gerais de Fabricação (GGF)',money(t.ggf),pct(t.custo?t.ggf/t.custo:0)],
-  ],['left','right','right'],['CPP total',money(t.custo),'100,0%'],
-    ins('auto',{itens:[{name:'Matéria-prima',v:t.mat},{name:'Mão de obra',v:t.mod},
-        {name:'Gastos gerais de fabricação',v:t.ggf}],escopo:'componente',escopoPl:'componentes',
-      universo:'do custo de produção',id:'cpp-componentes',tabela:true,preferir:['relacao']}));
+  ],['left','right','right'],['CPP total',money(t.custo),'100,0%']);
+  s+=opLeituraDesmembrado(a);
 
   // ---- 2) Composição do Custo de Produção ----
   s+=H3('Composição do Custo de Produção - CPP','matéria-prima direta · clique numa fatia ou na legenda para abrir o detalhe da categoria','cu-composicao');
-  s+=fig(pie3D(a.materiais,{valfmt:v=>mi(v,1),colorOf:nm=>CUSTOS_MAT_COLORS[nm]||SER[0]}),
-    ins('auto',{itens:a.materiais.map(x=>({name:x[0],v:x[1]})),escopo:'categoria',
-      escopoPl:'categorias de material',universo:'da matéria-prima',id:'cpp-materiais',
-      preferir:['estrutura','cauda']}));
+  s+=fig(pie3D(a.materiais,{valfmt:v=>mi(v,1),colorOf:nm=>CUSTOS_MAT_COLORS[nm]||SER[0]}));
+  s+=cxLeituraMP(a,null);
   s+=cap('Considera apenas matéria-prima direta (TP=C). Componentes fabricados internamente (TP=F) ficam de fora — o custo deles (MAT+M.O+GGF) já foi contabilizado na etapa de produção em que foram fabricados, e entrar aqui de novo seria contagem em duplicidade. <b>Clique numa fatia ou na legenda para abrir os principais materiais da categoria.</b>');
   s+='<div id="matdetail"></div>';
 
   // ---- 3) CPP por Grupo de Produtos ----
   s+=H3('CPP por grupo de produtos','volume e desmembramento · clique numa barra ou numa linha da tabela para abrir os produtos do grupo','cu-grupos');
-  s+='<div id="grpchart">'+fig(hbar(a.grupos.map(g=>[g[0],g[5]]),{valfmt:v=>mi(v,1),padLeft:220,w:820,maxbars:12}),
-    ins('auto',{itens:a.grupos.map(g=>({name:g[0],v:g[5],q:g[1]})),escopo:'grupo',
-      escopoPl:'grupos de produto',universo:'do custo de produção',id:'cpp-grupos',
-      preferir:['divergencia','cauda']}))+'</div>';
+  s+='<div id="grpchart">'+fig(hbar(a.grupos.map(g=>[g[0],g[5]]),{valfmt:v=>mi(v,1),padLeft:220,w:820,maxbars:12}))+'</div>';
   s+='<div id="grpdetail"></div>';
   const grpQtdTot=a.grupos.reduce((s2,g)=>s2+g[1],0), grpMatTot=a.grupos.reduce((s2,g)=>s2+g[2],0),
     grpModTot=a.grupos.reduce((s2,g)=>s2+g[3],0), grpGgfTot=a.grupos.reduce((s2,g)=>s2+g[4],0), grpCustoTot=a.grupos.reduce((s2,g)=>s2+g[5],0);
@@ -1874,22 +2186,13 @@ function renderCustosBody(a){
       return row;
     }),
     ['left','right','right','right','right','right','right'].concat(hasTrend?['right']:[]),
-    ['Total',nf(grpQtdTot),money(grpMatTot),money(grpModTot),money(grpGgfTot),money(grpCustoTot),money(grpQtdTot?grpCustoTot/grpQtdTot:0)].concat(hasTrend?['']:[]),
-    ins('auto',{itens:a.grupos.map(g=>({name:g[0],v:g[5],q:g[1]})),escopo:'grupo',
-      escopoPl:'grupos de produto',universo:'do custo de produção',id:'cpp-grupos-tab',tabela:true,
-      preferir:['estrutura','relacao']}))+'</div>';
+    ['Total',nf(grpQtdTot),money(grpMatTot),money(grpModTot),money(grpGgfTot),money(grpCustoTot),money(grpQtdTot?grpCustoTot/grpQtdTot:0)].concat(hasTrend?['']:[]))+'</div>';
+  s+=cxLeituraConcentracao(a,'CPP','produzidas');
 
   s+='<div id="topprod-section" class="hidden-section">';
-  /* o ranking do Executivo ja tinha o botao de fechar; aqui ele faltava, entao
-     o drill do Operacional so abria e nunca se desfazia */
-  s+='<div class="sec-head-flex">'+H3('Ranking de produtos produzidos - CPP','curva 80/20 · até 20 produtos · use a busca para achar qualquer produto da base','cu-ranking')
-    +'<button id="topprod-close" type="button" class="dr-close">Fechar &#10005;</button></div>';
+  s+=H3('Ranking de produtos produzidos - CPP','curva 80/20 · até 20 produtos · use a busca para achar qualquer produto da base','cu-ranking');
   s+=`<div class="searchbar"><input id="prodsearch" type="search" placeholder="Buscar produto na base completa (${nf(a.produtos.length)} itens)…" autocomplete="off"></div>`;
   s+='<div id="topprod">'+buildTopProdTable(a.produtos,a,'')+'</div>';
-  s+='<div class="tw-ins">'+(window.INSRT?INSRT.strip(
-      ins('auto',{itens:a.produtos.map(x=>({name:x.prod,v:x.custo,q:x.qtd})),escopo:'produto',
-        escopoPl:'produtos',universo:'do custo de produção',id:'cpp-produtos',tabela:true,
-        preferir:['cauda','relacao']})):'')+'</div>';
   s+=cap('Ranking por CPP total no período selecionado, limitado aos 20 produtos de maior custo. "Demais produtos" agrupa o restante da base para fechar com o total geral — juntos, Top 20 + Demais produtos somam o mesmo total da tabela por grupo acima.');
   s+='</div>';
 
@@ -1899,18 +2202,14 @@ function renderCustosBody(a){
   if(a.mesesYm.length>1){
     const mesesLbl=a.mesesYm.map(custosMesLab);
     const hdata={}; grpOrd.forEach(g=>{ hdata[g]={}; a.mesesYm.forEach((ym,i)=>{ hdata[g][mesesLbl[i]]=(a.volGrpMes[g]||{})[ym]||0; }); });
-    s+=fig(heatmap(grpOrd,mesesLbl,hdata,{valfmt:v=>v?nf(v,0):'',padLeft:190,w:900}),
-      ins('mixCruzado',{linhas:grpOrd,colunas:mesesLbl,mat:hdata,escopo:'grupo',id:'cpp-vol-mes'}));
+    s+=fig(heatmap(grpOrd,mesesLbl,hdata,{valfmt:v=>v?nf(v,0):'',padLeft:190,w:900,colTrunc:false}));
     const volTotalSemMateriais=a.mesesYm.map(ym=>grpOrd.reduce((s2,g)=>s2+((a.volGrpMes[g]||{})[ym]||0),0));
-    s+=fig(line([['Volume total',volTotalSemMateriais,SER[0]]],mesesLbl,{valfmt:v=>nf(v,0),w:960,h:260}),
-      ins('serieOscilacao',{labels:mesesLbl,vals:volTotalSemMateriais,id:'cpp-volume',fmt:v=>nf(Math.round(v))+' peças',verbo:'produziu'}));
+    s+=fig(line([['Volume total',volTotalSemMateriais,SER[0]]],mesesLbl,{valfmt:v=>nf(v,0),w:960,h:260}));
     s+='<div class="nzwide">'+table(['Grupo de produto',...mesesLbl,'Total'],
       grpOrd.map(g=>{const vals=a.mesesYm.map(ym=>(a.volGrpMes[g]||{})[ym]||0); return [esc(g),...vals.map(v=>nf(v)),nf(vals.reduce((s2,v)=>s2+v,0))];}),
       ['left',...mesesLbl.map(_=>'right'),'right'],
-      ['Total',...volTotalSemMateriais.map(v=>nf(v)),nf(volTotalSemMateriais.reduce((s2,v)=>s2+v,0))],
-      ins('auto',{itens:grpOrd.map(g=>({name:g,v:a.mesesYm.reduce((s2,ym)=>s2+((a.volGrpMes[g]||{})[ym]||0),0)})),
-        escopo:'grupo',escopoPl:'grupos de produto',universo:'do volume produzido',
-        id:'cpp-vol-tab',tabela:true,preferir:['estrutura','relacao']}))+'</div>';
+      ['Total',...volTotalSemMateriais.map(v=>nf(v)),nf(volTotalSemMateriais.reduce((s2,v)=>s2+v,0))])+'</div>';
+    s+=opLeituraVolume(a,grpOrd);
   } else { s+=cap('Selecione um período com mais de um mês para ver a evolutiva mensal.'); }
 
   // ---- 5) Custos Operacionais ----
@@ -1920,14 +2219,9 @@ function renderCustosBody(a){
     +kpi('Produtivo',mi(a.operacionais.PRODUTIVO.total),pct(totClassif?a.operacionais.PRODUTIVO.total/totClassif:0,0)+' do total')
     +kpi('Apoio / Auxiliar',mi(a.operacionais['AUXILIAR/APOIO'].total),pct(totClassif?a.operacionais['AUXILIAR/APOIO'].total/totClassif:0,0)+' do total')
     +kpi('Total (Produtivo + Apoio)',mi(totClassif),'')+'</div>';
-  s+='<div class="two"><div>'+H3('Produtivo — por tipo de conta','','cu-produtivo')+fig(hbar(a.operacionais.PRODUTIVO.itens.slice(0,8),{valfmt:v=>mi(v,1),color:SER[2],padLeft:190,w:520,maxbars:8}),
-    ins('auto',{itens:a.operacionais.PRODUTIVO.itens.map(x=>({name:x[0],v:x[1]})),escopo:'tipo de conta',
-      escopoPl:'tipos de conta',universo:'do custo produtivo',id:'cpp-produtivo',
-      preferir:['estrutura','relacao']}))+'</div>';
-  s+='<div>'+H3('Apoio / Auxiliar — por tipo de conta','','cu-apoio')+fig(hbar(a.operacionais['AUXILIAR/APOIO'].itens.slice(0,8),{valfmt:v=>mi(v,1),color:SER[3],padLeft:190,w:520,maxbars:8}),
-    ins('auto',{itens:a.operacionais['AUXILIAR/APOIO'].itens.map(x=>({name:x[0],v:x[1]})),escopo:'tipo de conta',
-      escopoPl:'tipos de conta',universo:'do custo de apoio',id:'cpp-apoio',
-      preferir:['estrutura','relacao']}))+'</div></div>';
+  s+='<div class="two"><div>'+H3('Produtivo — por tipo de conta','','cu-produtivo')+fig(hbar(a.operacionais.PRODUTIVO.itens.slice(0,8),{valfmt:v=>mi(v,1),color:SER[2],padLeft:190,w:520,maxbars:8}))+'</div>';
+  s+='<div>'+H3('Apoio / Auxiliar — por tipo de conta','','cu-apoio')+fig(hbar(a.operacionais['AUXILIAR/APOIO'].itens.slice(0,8),{valfmt:v=>mi(v,1),color:SER[3],padLeft:190,w:520,maxbars:8}))+'</div></div>';
+  s+=opLeituraApoio(a);
   s+=cap('Classificação por centro de custo (Produtivo = fábrica; Apoio/Auxiliar = administrativo, comercial, suporte). "Produtivo" é a base de absorção de custo no CPP; "Apoio" fica fora do CPP, tratado como despesa operacional.');
   const totP=a.operacionais.PRODUTIVO.total, totA=a.operacionais['AUXILIAR/APOIO'].total;
   const contas=Array.from(new Set([...a.operacionais.PRODUTIVO.itens.map(x=>x[0]), ...a.operacionais['AUXILIAR/APOIO'].itens.map(x=>x[0])]));
@@ -1938,29 +2232,17 @@ function renderCustosBody(a){
   s+=table(['Tipo de conta','Produtivo (R$)','% Produtivo','Apoio/Auxiliar (R$)','% Apoio'],
     contasOrd.map(nm=>[esc(nm),money(vP(nm)),pct(totP?vP(nm)/totP:0),money(vA(nm)),pct(totA?vA(nm)/totA:0)]),
     ['left','right','right','right','right'],
-    ['Total',money(totP),'100,0%',money(totA),'100,0%'],
-    ins('auto',{itens:contasOrd.map(nm=>({name:nm,v:vP(nm)+vA(nm)})),escopo:'tipo de conta',
-      escopoPl:'tipos de conta',universo:'do custo absorvido',id:'cpp-conta',tabela:true,
-      preferir:['estrutura','relacao']}));
+    ['Total',money(totP),'100,0%',money(totA),'100,0%']);
 
   // ---- 6) Absorção por Centro de Custo ----
   s+=H3('Absorção por centro de custo','MOD · GGF · horas · R$/hora','cu-absorcao-cc');
-  s+='<div class="two"><div>'+H3('Custo total absorvido','','cu-cc-total')+fig(hbar(a.cc.map(x=>[x[0],x[3]]),{valfmt:v=>mi(v,1),color:SER[0],padLeft:170,w:520}),
-    ins('auto',{itens:a.cc.map(x=>({name:x[0],v:x[3],q:x[4]})),escopo:'centro de custo',
-      escopoPl:'centros de custo',universo:'do custo absorvido',id:'cpp-cc',
-      preferir:['divergencia','cauda']}))+'</div>';
-  s+='<div>'+H3('Taxa hora (R$/h)','','cu-cc-taxa')+fig(hbar(a.cc.map(x=>[x[0],x[5]]),{valfmt:v=>money(v),color:SER[6],padLeft:170,w:520}),
-    ins('auto',{itens:a.cc.map(x=>({name:x[0],v:x[3],q:x[4]})),escopo:'centro de custo',
-      escopoPl:'centros de custo',universo:'do custo por hora',id:'cpp-taxa',
-      preferir:['divergencia','relacao']}))+'</div></div>';
+  s+='<div class="two"><div>'+H3('Custo total absorvido','','cu-cc-total')+fig(hbar(a.cc.map(x=>[x[0],x[3]]),{valfmt:v=>mi(v,1),color:SER[0],padLeft:170,w:520}))+'</div>';
+  s+='<div>'+H3('Taxa hora (R$/h)','','cu-cc-taxa')+fig(hbar(a.cc.map(x=>[x[0],x[5]]),{valfmt:v=>money(v),color:SER[6],padLeft:170,w:520}))+'</div></div>';
   s+=table(['Centro de custo','MOD','GGF','Custo total','Horas apontadas','R$/hora'],
     a.cc.map(x=>[esc(x[0]),money(x[1]),money(x[2]),money(x[3]),nf(Math.round(x[4])),x[5]?money(x[5]):'—']),
     ['left','right','right','right','right','right'],
-    ['Total',money(a.cc.reduce((s2,x)=>s2+x[1],0)),money(a.cc.reduce((s2,x)=>s2+x[2],0)),money(a.ccTotal.custo),nf(Math.round(a.ccTotal.horas)),money(a.ccTotal.taxa)],
-    ins('taxaHoraCC',{cc:a.cc.map(x=>[x[0],x[1],x[2],x[3],x[4],x[5],x[3],x[5]]),id:'cpp-tab'})
-    ||ins('auto',{itens:a.cc.map(x=>({name:x[0],v:x[3],q:x[4]})),escopo:'centro de custo',
-      escopoPl:'centros de custo',universo:'do custo absorvido',id:'cpp-cc-tab',tabela:true,
-      preferir:['relacao']}));
+    ['Total',money(a.cc.reduce((s2,x)=>s2+x[1],0)),money(a.cc.reduce((s2,x)=>s2+x[2],0)),money(a.ccTotal.custo),nf(Math.round(a.ccTotal.horas)),money(a.ccTotal.taxa)]);
+  s+=cxLeituraCentros(a,null,false);
   s+=cap('Horas apontadas via NDPRO359 (centros de trabalho reagrupados nos 8 centros de custo produtivos); coluna original vem em minutos e foi convertida para horas. Taxa hora = custo total absorvido ÷ horas apontadas no período.');
 
   // ---- 7) Custo de Retrabalho ----
@@ -1976,37 +2258,27 @@ function renderCustosBody(a){
   s+='<div class="kpis k3">'+kpi('Retrabalho total',mi(a.retrabalho.total),custosPeriodLabel(cuMin,cuMax)+ytdTxtOp(ytdAggOp&&ytdAggOp.retrabalho.total))
     +kpi('% do custo de produção',pct(retPct,2),'vs. custo total absorvido',retPct>0.02?'warn':'ok')
     +kpi('Item mais afetado',a.retrabalho.porItem.length?esc(a.retrabalho.porItem[0][0]):'—',a.retrabalho.porItem.length?money(a.retrabalho.porItem[0][2]):'')+'</div>';
-  if(a.retrabalho.mensal.length>1) s+=fig(line([['Custo de retrabalho',a.retrabalho.mensal.map(m=>m[1]),BAD]],a.retrabalho.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}),
-    ins('custoEvitavel',{ret:a.retrabalho,ass:a.assistencia,base:a.ccTotal.custoRaw||a.ccTotal.custo}));
+  if(a.retrabalho.mensal.length>1) s+=fig(line([['Custo de retrabalho',a.retrabalho.mensal.map(m=>m[1]),BAD]],a.retrabalho.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}));
   // pareto: onde o retrabalho se concentra (por centro de custo)
   const retCC={}; a.retrabalho.porItem.forEach(x=>{retCC[x[0]]=(retCC[x[0]]||0)+x[2];});
   const retPareto=Object.entries(retCC).sort((x,y)=>y[1]-x[1]).slice(0,12).map(([k,v])=>[trunc(k,22),v]);
   if(retPareto.length>2){
     s+=H3('Pareto de retrabalho por centro de custo','onde se concentra o custo evitável','cu-retrabalho-pareto');
-    s+=fig(pareto(retPareto,{valfmt:v=>money(v,0),w:900,h:300}),
-      ins('auto',{itens:retPareto.map(x=>({name:x[0],v:x[1]})),escopo:'centro de custo',
-        escopoPl:'centros de custo',universo:'do retrabalho',id:'cpp-retrabalho',
-        preferir:['estrutura','cauda','relacao']}));
-    s+=cap('A linha tracejada acumula a participação: os primeiros centros de custo concentram a maior parte do retrabalho — ponto de partida para o plano de ação da fábrica.');
+    s+=fig(pareto(retPareto,{valfmt:v=>money(v,0),w:900,h:300}));
+    s+=cap('A linha tracejada acumula a participação de cada centro de custo no retrabalho total; a leitura numérica está logo abaixo da tabela.');
   }
   s+=table(['Centro de custo','Produto retrabalhado','Custo de retrabalho','% do retrabalho total'],
-    a.retrabalho.porItem.slice(0,25).map(x=>[esc(x[0]),esc(trunc(x[1],48)),money(x[2]),pct(a.retrabalho.total?x[2]/a.retrabalho.total:0)]),['left','left','right','right'],null,
-    ins('auto',{itens:a.retrabalho.porItem.map(x=>({name:x[1],v:x[2]})),escopo:'produto',
-      escopoPl:'produtos',universo:'do retrabalho',id:'retrab-item',tabela:true,
-      preferir:['estrutura','relacao']}));
+    a.retrabalho.porItem.slice(0,25).map(x=>[esc(x[0]),esc(trunc(x[1],48)),money(x[2]),pct(a.retrabalho.total?x[2]/a.retrabalho.total:0)]),['left','left','right','right']);
+  s+=cxLeituraRetrabalho(a.retrabalho);
 
   // ---- 8) Custo de Assistência Técnica ----
   s+=H3('Custo de assistência técnica','evolução mensal · por produto','cu-assistencia');
   s+='<div class="kpis k2">'+kpi('Assist. técnica total',mi(a.assistencia.total),custosPeriodLabel(cuMin,cuMax)+ytdTxtOp(ytdAggOp&&ytdAggOp.assistencia.total))
     +kpi('% do custo de produção',pct(assPct,2),'vs. custo total absorvido',assPct>0.03?'warn':'ok')+'</div>';
-  if(a.assistencia.mensal.length>1) s+=fig(line([['Custo de assistência técnica',a.assistencia.mensal.map(m=>m[1]),WARN]],a.assistencia.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}),
-    ins('serieOscilacao',{labels:a.assistencia.mensal.map(m=>custosMesLab(m[0])),
-      vals:a.assistencia.mensal.map(m=>m[1]),id:'assist'}));
+  if(a.assistencia.mensal.length>1) s+=fig(line([['Custo de assistência técnica',a.assistencia.mensal.map(m=>m[1]),WARN]],a.assistencia.mensal.map(m=>custosMesLab(m[0])),{valfmt:v=>money(v),w:960,h:280}));
   s+=H3('Maiores custos de assistência técnica por produto','','cu-assistencia-prod');
-  s+=table(['Produto','Custo de assistência técnica'],a.assistencia.porProduto.map(x=>[esc(trunc(x[0],60)),money(x[1])]),['left','right'],null,
-    ins('auto',{itens:a.assistencia.porProduto.map(x=>({name:x[0],v:x[1]})),escopo:'produto',
-      escopoPl:'produtos',universo:'da assistência técnica',id:'assist-prod',tabela:true,
-      preferir:['estrutura','cauda']}));
+  s+=table(['Produto','Custo de assistência técnica'],a.assistencia.porProduto.map(x=>[esc(trunc(x[0],60)),money(x[1])]),['left','right']);
+  s+=cxLeituraAssistencia(a.assistencia);
 
   // ---- 9) Abertura de Custo - Nível Zero ----
   s+=H3('Abertura de Custo — Nível Zero','matéria-prima direta por produto acabado · comparativo A × B','cu-nivelzero');
@@ -2892,9 +3164,6 @@ function renderArquitetos(){
   s+=blocoRfvArquitetos(A);
   return s;
 }
-
-
-/* ===== Custos: trabalho feito em paralelo (merge de 28/08) ===== */
 function applyCxgFilter(){
   const a1=+document.getElementById('cxg-a').value, b1=+document.getElementById('cxg-b').value;
   cxgMinA=a1; cxgMaxA=a1; cxgMinB=b1; cxgMaxB=b1;
@@ -2902,7 +3171,7 @@ function applyCxgFilter(){
   cxgLabA=custosPeriodLabel(cxgMinA,cxgMaxA); cxgLabB=custosPeriodLabel(cxgMinB,cxgMaxB);
   cxgDriverSel=null;
   const wrap=document.getElementById('cx-grp-wrap'); if(wrap) wrap.innerHTML=renderCxGrpTable();
-  const dwrap=document.getElementById('cxg-drivers-wrap'); if(dwrap) dwrap.innerHTML=driversComRegua();
+  const dwrap=document.getElementById('cxg-drivers-wrap'); if(dwrap) dwrap.innerHTML=renderCxgDrivers();
   const lbl=document.getElementById('cxg-compare-label'); if(lbl) lbl.textContent='Comparando '+cxgLabB+' (B) vs '+cxgLabA+' (A)';
   const section=document.getElementById('cx-topprod-section'); if(section) section.classList.add('hidden-section');
   const inp=document.getElementById('cx-prodsearch');
@@ -2910,15 +3179,10 @@ function applyCxgFilter(){
   const box=document.getElementById('cx-topprod'); if(box) box.innerHTML=buildTopProdTableCx(cxgAggB.produtos,cxgAggB,'');
   remount('custosx');
 }
-/* Drivers de Impacto + a régua de destaque deles, sempre juntos: o filtro A/B redesenha os dois.
-   Antes a régua ficava fora do contêiner e continuava descrevendo o par A/B da abertura depois
-   que o usuário escolhia outro. */
-function driversComRegua(){
-  return renderCxgDrivers()+'<div class="tw-ins">'+(window.INSRT?INSRT.strip(
-      ins('auto',{itens:cxgGroupDrivers().map(g=>({name:g.grp,v:Math.abs(g.total)})),
-        escopo:'grupo',escopoPl:'grupos de produto',universo:'da variação do CPV',
-        id:'cx-drivers',tabela:true,preferir:['estrutura','cauda']})):'')+'</div>';
-}
+/* ===== Filtro dinâmico Período A × B, específico da "CPV por grupo de produtos" e dos
+   "Drivers de Impacto no CPV" — desacoplado do filtro global da leitura executiva (cxMin/cxMax),
+   para permitir comparar quaisquer dois períodos sem alterar o resto da seção Executivo. Ao
+   carregar, replica o comparativo atual (B=período corrente, A=anterior automático). ===== */
 function buildCxgFilterBar(){
   const yms=ymList(MINYM_CUSTOS,MAXYM_CUSTOS); const opts=yms.map(y=>`<option value="${y}">${ymLab(y)}</option>`).join('');
   return `<div class="filterbar">
@@ -2928,6 +3192,8 @@ function buildCxgFilterBar(){
     <div id="cxg-compare-label" class="fb-label"></div>
   </div>`;
 }
+/* ===== Ranking de produtos vendidos - CPV (Executivo): mesma estrutura de buildTopProdTable
+   (Operacional/CPP), mas usando cxLastA (dados de CPV) e rótulos de quantidade vendida. ===== */
 function buildTopProdTableCx(list,a,query){
   const top20=list.slice(0,20), rest=list.slice(20);
   const tQ=list.reduce((s2,p)=>s2+p.qtd,0),tM=list.reduce((s2,p)=>s2+p.mat,0),tO=list.reduce((s2,p)=>s2+p.mod,0),
@@ -2941,7 +3207,7 @@ function buildTopProdTableCx(list,a,query){
     ['Total',esc(list.length+' produtos'),nf(tQ),money(tM),money(tO),money(tG),money(tC),money(tQ?tC/tQ:0)])+'</div>';
 }
 function cxgDesvio(p){
-  if(p.qtyA===0&&p.qtyB>0) return 'produto novo na curva — '+nf(p.qtyB)+' un. vendidas';
+  if(p.qtyA===0&&p.qtyB>0) return 'produto novo na curva — '+nf(p.qtyB)+(p.qtyB===1?' un. vendida':' un. vendidas');
   if(p.qtyA>0&&p.qtyB===0) return 'saiu da curva — vendia '+nf(p.qtyA)+' un.';
   const dq=p.qtyB-p.qtyA, du=(p.qtyB?p.custoB/p.qtyB:0)-(p.qtyA?p.custoA/p.qtyA:0);
   const parts=[];
@@ -2949,7 +3215,13 @@ function cxgDesvio(p){
   if(Math.abs(du)>0.5) parts.push('CPV/un '+(du>0?'+':'')+money(du,0));
   return parts.length?parts.join(' · '):'sem variação relevante';
 }
-function cxgExecutiveInsight(g){
+/* leitura de segundo grau: compara o que os destaques (top 3-5) somam contra o total do
+   grupo inteiro — revela se a cauda longa (produtos pequenos demais para aparecer sozinhos)
+   reforça, contradiz ou é irrelevante perto do que salta aos olhos na tabela. */
+/* leitura executiva do impacto total do grupo: qual dos três efeitos (mix, volume, custo)
+   domina a variação e o que isso significa em termos simples — direto do total já calculado
+   para o grupo em cxgGroupDrivers(), sem depender da lista de produtos. */
+function cxgExecutiveInsight(g,prods){
   const aMix=Math.abs(g.mix), aVol=Math.abs(g.vol), aCst=Math.abs(g.cst);
   const clr=v=>`<span style="color:${v<=0?GOOD:BAD};font-weight:600">${money(Math.abs(v))}</span>`;
   const clause=(nome,v)=>Math.abs(v)<1?(nome+' não teve efeito relevante'):(nome+' '+(v<=0?'aliviou':'pressionou')+' o CPV em '+clr(v));
@@ -2962,10 +3234,25 @@ function cxgExecutiveInsight(g){
     headline='O impacto em '+esc(g.grp)+' foi dominado por <b>Custo</b>: o CPV unitário dos mesmos produtos mudou — a quantidade vendida e a curva de produtos seguem parecidas.';
   }
   const detail=clause('Mix',g.mix)+'; '+clause('Volume',g.vol)+'; '+clause('Custo',g.cst)+' — juntos, o grupo '+(g.total<=0?'aliviou':'pressionou')+' o CPV total em '+clr(g.total)+' ('+esc(cxgLabB)+' vs '+esc(cxgLabA)+').';
-  return {kind:g.total>0?'warn':'ok',txt:headline+' '+detail};
+  // evidências por produto: quem entrou/saiu (mix), quem mais moveu o volume e o custo
+  const nm=p=>esc(trunc(p.prod,38)), ev=[];
+  const ent=(prods||[]).filter(p=>p.qtyA===0&&p.qtyB>0).sort((x,y)=>y.custoB-x.custoB), sai=(prods||[]).filter(p=>p.qtyB===0&&p.qtyA>0).sort((x,y)=>y.custoA-x.custoA);
+  const mant=(prods||[]).filter(p=>p.qtyA>0&&p.qtyB>0);
+  if(Math.abs(g.mix)>=1){ const pa=[];
+    if(ent.length) pa.push(`${cxMod(ent.length)} ${ent.length===1?'entrou':'entraram'} (${cxSg(ent.reduce((s2,p)=>s2+p.custoB,0))}): `+cxNomes(ent,2,p=>`${nm(p)}, ${cxUn(p.qtyB)} a ${money(p.custoB/p.qtyB)}`));
+    if(sai.length) pa.push(`${cxMod(sai.length)} ${sai.length===1?'saiu':'saíram'} (${cxSg(-sai.reduce((s2,p)=>s2+p.custoA,0))}): `+cxNomes(sai,2,p=>`${nm(p)}, ${cxUn(p.qtyA)} a ${money(p.custoA/p.qtyA)}`));
+    ev.push(`<b>Mix</b> ${cxCol(g.mix)} — `+pa.join('; ')+'.'); }
+  if(Math.abs(g.vol)>=1){ const tp=mant.slice().sort((x,y)=>Math.abs(y.vol)-Math.abs(x.vol)).slice(0,2);
+    ev.push(`<b>Volume</b> ${cxCol(g.vol)} — ${cxMod(mant.length)} vendidos nos dois períodos; maiores: `+tp.map(p=>`${nm(p)} (${p.qtyB-p.qtyA>0?'+':''}${nf(p.qtyB-p.qtyA)} un. a ${money(p.custoB/p.qtyB)} = ${cxCol(p.vol)})`).join('; ')+'.'); }
+  if(Math.abs(g.cst)>=1){ const tp=mant.slice().sort((x,y)=>Math.abs(y.cst)-Math.abs(x.cst)).slice(0,2);
+    ev.push(`<b>Custo</b> ${cxCol(g.cst)} — maiores: `+tp.map(p=>`${nm(p)} (${money(p.custoA/p.qtyA)} → ${money(p.custoB/p.qtyB)}/un sobre ${cxUn(p.qtyA)} = ${cxCol(p.cst)})`).join('; ')+'.'); }
+  const L=cxLeitGrupo(g.grp,cxgAggA,cxgAggB,cxgLabA,cxgLabB);
+  if(L){ const cu=cxCausaUnit(L.br);
+    if(cu.causa!=='ESTÁVEL') ev.push(`<b>CPV por unidade do grupo</b> ${spct(L.br.UB/L.br.UA-1)} (${money(L.br.UA)} → ${money(L.br.UB)}): causa principal ${cu.causa} (mix ${cxSg(L.br.mixU)}/un · custo ${cxSg(L.br.rateU)}/un).`); }
+  return {kind:g.total>0?'warn':'ok',txt:headline+' '+detail+(ev.length?'<span class="cxev">'+ev.join('<br>')+'</span>':'')};
 }
-function cxgGroupDrivers(){
-  const merged=cxgMergeProdutos(cxgAggA,cxgAggB);
+function cxgGroupDrivers(){ return cxgGroupDriversOf(cxgMergeProdutos(cxgAggA,cxgAggB)); }
+function cxgGroupDriversOf(merged){
   const grpMap={};
   merged.forEach(p=>{
     const im=cxgImpact(p.qtyA,p.custoA,p.qtyB,p.custoB);
@@ -2982,14 +3269,23 @@ function cxgImpact(qtyA,custoA,qtyB,custoB){
   const cst=bothPos?(uB-uA)*qtyA:0;
   return {mix,vol,cst,total:mix+vol+cst};
 }
-function cxgMergeProdutos(aggA,aggB){
+/* ===== Drivers de Impacto no CPV: decompõe a variação de CPV entre Período A e B em Mix (produto
+   entrou/saiu da curva), Volume (mesma curva, quantidade mudou) e Custo (CPV unitário mudou).
+   Fórmulas (conforme especificado): Mix = Δqtde × CPV unitário do período com volume > 0, só
+   quando exatamente um dos dois períodos tem qtde zero; Volume = Δqtde × CPV unitário do Período B
+   (base), só quando nenhum dos dois é zero; Custo = ΔCPV unitário × qtde do Período A (mês em
+   comparação), só quando nenhum dos dois é zero — isso faz Mix/Volume/Custo somarem exatamente
+   ΔCusto do item em todos os casos, sem sobreposição. ===== */
+function cxgMergeProdutos(aggA,aggB,exclGrp){
   const map={};
-  const add=(list,side)=>{ (list||[]).forEach(p=>{ const k=p.prod+'||'+p.grp;
+  const add=(list,side)=>{ (list||[]).forEach(p=>{ if(exclGrp&&p.grp===exclGrp) return; const k=p.prod+'||'+p.grp;
     const o=map[k]||(map[k]={prod:p.prod,grp:p.grp,qtyA:0,custoA:0,qtyB:0,custoB:0}); map[k]=o;
     if(side==='A'){ o.qtyA+=p.qtd; o.custoA+=p.custo; } else { o.qtyB+=p.qtd; o.custoB+=p.custo; } }); };
   add(aggA&&aggA.produtos,'A'); add(aggB&&aggB.produtos,'B');
   return Object.values(map);
 }
+/* seleciona de 3 a 5 produtos: sempre os 3 maiores impactos absolutos, estendendo até 5 só
+   enquanto o próximo item ainda for relevante (≥15% do maior impacto do grupo). */
 function cxgPickTop(list){
   const n=Math.min(5,list.length);
   if(n<=3) return list.slice(0,n);
@@ -3026,7 +3322,7 @@ function drawCxgDriverDetail(grp){
   const top=cxgPickTop(merged);
   const rows=top.map(p=>[esc(trunc(p.prod,46)),cxgDesvio(p),cxgDMoney(p.mix),cxgDMoney(p.vol),cxgDMoney(p.cst),cxgDMoney(p.total)]);
   const groupRow=cxgGroupDrivers().find(g=>g.grp===grp);
-  const insight=groupRow?cxgExecutiveInsight(groupRow):null;
+  const insight=groupRow?cxgExecutiveInsight(groupRow,merged):null;
   let inner=insight?call(insight.txt,insight.kind):'';
   inner+='<div class="nzwide">'+table(['Produto','Desvio','Mix','Volume','Custo','Impacto total'],rows,
     ['left','left','right','right','right','right'])+'</div>';
@@ -3054,6 +3350,9 @@ function initProdSearchCx(){
     },220);
   });
 }
+/* Divide a.operacionais.PRODUTIVO.itens (Razão CC) em Mão de Obra ("Pessoal") e GGF, escalando
+   proporcionalmente para fechar com mod/ggf informados — usado só onde essa abertura é necessária
+   (Custos Operacionais do Executivo), sem mutar "a" (mantém a.operacionais intacto p/ Apoio×Produtivo). */
 function moggfPorTipoDeConta(a,mod,ggf){
   const itens=a.operacionais.PRODUTIVO.itens;
   const moRaw=itens.filter(([r])=>/PESSOAL/i.test(r)).reduce((s,[,v])=>s+v,0);
@@ -3061,6 +3360,13 @@ function moggfPorTipoDeConta(a,mod,ggf){
   const fMo=moRaw?mod/moRaw:0, fGgf=ggfRaw?ggf/ggfRaw:0;
   return itens.map(([r,v])=>[r,/PESSOAL/i.test(r)?'Mão de Obra':'GGF',v*(/PESSOAL/i.test(r)?fMo:fGgf)]);
 }
+/* ===== Reconciliação: NDVAL666 (matéria-prima), Valorização_Ordens (centro de custo) e Razão CC
+   (tipo de conta) são ledgers/recortes diferentes do total oficial (CPV_Acumulado ou, na seção
+   Operacional, o novo CPP) — por isso não fecham exatamente com t.mat/t.mod/t.ggf. Para que toda
+   a leitura (Executivo × CPV e Operacional × CPP) fique correlacionada ao Painel de Indicadores,
+   escala cada abertura proporcionalmente (mantém os pesos relativos internos) até o total bater
+   exatamente com a fonte oficial. Muta "a" in place — todo consumidor downstream (tabelas e
+   drill-down) já lê os valores reconciliados. */
 function reconcileCustos(a){
   /* idempotente: a reconciliação muda "a" no lugar e transforma cc de 6 em 8 colunas — uma
      segunda chamada no mesmo agregado reescalaria de novo e trocaria as colunas de lugar */
@@ -3129,6 +3435,7 @@ function renderCxGrpTable(){
   let s=H3('CPV por grupo de produtos','comparativo entre períodos · '+esc(lab)+' vs '+esc(labPrev),'cx-grp');
   s+='<button id="cx-grp-toggle" type="button" class="cxgrp-toggle">'+(cxGrpExpanded?'Agrupar CPV (ocultar MAT/M.O/GGF)':'Desagrupar CPV (ver MAT/M.O/GGF)')+'</button>';
   s+='<div class="cxgrp-table '+(cxGrpExpanded?'nzwide':'tbl-fit')+'"><div class="tw">'+tableHtml+'</div></div>';
+  s+=cxLeituraGrupos();
   s+=cap('Em CPV, <b style="color:'+GOOD+'">verde = caiu</b> (bom) e <b style="color:'+BAD+'">vermelho = subiu</b>. Volume usa a convenção inversa.');
   return s;
 }
@@ -3136,8 +3443,9 @@ function renderCxgDrivers(){
   if(!cxgAggA||!cxgAggB) return '';
   const groups=cxgGroupDrivers();
   let s=H3('Drivers de Impacto no CPV','onde o CPV está sendo impactado · '+esc(cxgLabB)+' (B) vs '+esc(cxgLabA)+' (A) · clique no grupo para ver os produtos','cx-drivers');
-  s+=cap('Decompõe a variação de CPV de cada grupo em três efeitos: <b>Mix</b> (produto entrou ou saiu da curva de vendas), <b>Volume</b> (vendeu mais ou menos do mesmo produto) e <b>Custo</b> (o CPV unitário mudou). <b style="color:'+BAD+'">Vermelho</b> pressiona o CPV para cima; <b style="color:'+GOOD+'">verde</b> alivia. Inclui todos os grupos (Componentes incluso) — a soma fecha com o CPV total do período. Usa o mesmo filtro Período A/B da tabela "CPV por grupo de produtos" acima.');
+  s+=cap('Decompõe a variação de CPV de cada grupo, produto a produto, em três efeitos: <b>Mix</b> = produto vendido em só um dos períodos (entrou ou saiu da curva) — o efeito é o CPV cheio que entrou ou saiu (Δ unidades × CPV/un do período em que foi vendido); <b>Volume</b> = produto vendido nos dois períodos — Δ unidades × CPV/un do Período B (base); <b>Custo</b> = produto vendido nos dois períodos — Δ CPV/un × unidades do Período A. Os três somam exatamente a variação do CPV. <b style="color:'+BAD+'">Vermelho</b> pressiona o CPV para cima; <b style="color:'+GOOD+'">verde</b> alivia. Inclui todos os grupos (Componentes incluso) e usa o mesmo filtro Período A/B da tabela "CPV por grupo de produtos".');
   if(!groups.length) return s+cap('Sem produtos comparáveis entre os dois períodos selecionados.');
+  s+=cxgResumoDrivers(groups);
   const rows=groups.map(g=>[
     `<span class="cxg-driver-cell drillable" data-grp="${esc(g.grp)}">${esc(g.grp)}</span>`,
     money(g.custoA),money(g.custoB),cxgDMoney(g.mix),cxgDMoney(g.vol),cxgDMoney(g.cst),cxgDMoney(g.total)]);
@@ -4302,7 +4610,11 @@ function stackedCols(labels,series,o={}){ const {valfmt=v=>mi(v,1),w=980,h=320,s
   for(let g=0;g<5;g++){const yv=vmax*g/4,yy=pt+ph-ph*g/4; s+=`<line x1="${pl}" y1="${W(yy)}" x2="${pl+pw}" y2="${W(yy)}" stroke="${GRID}"/>`;
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="10.5" fill="${MUT}">${esc(valfmt(yv))}</text>`;}
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
-    series.forEach((se,si)=>{const v=se.values[i]||0; const bh=ph*v/vmax; const y=pt+ph-ph*(acc+v)/vmax;
+    series.forEach((se,si)=>{const v=se.values[i]||0;
+      /* pacote com saldo negativo no mês (estorno maior que o lançado, ex. Outros jan/26) não tem
+         altura para empilhar: fica fora do desenho, mas segue no total e nas tabelas. */
+      if(v<=0) return;
+      const bh=ph*v/vmax; const y=pt+ph-ph*(acc+v)/vmax;
       s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))} (${pct(totals[i]?v/totals[i]:0,1)} do período)</title></rect>`;
       // valor dentro do proprio pacote, como no evolCombo. Faixa baixa demais nao recebe
       // rotulo: o texto sairia por cima do pacote vizinho em vez de identificar o seu.

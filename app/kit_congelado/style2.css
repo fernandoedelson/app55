@@ -647,3 +647,13 @@ body.present #side-hot::after{content:'';position:absolute;left:0;top:50%;transf
  width:3px;height:64px;border-radius:0 3px 3px 0;background:rgba(201,162,132,.55);transition:opacity .3s var(--ease)}
 body.present.side-peek #side-hot::after{opacity:0}
 @media print{#side-hot{display:none!important}}
+
+/* ===== Custos (Executivo e Operacional): leituras automáticas trazidas da versão v2 ===== */
+.prov.prov-auto{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.prov-auto .pv>div:last-child{min-width:0}
+.prov-auto .pv p b{font-size:inherit;color:var(--ink)}
+.pv p.ev{font-size:12px;color:var(--muted);line-height:1.65;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
+.pv p.ev b{color:var(--ink2)}
+.callout .cxev{display:block;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:12px;line-height:1.7;color:var(--muted)}
+.callout .cxev b{color:var(--ink2)}
+.cn{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:2px 7px;margin-right:6px;border-radius:2px;background:var(--cream);color:var(--blue-deep);vertical-align:1px}

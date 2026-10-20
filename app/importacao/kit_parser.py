@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Leitura das planilhas — GERADO por ferramentas/extrair_parser.py a partir do gerar_relatorio.py
-do Kit na tag gabarito-v1. Não editar à mão: é o mesmo código que leu as fontes do gabarito.
+do Kit na tag gabarito-v2. Não editar à mão: é o mesmo código que leu as fontes do gabarito.
 
 A montagem do HTML não vem junto (isso é do Kit). As pastas de cada competência entram por
 definir_pastas(); o resto do arquivo é cópia literal.
@@ -623,6 +623,9 @@ def _grupo_por_descricao(desc):
     if h('MESA DE JANTAR','MESA JANTAR'): return 'MESA DE JANTAR'
     if h('MESA'): return 'MESAS AUXILIARES'
     if h('BANCADA'): return 'BANCADAS E APOIOS'
+    # aparadores, buffets e bares (e seus conjuntos de portas, gavetas e pés) são móveis de apoio —
+    # como na versão v2. BAR só como palavra inteira, para não pegar BARRA, BARROTE etc.
+    if h('APARADOR','BUFFET') or __import__('re').search(r'\bBAR\b', s): return 'BANCADAS E APOIOS'
     if h('ESTANTE','ESCRIVANINHA'): return 'ESCRIVANINHAS E ESTANTES'
     if h('ALMOFADA'): return 'ALMOFADAS'
     if h('ACESSORIO','BOLSA','SACOLA','SACO ','CARDAPIO','TAG ','PORTA CANETA'): return 'ACESSÓRIOS'

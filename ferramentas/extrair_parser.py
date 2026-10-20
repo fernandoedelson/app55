@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Copia do Kit congelado (tag gabarito-v1) a LEITURA DAS PLANILHAS do gerar_relatorio.py para
+Copia do Kit congelado (tag gabarito-v2) a LEITURA DAS PLANILHAS do gerar_relatorio.py para
 app/importacao/kit_parser.py — o mesmo código que produziu o gabarito, agora rodando dentro do app
 na importação mensal.
 
@@ -16,7 +16,7 @@ import subprocess
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT = r'C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design'
-TAG = 'gabarito-v1'
+TAG = 'gabarito-v2'
 DESTINO = os.path.join(RAIZ, 'app', 'importacao', 'kit_parser.py')
 
 CABECALHO = '''# -*- coding: utf-8 -*-
