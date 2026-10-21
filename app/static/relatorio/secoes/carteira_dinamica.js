@@ -40,6 +40,15 @@ DESENHO.carteira_dinamica=function(P){
     s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
     s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Previsto',values:C.valor,color:SER[0]}],C.acum,{valfmt:v=>mi(v,1),partes:R.pr||null}),ins('carteiraPicoEntrega','carteira-pico-entrega')||ins('auto','auto-cartdin-entrega'));
     if(R.pr) s+=prCap(prSoma(R.pr[0]),prSoma(C.valor),'da previsão de faturamento'); }
+  const AN=P['cd-andamento'];
+  if(AN){
+    s+=H3('Em andamento — peças e valor por mês de entrega','por data de entrega prevista · barras = peças · linha = valor (eixo dir.)','cd-andamento');
+    s+=fig(evolCombo(AN.yms.map(ymLab),[{name:'Peças',values:AN.qtd,color:SER[0]}],AN.valor,
+      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,partes:AN.qtd_pr?[AN.qtd_pr]:null}));
+    s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos. Total: '
+      +nf(prSoma(AN.qtd),0)+' peças · '+mi(prSoma(AN.valor),1)+'.'
+      +(AN.qtd_pr&&prSoma(AN.qtd_pr)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(AN.qtd_pr),0)+' peças ('+pct(prSoma(AN.qtd_pr)/prSoma(AN.qtd),0)+').':''));
+  }
   const V=P['cd-vend'], K=P['cd-peds'];
   if(V||K){
     s+='<div class="two">';

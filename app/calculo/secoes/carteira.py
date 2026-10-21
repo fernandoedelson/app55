@@ -38,6 +38,29 @@ def calcular_carteira(C, params=None):
     return out
 
 
+def _andamento_por_mes(C, CD):
+    """Em andamento por mês de entrega prevista: peças, valor e peças de parte relacionada (a mesma leitura do Kit)."""
+    peds = (CD.get('status_pedidos') or {}).get('ANDAMENTO') or []
+    pats = [p.upper() for p in _partes_relacionadas(C)]
+    por = {}
+    for p in peds:
+        pr = bool(pats) and any(x in str(p[1] or '').upper() for x in pats)
+        for linha in p[4] or []:
+            if not linha[4]:
+                continue
+            _d, mes, ano = linha[4].split('/')
+            o = por.setdefault(int(ano) * 100 + int(mes), [0.0, 0.0, 0.0])
+            o[0] += linha[1] or 0
+            o[1] += linha[2] or 0
+            if pr:
+                o[2] += linha[1] or 0
+    if not por:
+        return None
+    yms = sorted(por)
+    return {'yms': yms, 'qtd': [por[y][0] for y in yms], 'valor': [por[y][1] for y in yms],
+            'qtd_pr': [por[y][2] for y in yms] if pats else None}
+
+
 def calcular_dinamica(C, params=None):
     CD = C.blob('CARTDIN')
     if not CD:
@@ -69,6 +92,7 @@ def calcular_dinamica(C, params=None):
         'cd-evol': {'evol': CD['evol'], 'pr': [pr['evol']['vendas'], pr['evol']['atrasados']] if pr else None},
         'cd-adiados': {'evol': CD['evol_adiado'], 'pr': [pr['adiado']] if pr else None},
         'cd-previsao': {'evol': CD['andamento_entrega'], 'pr': [pr['entrega']] if pr else None},
+        'cd-andamento': _andamento_por_mes(C, CD),
         'cd-vend': {'vend': [x for x in (CD.get('vend') or []) if x[0] not in PSEUDO_VEND], 'tem': bool(CD.get('vend')),
                     'pr': pr['vend'] if pr else None},
         'cd-peds': {'peds': [[o['ped'], o['cliente'], o['status'], o['valor']] for o in peds[:12]],

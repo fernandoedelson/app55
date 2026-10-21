@@ -973,6 +973,16 @@ function renderCarteira(){
   return s;
 }
 /* ---- Carteira dinâmica (fonte: VENDAS LOJA <ano>.xlsx — o nome real vem em CARTDIN.fonte) ---- */
+/* Em andamento por mês de entrega prevista: peças (soma da quantidade dos itens), valor e quantas dessas peças são de parte relacionada.
+   Sai dos itens de cada pedido (status_pedidos), então vale para qualquer mês já processado. */
+function cdAndamentoMes(C){
+  const peds=(C.status_pedidos||{}).ANDAMENTO||[], por={};
+  peds.forEach(p=>{ const pr=ehPR(p[1]);
+    (p[4]||[]).forEach(l=>{ if(!l[4]) return; const m=String(l[4]).split('/'); const ym=(+m[2])*100+(+m[1]);
+      const o=por[ym]||(por[ym]={q:0,v:0,qpr:0}); o.q+=l[1]||0; o.v+=l[2]||0; if(pr) o.qpr+=l[1]||0; }); });
+  const yms=Object.keys(por).map(Number).sort((a,b)=>a-b); if(!yms.length) return null;
+  return {yms:yms, qtd:yms.map(y=>por[y].q), valor:yms.map(y=>por[y].v), qtdPR:yms.map(y=>por[y].qpr)};
+}
 function renderCarteiraDinamica(){
   if(!window.CARTDIN) return call('Fonte "VENDAS LOJA *.xlsx" não encontrada em fontes/. Seção não gerada.','warn');
   const C=CARTDIN;
@@ -1018,6 +1028,17 @@ function renderCarteiraDinamica(){
         id:'cartdin-entrega',preferir:['cauda','estrutura']}));
 
   if(C.pr) s+=prCap(prSoma(C.pr.entrega),prSoma(C.andamento_entrega.valor),'da previsão de faturamento');
+
+  // o que está em andamento, por mês de entrega: quantas peças e quanto vale (barras = peças, linha = valor)
+  const _an=cdAndamentoMes(C);
+  if(_an){
+    s+=H3('Em andamento — peças e valor por mês de entrega','por data de entrega prevista · barras = peças · linha = valor (eixo dir.)','cd-andamento');
+    s+=fig(evolCombo(_an.yms.map(ymLab),[{name:'Peças',values:_an.qtd,color:SER[0]}],_an.valor,
+      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,partes:C.pr?[_an.qtdPR]:null}));
+    s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos. Total: '
+      +nf(prSoma(_an.qtd),0)+' peças · '+mi(prSoma(_an.valor),1)+'.'
+      +(C.pr&&prSoma(_an.qtdPR)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(_an.qtdPR),0)+' peças ('+pct(prSoma(_an.qtdPR)/prSoma(_an.qtd),0)+').':''));
+  }
   // mesmas duas leituras da Carteira estática, agora sobre a fonte dinâmica.
   // status_pedidos é indexado por status, e 14 pedidos têm itens em mais de um bucket. Achatar
   // sem consolidar quebraria esses pedidos em linhas parciais e bagunçaria o ranking (o 542401,

@@ -276,6 +276,9 @@ MIGRACOES = [
     {'controladoria': ['recurso:pilotar']},
     # a carteira passou a ter dois arquivos: a posição de fechamento e a dinâmica
     {'controladoria': ['base:upload:carteira_fech']},
+    # novo gráfico da Carteira dinâmica: em andamento por mês de entrega (peças e valor)
+    {'gestao55': ['bloco:cd-andamento'], 'controladoria': ['bloco:cd-andamento'],
+     'gestao_comercial': ['bloco:cd-andamento'], 'loja': ['bloco:cd-andamento']},
 ]
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Copia para app/kit_congelado/ o front-end do Kit EXATAMENTE como está na tag gabarito-v12:
+Copia para app/kit_congelado/ o front-end do Kit EXATAMENTE como está na tag gabarito-v13:
 o app.js, o insights.js, o style2.css, a camada da versão em Atos (atos.js, atos_ajustes.js,
 atos.css), os dois geradores (gerar_relatorio.py e gerar_html_atos.py) e as imagens.
 
@@ -18,7 +18,7 @@ import subprocess
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT = r'C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design'
-TAG = 'gabarito-v12'
+TAG = 'gabarito-v13'
 DESTINO = os.path.join(RAIZ, 'app', 'kit_congelado')
 ARQUIVOS = ['app.js', 'insights.js', 'dredin.js', 'style2.css', 'atos.js', 'atos_ajustes.js', 'atos.css',
             'gerar_relatorio.py', 'gerar_html_atos.py']

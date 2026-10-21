@@ -74,3 +74,21 @@ def test_grafico_anual_leva_a_projecao_e_a_previa_do_pilotar_filtra_o_bloco(app,
         assert 'class="previa"' in html and 'header class="rb"' not in html and 'PREV=' in html
     js = open(os.path.join(RAIZ, 'app', 'static', 'pilotar.js'), encoding='utf-8').read()
     assert 'data-previa' in js and 'previa=' in js
+
+
+@precisa_dados
+def test_grafico_em_andamento_por_mes_fecha_com_a_previsao_de_faturamento():
+    C = comp_mod.Competencia('2026-07', REAL)
+    din = carteira.calcular_dinamica(C, {})
+    an, prev = din['cd-andamento'], din['cd-previsao']['evol']
+    assert an['yms'] == prev['yms']                                   # mesmos meses de entrega
+    assert all(abs(a - b) < 1 for a, b in zip(an['valor'], prev['valor']))   # mesmo valor por mês (a soma dos itens)
+    assert all(q > 0 for q in an['qtd'])
+    assert an['qtd_pr'] is None or all(0 <= p <= q + 1e-9 for p, q in zip(an['qtd_pr'], an['qtd']))
+
+
+def test_novo_bloco_esta_no_catalogo_e_na_migracao_de_permissoes():
+    from app import catalogo as C
+    from app.db import MIGRACOES
+    assert 'cd-andamento' in C.BLOCO and C.BLOCO['cd-andamento']['secao'] == 'carteira_dinamica'
+    assert any('bloco:cd-andamento' in v for m in MIGRACOES for v in m.values())
