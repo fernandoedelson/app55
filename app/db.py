@@ -279,6 +279,8 @@ MIGRACOES = [
     # novo gráfico da Carteira dinâmica: em andamento por mês de entrega (peças e valor)
     {'gestao55': ['bloco:cd-andamento'], 'controladoria': ['bloco:cd-andamento'],
      'gestao_comercial': ['bloco:cd-andamento'], 'loja': ['bloco:cd-andamento']},
+    # Estudo Intercompany no lugar do Modelo Fábrica × Loja: o resumo é um bloco novo ao lado do DRE por unidade
+    {'gestao55': ['bloco:est-ic-resumo'], 'controladoria': ['bloco:est-ic-resumo']},
 ]
 
 

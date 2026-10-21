@@ -48,7 +48,7 @@ BASES = {
 
 # blob -> arquivo json da competência (o cálculo lê por esses nomes)
 BLOBS = ['DATA', 'DRE', 'DPNL', 'DECK', 'CF', 'CUSTOS', 'CARTDIN', 'CFMENSAL', 'MAXYM_DRE', 'APORTES',
-         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH', 'DREDIN']
+         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH', 'DREDIN', 'INTERCOMPANY']
 PASTA_CARTEIRA_FECH = 'Carteira_Fechamento'
 
 
@@ -69,6 +69,18 @@ def _fabloja(fontes, base):
     K.AQUI = fontes
     try:
         return K.parse_fabloja()
+    finally:
+        K.AQUI = base
+
+
+def _intercompany(fontes, base):
+    """O Analise_Intercompany_<ano>.xlsx sobe junto com o Modelo (mesma pasta); o parser procura ao lado de `base`,
+    como o do Modelo — quando a configuração mora noutra pasta, aponta para a pasta de fontes do mês."""
+    if base == fontes or not os.path.isdir(os.path.join(fontes, 'Modelo_Gerencial_Fabrica_Loja')):
+        return K.parse_intercompany()
+    K.AQUI = fontes
+    try:
+        return K.parse_intercompany()
     finally:
         K.AQUI = base
 
@@ -99,6 +111,7 @@ def processar(fontes, base=None, custos=None, ate_ym=None):
             'CF': cf, 'CUSTOS': custos_blob, 'CARTDIN': cart_din, 'CFMENSAL': cf_mensal,
             'MAXYM_DRE': max_ym_dre, 'APORTES': recorte.aportes(K.parse_aportes(), ate_ym), 'METAS': K.parse_metas(),
             'FABLOJA': recorte.sem_foto(_fabloja(fontes, base), ate_ym),
+            'INTERCOMPANY': recorte.sem_foto(_intercompany(fontes, base), ate_ym),   # foto do período todo: não se recorta
             'PARTES_RELACIONADAS': cfg.get('partes_relacionadas', []),
             'DREDIN': recorte.dredin(K.parse_dre_din(painel), ate_ym),     # DRE no padrão da empresa (aba DRE DINÂMICO)
             'DESTAQUES_MANUAIS': cfg.get('destaques_manuais', {}),

@@ -1,5 +1,5 @@
 /* ===== +55 · desenho do relatório =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v16.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v17.
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
@@ -461,6 +461,113 @@ function acentuaDre(txt){
     if(w[0]===w[0].toUpperCase()) return a.charAt(0)+a.slice(1).toLowerCase();  // Capitalizado
     return a.toLowerCase();
   });
+}
+
+/* ================= Estudos e análises — Intercompany pela tabela de preço =================
+   O DRE do Modelo A (aba 12 do Modelo gerencial Fábrica × Loja) refeito com a receita de transferência interna trocada pelo
+   valor apurado na tabela de preço (Analise_Intercompany_<ano>.xlsx, gerado por estudo_intercompany.py). Mesmo conteúdo do
+   Estudo_Intercompany_Modelo_A.html. As funções ic* são puras: o app as reusa com os mesmos números (INTERCOMPANY + FABLOJA). */
+const IC_MES3=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+const IC_MESL=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+
+const icNorm=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+
+/* valor do Modelo A (coluna 2 da linha) da primeira linha cujo rótulo contém a chave — como o ler_modelo_a.acha */
+const icAcha=(linhas,chave)=>{ const k=icNorm(chave); const l=(linhas||[]).find(x=>icNorm(x[0]).indexOf(k)>=0); return l?(l[2]||0):0; };
+
+const IC_LIN=[ // [rótulo, chave na aba 12, classe]
+  ['Receita bruta ao cliente final','RECEITA BRUTA AO CLIENTE',''],
+  ['Receita de transferência interna','RECEITA DE TRANSFERENCIA','ic-hl'],
+  ['<b>(=) RECEITA OPERACIONAL BRUTA</b>','RECEITA OPERACIONAL BRUTA','forte'],
+  ['(-) Deduções das receitas','DEDUCOES DAS RECEITAS',''],
+  ['<b>(=) RECEITA OPERACIONAL LÍQUIDA</b>','RECEITA OPERACIONAL LIQUIDA','forte'],
+  ['(-) Custo do produto vendido (variável)','CUSTO DO PRODUTO VENDIDO',''],
+  ['(-) Custo de transferência da fábrica','CUSTO DE TRANSFERENCIA','ic-hl'],
+  ['(-) Baixa Absorção Faturamento (custo fixo do vendido)','BAIXA ABSORCAO',''],
+  ['(-) Despesa de Capacidade Ociosa','CAPACIDADE OCIOSA',''],
+  ['(-) Gastos variáveis com vendas','GASTOS VARIAVEIS COM VENDAS',''],
+  ['<b>(=) MARGEM DE CONTRIBUIÇÃO</b>','MARGEM DE CONTRIBUICAO','forte'],
+  ['<b>(-) DESPESAS OPERACIONAIS</b>','DESPESAS OPERACIONAIS','forte'],
+  ['(+) Absorção da produção (capitalizada em estoque)','ABSORCAO DA PRODUCAO',''],
+  ['(-) Depreciação e Amortização','DEPRECIACAO','']];
+
+const IC_UN=['FABRICA','LOJA','CONSOLIDADO'];
+
+/* I = INTERCOMPANY (totais e meses do estudo), F = FABLOJA (linhas do Modelo A). null se faltar algo. */
+function icCalcula(I,F){
+  if(!I||!F||!F.blocos) return null;
+  const ano=String(I.ano), linhasDe={};
+  F.blocos.forEach(b=>{ linhasDe[b.chave]=(b.anos&&b.anos[ano])||b.linhas||[]; });
+  if(!(linhasDe.FABRICA||[]).length) return null;
+  const V={}; IC_UN.forEach(u=>{ V[u]={}; IC_LIN.forEach(l=>{ V[u][l[1]]=icAcha(linhasDe[u],l[1]); }); });
+  const ebitDe=v=>v['MARGEM DE CONTRIBUICAO']+v['DESPESAS OPERACIONAIS']+v['ABSORCAO DA PRODUCAO']+v['DEPRECIACAO'];
+  const T_regra=V.FABRICA['RECEITA DE TRANSFERENCIA'];
+  const C=-(V.FABRICA['CUSTO DO PRODUTO VENDIDO']+V.FABRICA['BAIXA ABSORCAO']);   // custo de absorção do vendido
+  const ebit_regra={}; IC_UN.forEach(u=>{ ebit_regra[u]=ebitDe(V[u]); });
+  const T=I.total;
+  // troca a transferência: receita na Fábrica, custo na Loja; o consolidado elimina as duas
+  V.FABRICA['RECEITA DE TRANSFERENCIA']=T; V.LOJA['CUSTO DE TRANSFERENCIA']=-T;
+  ['FABRICA','LOJA'].forEach(u=>{ const v=V[u];
+    v['RECEITA OPERACIONAL BRUTA']=v['RECEITA BRUTA AO CLIENTE']+v['RECEITA DE TRANSFERENCIA'];
+    v['RECEITA OPERACIONAL LIQUIDA']=v['RECEITA OPERACIONAL BRUTA']+v['DEDUCOES DAS RECEITAS'];
+    v['MARGEM DE CONTRIBUICAO']=v['RECEITA OPERACIONAL LIQUIDA']+v['CUSTO DO PRODUTO VENDIDO']+v['CUSTO DE TRANSFERENCIA']
+      +v['BAIXA ABSORCAO']+v['CAPACIDADE OCIOSA']+v['GASTOS VARIAVEIS COM VENDAS']; });
+  const ebit={}; IC_UN.forEach(u=>{ ebit[u]=ebitDe(V[u]); });
+  const rob=I.meses.map(m=>({mes:m.mes,v:m.rob_fab+m.rob_loja}));
+  const mx=rob.reduce((a,b)=>b.v>a.v?b:a), mn=rob.reduce((a,b)=>b.v<a.v?b:a);
+  return {I:I,V:V,T:T,T_regra:T_regra,C:C,cobre:C?T/C:0,ap:T?I.apurada/T:0,es:T?I.estimada/T:0,ebit:ebit,ebit_regra:ebit_regra,
+    nmes:I.meses.length,per:'Jan–'+IC_MES3[(I.ate%100)-1],ano:I.ano,markup:F.markup||0,mx:IC_MESL[mx.mes-1],mn:IC_MESL[mn.mes-1]};
+}
+
+const icLead=D=>`<p class="lead">O DRE do <b>Modelo A</b> refeito com a receita de transferência interna trocada pelo valor apurado na tabela de preço — `
+  +`<b>${money(D.T)}</b>, coluna <code>TABELA LOJA SP</code> da aba <code>Intercompany</code> — no lugar dos ${money(D.T_regra)} que vêm da regra de custo de absorção `
+  +`mais markup. Período: ${D.ano} · ${D.per}.</p>`;
+
+function icHtmlResumo(D){
+  const tom=v=>v>=0?'ok':'warn';
+  let s='<div class="kpis k5">'
+    +kpi('Fábrica · EBIT',money(D.ebit.FABRICA),money(D.ebit.FABRICA/D.nmes)+'/mês · era '+money(D.ebit_regra.FABRICA),tom(D.ebit.FABRICA))
+    +kpi('Loja · EBIT',money(D.ebit.LOJA),money(D.ebit.LOJA/D.nmes)+'/mês · era '+money(D.ebit_regra.LOJA),tom(D.ebit.LOJA))
+    +kpi('Consolidado · EBIT',money(D.ebit.CONSOLIDADO),money(D.ebit.CONSOLIDADO/D.nmes)+'/mês · não se altera')
+    +kpi('Cobre do custo de absorção',pct(D.cobre,1),'regra atual cobre '+pct(1+D.markup,1),D.cobre<1?'warn':'ok')
+    +kpi('Composição do valor',pct(D.ap,1)+' apurado',pct(D.es,1)+' estimado pela média da categoria')+'</div>';
+  s+=call('<b>O valor entra integral.</b> Os '+money(D.T)+' são usados como a receita de transferência tal como apurados e estimados — a coluna '
+    +'<code>TABELA LOJA SP</code> já embute custo, frete, royalties, impostos e a margem de 2% da Fábrica. Nenhum markup é aplicado por cima.','note');
+  s+=D.cobre<1
+    ?call('<b>Mas o valor não cobre o custo do período.</b> A regra de hoje parte do custo de absorção e acrescenta '+pct(D.markup,1)+', chegando a '
+      +money(D.T_regra)+'. Os '+money(D.T)+' da tabela correspondem a <b>'+pct(D.cobre,1)+'</b> do que custou produzir no período — a Fábrica '
+      +'transferiria abaixo do próprio custo absorvido, e o prejuízo migra da Loja para a Fábrica.','warn')
+    :call('<b>O valor cobre o custo do período.</b> A regra de hoje parte do custo de absorção e acrescenta '+pct(D.markup,1)+', chegando a '+money(D.T_regra)
+      +'; os '+money(D.T)+' da tabela correspondem a <b>'+pct(D.cobre,1)+'</b> do custo absorvido.','ok');
+  return s;
+}
+
+function icHtmlDre(D){
+  const cel=(v,mes)=>`<td class="right${mes?' ic-mes':''}">${v<-0.5?`<span style="color:${BAD}">${money(v)}</span>`:money(v)}</td>`;
+  const sobre=u=>D.V[u]['RECEITA OPERACIONAL LIQUIDA']?pct(D.V[u]['MARGEM DE CONTRIBUICAO']/D.V[u]['RECEITA OPERACIONAL LIQUIDA'],1):'—';
+  const corpo=[];
+  IC_LIN.forEach(([rot,k,cls])=>{
+    corpo.push(`<tr${cls?` class="${cls}"`:''}><th class="left">${rot}</th>`+IC_UN.map(u=>cel(D.V[u][k])).join('')+IC_UN.map(u=>cel(D.V[u][k]/D.nmes,true)).join('')+'</tr>');
+    if(k==='MARGEM DE CONTRIBUICAO')
+      corpo.push('<tr class="pct"><th class="left">% Margem de contribuição sobre a ROL</th>'+IC_UN.map(u=>`<td class="right">${sobre(u)}</td>`).join('')+'<td class="ic-mes"></td><td class="ic-mes"></td><td class="ic-mes"></td></tr>');
+  });
+  corpo.push('<tr class="forte ebit"><th class="left"><b>(=) EBIT</b></th>'+IC_UN.map(u=>cel(D.ebit[u])).join('')+IC_UN.map(u=>cel(D.ebit[u]/D.nmes,true)).join('')+'</tr>');
+  corpo.push('<tr class="pct"><th class="left">% EBIT sobre a ROL</th>'+IC_UN.map(u=>`<td class="right">${D.V[u]['RECEITA OPERACIONAL LIQUIDA']?pct(D.ebit[u]/D.V[u]['RECEITA OPERACIONAL LIQUIDA'],1):'—'}</td>`).join('')+'<td class="ic-mes"></td><td class="ic-mes"></td><td class="ic-mes"></td></tr>');
+  let s='<div class="tw"><table class="dt ic-dre"><thead><tr><th rowspan="2" class="left">Linha do DRE</th><th colspan="3" class="grp">Acumulado · '+D.per+'</th>'
+    +'<th colspan="3" class="grp ic-mes">Média mensal · ÷ '+D.nmes+'</th></tr><tr>'
+    +['Fábrica','Loja','Consolidado'].map(x=>`<th class="right sub">${x}</th>`).join('')+['Fábrica','Loja','Consolidado'].map(x=>`<th class="right sub ic-mes">${x}</th>`).join('')
+    +'</tr></thead><tbody>'+corpo.join('')+'</tbody></table></div>';
+  s+=call('As duas linhas destacadas são as únicas alteradas na origem; todas as demais são recálculo. <b>Despesa operacional, absorção e depreciação não mudam</b> — '
+    +'continuam na entidade que as registrou, sem rateio. O Consolidado é idêntico ao do Modelo A original: a transferência é receita de um lado e custo do outro, '
+    +'e se elimina na consolidação.','note');
+  s+=call('<b>A média mensal é o acumulado dividido por '+D.nmes+'</b> — os meses já realizados de '+D.per+'. É média aritmética simples, não reflete a sazonalidade: '
+    +D.mx+' concentrou o maior faturamento do período e '+D.mn+' o menor. Os percentuais não aparecem na coluna mensal porque não mudam: dividir numerador e '
+    +'denominador por '+D.nmes+' mantém a razão.','note');
+  s+='<div class="sources"><b>Fontes:</b> Painel Resultado 55 Design (aba MPP DB) e Modelo_Gerencial_Fabrica_Loja.xlsx (aba 12, coluna MUDANÇA Mod. A, markup '+pct(D.markup,2)
+    +') · tabela de preço Tabela +55 (abas Intercompany e Venda Loja SP Preço Percebido) · memória em '+esc(D.I.arquivo||'Analise_Intercompany.xlsx')
+    +'.'+(D.I.gerado_em?' Gerado em '+esc(D.I.gerado_em)+' por estudo_intercompany.py.':'')+'</div>';
+  return s;
 }
 
 /* ===== marcação dos blocos =====

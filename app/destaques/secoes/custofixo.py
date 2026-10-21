@@ -5,7 +5,7 @@ from ...calculo.secoes.custofixo import CATS, ENTS, PACOTES_CF, _agg_mes, _filtr
 from ...calculo.secoes.divida import _anos_aportes
 from ..genericas import auto, serie_oscilacao
 from ..regras_custofixo import (categoria_contrafluxo, composicao, concentracao_cf, divida_correcao,
-                                divida_juro_ano, fabloja_linhas, pacote_variacao)
+                                divida_juro_ano, pacote_variacao)
 from ...calculo.datas import ym_lab, ym_shift
 
 
@@ -96,4 +96,5 @@ def montar_divida(C, params=None):
 
 
 def montar_estudos(C, params=None):
-    yield ('est-dre', [], fabloja_linhas(C))
+    """O Estudo Intercompany não tem destaque automático."""
+    return iter(())

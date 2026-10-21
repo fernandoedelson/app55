@@ -1141,6 +1141,59 @@ def parse_carteira_dinamica():
     )
 
 # ---------------- 3) MONTAGEM DO HTML ----------------
+def parse_intercompany():
+    """Estudo Intercompany pela tabela de preço: lê o Analise_Intercompany_<ano>.xlsx que o estudo_intercompany.py gera
+    (abas Resumo e Mensal). O casamento das notas com a tabela de preço roda no PC de quem prepara o estudo; aqui só entram
+    os totais. Procura ao lado do Modelo Fábrica × Loja (a pasta enviada) e em "Fontes Intercompany"; vale o arquivo mais novo
+    do ano (o de jan–jul congelado não conta)."""
+    base = os.path.join(AQUI, 'Modelo_Gerencial_Fabrica_Loja')
+    achados = []
+    for pasta in (base, os.path.join(base, 'Fontes Intercompany')):
+        achados += [f for f in glob.glob(os.path.join(pasta, 'Analise_Intercompany_*.xlsx'))
+                    if 'JANJUL' not in os.path.basename(f).upper() and not os.path.basename(f).startswith('~$')]
+    if not achados:
+        print('  ("Analise_Intercompany_<ano>.xlsx" não encontrado — o estudo intercompany não será gerado)')
+        return None
+    path = max(achados, key=os.path.getmtime)
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    if 'Resumo' not in wb.sheetnames or 'Mensal' not in wb.sheetnames:
+        print('    (abas Resumo/Mensal não encontradas em %s — estudo intercompany não gerado)' % os.path.basename(path))
+        wb.close(); return None
+    linhas = [list(r) for r in wb['Resumo'].iter_rows(min_row=1, max_row=60, max_col=4, values_only=True)]
+    mensal = [list(r) for r in wb['Mensal'].iter_rows(min_row=2, max_col=11, values_only=True)]
+    wb.close()
+    num2 = lambda v: round(v, 2) if isinstance(v, (int, float)) else None
+    def acha(prefixo, col=2):
+        alvo = _norm(prefixo)
+        for r in linhas:
+            if isinstance(r[1], str) and _norm(r[1]).startswith(alvo):
+                return num2(r[col])
+        return None
+    ano = next((int(m.group(0)) for r in linhas[:2] for c in r if isinstance(c, str) for m in [re.search(r'20\d\d', c)] if m), None)
+    gerado = next((m.group(1) for r in linhas[:3] for c in r if isinstance(c, str) for m in [re.search(r'Gerado em ([\d/]+ [\d:]+)', c)] if m), None)
+    MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+    meses = []
+    for r in mensal:
+        k = str(r[0] or '').strip().lower()[:3]
+        if k in MESES:
+            meses.append(dict(mes=MESES.index(k) + 1, rob_fab=num2(r[1]) or 0, rob_loja=num2(r[2]) or 0,
+                              transf=num2(r[8]) or 0))
+    total = acha('(=) TRANSFERENCIA TOTAL')
+    if not (ano and meses and total):
+        print('    (Resumo/Mensal de %s sem os totais esperados — estudo intercompany não gerado)' % os.path.basename(path))
+        return None
+    out = dict(arquivo=os.path.basename(path), gerado_em=gerado, ano=ano, ate=ano * 100 + meses[-1]['mes'],
+               total=total, apurada=acha('Transferencia apurada'), estimada=acha('(+) Estimada'),
+               cenario=acha('Cenario'), devida=acha('Transferencia devida'),
+               rob_fab=acha('Fabrica → cliente final'), rob_loja=acha('Loja → cliente final'),
+               ic_real=acha('Fabrica → Loja (intercompany real'), ic_notas=acha('nº de notas') or acha('no de notas'),
+               custo_fab=acha('Memoria: custo de producao'), n_id=acha('Itens identificados'), n_sem=acha('Itens sem preco'),
+               meses=meses)
+    print('    estudo intercompany: %s | %s · Jan–%s | transferência total R$ %s' % (out['arquivo'], ano, MESES[meses[-1]['mes'] - 1],
+                                                                                   format(total, ',.0f')))
+    return out
+
+
 def parse_fabloja():
     """Leitura executiva do modelo gerencial Fábrica × Loja (item 7 da ata de 26/08/2026).
 
@@ -1337,7 +1390,7 @@ def derivar_custo_fixo(cf_cfg, cf_mensal, dpnl, max_ym_dre):
     return out
 
 def montar_html(data, DRE, deck, dpnl, cf, custos, cart_din, cf_mensal, max_ym_dre,
-                aportes, metas, fabloja=None, partes_rel=None, destaques=None, dredin=None):
+                aportes, metas, fabloja=None, partes_rel=None, destaques=None, dredin=None, interc=None):
     partes_rel = partes_rel or []
     destaques  = destaques  or {}
     j=lambda o: json.dumps(o,ensure_ascii=False,separators=(',',':'))
@@ -1347,7 +1400,7 @@ def montar_html(data, DRE, deck, dpnl, cf, custos, cart_din, cf_mensal, max_ym_d
           f"window.CF={j(cf)};window.CUSTOS={j(custos)};window.CARTDIN={j(cart_din)};"
           f"window.CFMENSAL={j(cf_mensal)};window.MAXYM_DRE={j(max_ym_dre)};window.APORTES={j(aportes)};"
           f"window.METAS={j(metas)};window.FABLOJA={j(fabloja)};window.PARTES_RELACIONADAS={j(partes_rel)};"
-          f"window.DESTAQUES_MANUAIS={j(destaques)};window.DREDIN={j(dredin)};")
+          f"window.DESTAQUES_MANUAIS={j(destaques)};window.DREDIN={j(dredin)};window.INTERCOMPANY={j(interc)};")
     doc=montar_doc(blob, base_lab)
     open(SAIDA,'w',encoding='utf-8').write(doc)
     return len(doc)
@@ -1427,8 +1480,9 @@ def main():
     partes_rel=cfg.get('partes_relacionadas',[])
     destaques =cfg.get('destaques_manuais',{})
     dredin=parse_dre_din(dre)
+    interc=parse_intercompany()
     n=montar_html(data, DRE, deck, dpnl, cf, custos, cart_din, cf_mensal, max_ym_dre,
-                  aportes, metas, fabloja, partes_rel, destaques, dredin)
+                  aportes, metas, fabloja, partes_rel, destaques, dredin, interc)
     print('  destaques: %d padroes de parte relacionada, %d textos manuais'
           % (len(partes_rel), len(destaques)))
     print('OK -> %s (%d KB)' % (os.path.basename(SAIDA), n//1024))

@@ -3,7 +3,7 @@
 
 Não há reconstrução aqui. Os dados da competência (os mesmos blobs que o gerador do Kit grava) são
 serializados do jeito que o gerar_relatorio.montar_html serializa, montados pelo montar_doc do Kit e
-passados pelo gerar_html_atos do Kit — os três copiados literalmente da tag gabarito-v16 em
+passados pelo gerar_html_atos do Kit — os três copiados literalmente da tag gabarito-v17 em
 app/kit_congelado (com hash conferido). Mesma entrada, mesmo código: mesmo HTML, byte a byte.
 
 O documento carrega os dados inteiros do mês (é assim que o Kit funciona: o cálculo roda no
@@ -26,7 +26,7 @@ from ..seguranca import usuarios as U
 PASTA_KIT = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'kit_congelado')
 # a ordem das variáveis é a do montar_html do Kit — mudar a ordem muda o HTML
 BLOBS = ['DATA', 'DRE', 'DECK', 'DPNL', 'CF', 'CUSTOS', 'CARTDIN', 'CFMENSAL', 'MAXYM_DRE', 'APORTES',
-         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'DREDIN']
+         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'DREDIN', 'INTERCOMPANY']
 _trava = threading.Lock()
 
 

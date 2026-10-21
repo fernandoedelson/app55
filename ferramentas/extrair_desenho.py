@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Copia do Kit congelado (tag gabarito-v16) as funções de DESENHO e FORMATAÇÃO do app.js para
+Copia do Kit congelado (tag gabarito-v17) as funções de DESENHO e FORMATAÇÃO do app.js para
 app/static/relatorio/kit.js, o runtime da régua de destaques do insights.js para
 app/static/relatorio/destaques.js, e o style2.css para app/static/relatorio/style2.css.
 
@@ -15,7 +15,7 @@ import subprocess
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT = r'C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design'
-TAG = 'gabarito-v16'
+TAG = 'gabarito-v17'
 DESTINO = os.path.join(RAIZ, 'app', 'static', 'relatorio')
 
 NOMES = [
@@ -28,6 +28,7 @@ NOMES = [
     # ferramentas de tabela (ordenar, CSV) e zoom
     '_cellNum', 'setupTableTools', 'addCsvChips', 'exportCsv', 'setupChartZoom', 'setupLaser', 'setupTableZoom', 'decorateTables',
     # helpers de montagem de HTML
+    'IC_MES3', 'IC_MESL', 'icNorm', 'icAcha', 'IC_LIN', 'IC_UN', 'icCalcula', 'icLead', 'icHtmlResumo', 'icHtmlDre',
     'kpi', 'MEMORIA', 'memoria', 'memAttr', 'ehPR', 'prTag', 'prLegenda', 'prTom', 'prLeg', 'prT', 'prRect', 'prRot', 'prCap', 'prSoma', 'peDados', 'peKpiTabela', 'peKpiLigar',
     'call', 'H3', 'fig', 'cap', 'B', 'ymList', 'ymLab', 'ymShift', 'ymAddMonths', 'custosMesLab',
     'MES_LONGO', 'mesLongo', 'ymLabAno', 'ytdLab', 'acentuaDre',

@@ -3667,117 +3667,112 @@ function acentuaDre(txt){
     return a.toLowerCase();
   });
 }
-/* Estado da seção: só o abre/fecha dos 16 subgrupos de despesa.
-   A seção foi reduzida a um único quadro — o DRE por unidade, do topo até o EBIT — e fixada
-   em 2026 YTD, o período em discussão. O filtro de ano saiu junto com as tabelas comparativas:
-   sem duas leituras lado a lado não sobrou nada para o ano reger. */
-let estAno=null, estAberto=false;
-const EST_ANO_FOCO=String(ANO_D); /* o estudo abre no ano corrente da DRE, se o modelo o conciliou */
-const EST_EBITDA=/^\(=\)\s*EBITDA/i, EST_DEPREC=/^\(-\)\s*Deprecia[cç][aã]o/i;
-const EST_ROL=/^\(=\)\s*RECEITA OPERACIONAL LIQUIDA/i;
-function renderEstudos(){
-  const F=window.FABLOJA;
-  let s=`<div class="sec-head"><div class="kick">Estudos e análises</div><h2>Modelo gerencial Fábrica × Loja</h2>
-   <p class="lead">O resultado repartido entre <b>fábrica industrial</b> e <b>loja comercial</b>, do topo do DRE até o <b>EBIT</b>. A fábrica deixa de vender ao cliente final e passa a transferir para a loja; despesa e depreciação ficam na entidade que as registrou, sem rateio.</p></div>`;
-  if(!F) return s+call('Planilha "Modelo_Gerencial_Fabrica_Loja.xlsx" não encontrada (ou sem conciliação válida). Seção não gerada — rode <code>python Modelo_Gerencial_Fabrica_Loja/modelo_gerencial_fabrica_loja.py</code> e regere o relatório.','warn');
-  return s+'<div id="estudos-body"></div>';
+/* ================= Estudos e análises — Intercompany pela tabela de preço =================
+   O DRE do Modelo A (aba 12 do Modelo gerencial Fábrica × Loja) refeito com a receita de transferência interna trocada pelo
+   valor apurado na tabela de preço (Analise_Intercompany_<ano>.xlsx, gerado por estudo_intercompany.py). Mesmo conteúdo do
+   Estudo_Intercompany_Modelo_A.html. As funções ic* são puras: o app as reusa com os mesmos números (INTERCOMPANY + FABLOJA). */
+const IC_MES3=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const IC_MESL=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const icNorm=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+/* valor do Modelo A (coluna 2 da linha) da primeira linha cujo rótulo contém a chave — como o ler_modelo_a.acha */
+const icAcha=(linhas,chave)=>{ const k=icNorm(chave); const l=(linhas||[]).find(x=>icNorm(x[0]).indexOf(k)>=0); return l?(l[2]||0):0; };
+const IC_LIN=[ // [rótulo, chave na aba 12, classe]
+  ['Receita bruta ao cliente final','RECEITA BRUTA AO CLIENTE',''],
+  ['Receita de transferência interna','RECEITA DE TRANSFERENCIA','ic-hl'],
+  ['<b>(=) RECEITA OPERACIONAL BRUTA</b>','RECEITA OPERACIONAL BRUTA','forte'],
+  ['(-) Deduções das receitas','DEDUCOES DAS RECEITAS',''],
+  ['<b>(=) RECEITA OPERACIONAL LÍQUIDA</b>','RECEITA OPERACIONAL LIQUIDA','forte'],
+  ['(-) Custo do produto vendido (variável)','CUSTO DO PRODUTO VENDIDO',''],
+  ['(-) Custo de transferência da fábrica','CUSTO DE TRANSFERENCIA','ic-hl'],
+  ['(-) Baixa Absorção Faturamento (custo fixo do vendido)','BAIXA ABSORCAO',''],
+  ['(-) Despesa de Capacidade Ociosa','CAPACIDADE OCIOSA',''],
+  ['(-) Gastos variáveis com vendas','GASTOS VARIAVEIS COM VENDAS',''],
+  ['<b>(=) MARGEM DE CONTRIBUIÇÃO</b>','MARGEM DE CONTRIBUICAO','forte'],
+  ['<b>(-) DESPESAS OPERACIONAIS</b>','DESPESAS OPERACIONAIS','forte'],
+  ['(+) Absorção da produção (capitalizada em estoque)','ABSORCAO DA PRODUCAO',''],
+  ['(-) Depreciação e Amortização','DEPRECIACAO','']];
+const IC_UN=['FABRICA','LOJA','CONSOLIDADO'];
+/* I = INTERCOMPANY (totais e meses do estudo), F = FABLOJA (linhas do Modelo A). null se faltar algo. */
+function icCalcula(I,F){
+  if(!I||!F||!F.blocos) return null;
+  const ano=String(I.ano), linhasDe={};
+  F.blocos.forEach(b=>{ linhasDe[b.chave]=(b.anos&&b.anos[ano])||b.linhas||[]; });
+  if(!(linhasDe.FABRICA||[]).length) return null;
+  const V={}; IC_UN.forEach(u=>{ V[u]={}; IC_LIN.forEach(l=>{ V[u][l[1]]=icAcha(linhasDe[u],l[1]); }); });
+  const ebitDe=v=>v['MARGEM DE CONTRIBUICAO']+v['DESPESAS OPERACIONAIS']+v['ABSORCAO DA PRODUCAO']+v['DEPRECIACAO'];
+  const T_regra=V.FABRICA['RECEITA DE TRANSFERENCIA'];
+  const C=-(V.FABRICA['CUSTO DO PRODUTO VENDIDO']+V.FABRICA['BAIXA ABSORCAO']);   // custo de absorção do vendido
+  const ebit_regra={}; IC_UN.forEach(u=>{ ebit_regra[u]=ebitDe(V[u]); });
+  const T=I.total;
+  // troca a transferência: receita na Fábrica, custo na Loja; o consolidado elimina as duas
+  V.FABRICA['RECEITA DE TRANSFERENCIA']=T; V.LOJA['CUSTO DE TRANSFERENCIA']=-T;
+  ['FABRICA','LOJA'].forEach(u=>{ const v=V[u];
+    v['RECEITA OPERACIONAL BRUTA']=v['RECEITA BRUTA AO CLIENTE']+v['RECEITA DE TRANSFERENCIA'];
+    v['RECEITA OPERACIONAL LIQUIDA']=v['RECEITA OPERACIONAL BRUTA']+v['DEDUCOES DAS RECEITAS'];
+    v['MARGEM DE CONTRIBUICAO']=v['RECEITA OPERACIONAL LIQUIDA']+v['CUSTO DO PRODUTO VENDIDO']+v['CUSTO DE TRANSFERENCIA']
+      +v['BAIXA ABSORCAO']+v['CAPACIDADE OCIOSA']+v['GASTOS VARIAVEIS COM VENDAS']; });
+  const ebit={}; IC_UN.forEach(u=>{ ebit[u]=ebitDe(V[u]); });
+  const rob=I.meses.map(m=>({mes:m.mes,v:m.rob_fab+m.rob_loja}));
+  const mx=rob.reduce((a,b)=>b.v>a.v?b:a), mn=rob.reduce((a,b)=>b.v<a.v?b:a);
+  return {I:I,V:V,T:T,T_regra:T_regra,C:C,cobre:C?T/C:0,ap:T?I.apurada/T:0,es:T?I.estimada/T:0,ebit:ebit,ebit_regra:ebit_regra,
+    nmes:I.meses.length,per:'Jan–'+IC_MES3[(I.ate%100)-1],ano:I.ano,markup:F.markup||0,mx:IC_MESL[mx.mes-1],mn:IC_MESL[mn.mes-1]};
 }
-function renderEstudosBody(){
-  const F=window.FABLOJA, ano=estAno;
-  const per=(F.periodos&&F.periodos[ano])||F.periodo||ano;
-  const bl={}; F.blocos.forEach(b=>bl[b.chave]=b);
-  /* as linhas do ano em foco; o fallback para .linhas mantém a seção viva se o HTML
-     tiver sido gerado por uma versão antiga do gerador, que só publicava um ano */
-  const li=k=>(bl[k]&&bl[k].anos&&bl[k].anos[ano])||(bl[k]&&bl[k].linhas)||[];
-  const CH=['FABRICA','LOJA','CONSOLIDADO'];
-  const base=li('FABRICA');                 // os três blocos têm a mesma grade de linhas
-  const val=(k,i,c)=>{const l=li(k)[i]||[]; return l[c==null?2:c];};
-  /* O quadro para no EBIT. A depreciação entra — é custo de operar, ainda que sem caixa —
-     e o pacote financeiro sai: neste modelo os juros vão 100% para a Loja por premissa, então
-     abaixo do EBIT a comparação entre as duas unidades deixaria de falar de operação e passaria
-     a falar de onde a dívida foi parar. O EBIT não existe na planilha: é linha sintética,
-     EBITDA depois da depreciação, calculada aqui. */
-  const iEB=base.findIndex(l=>EST_EBITDA.test(l[0]));
-  const iDep=base.findIndex(l=>EST_DEPREC.test(l[0]));
-  const iROL=base.findIndex(l=>EST_ROL.test(l[0]));
-  const corte=iDep>=0?iDep+1:base.length;   // tudo abaixo da depreciação some do quadro
-  const ebit=(k,c)=>{ if(iEB<0||iDep<0) return null;
-    const a=val(k,iEB,c), b=val(k,iDep,c);
-    return (a==null||b==null)?null:a+b; };
-  const efab=ebit('FABRICA'), eloj=ebit('LOJA'), econ=ebit('CONSOLIDADO');
-  let s='<div class="kpis k4">'
-   +kpi('Loja · EBIT no modelo antigo',mi(ebit('LOJA',1)),'entidade jurídica','warn')
-   +kpi('Loja · EBIT no Modelo A',mi(eloj),'operação comercial',eloj>=0?'ok':'warn')
-   +kpi('Fábrica · EBIT no Modelo A',mi(efab),'operação industrial',efab>=0?'ok':'warn')
-   +kpi('Consolidado · EBIT',mi(econ),'Modelo A · '+esc(per),econ>=0?'ok':'warn')
-   +'</div>';
-  const cel=v=>v==null?'<span class="mut">—</span>':(v<0?`<span style="color:${BAD}">${money(v)}</span>`:money(v));
-  /* Percentuais sobre a receita líquida do PRÓPRIO bloco: na Fábrica a ROL é receita de
-     transferência, não venda ao cliente final — o percentual dela mede a regra de markup,
-     não preço de mercado. O Consolidado usa a receita ao cliente final. */
-  const sobreROL=(k,v)=>{ if(v==null||iROL<0) return null;
-    const rol=val(k,iROL); return (rol==null||!rol)?null:v/rol; };
-  const celPct=v=>v==null?'<span class="mut">—</span>'
-    :`<span class="mut" style="font-weight:600">${pct(v,1)}</span>`;
-  const rotPct=t=>`<span class="mut" style="padding-left:20px">${esc(t)}</span>`;
-  const PCT_ROL=[[/^\(=\)\s*MARGEM DE CONTRIBUICAO/i,'% Margem de contribuição sobre a ROL']];
-  const SUB=/^\(=\)/;  // fallback de destaque quando o nível não veio (HTML antigo)
-  /* Fábrica × Loja × Consolidado, só no Modelo A. A coluna Consolidado vem da própria
-     planilha, não da soma das duas: somar contaria a transferência interna duas vezes
-     (receita na Fábrica, custo na Loja) e inflaria a receita bruta. */
-  const rows=[];
-  base.slice(0,corte).forEach((b0,i)=>{
-    if(!estAberto&&b0[3]===2) return;
-    /* O EBITDA sai do quadro, mas continua sendo a base do EBIT calculado no fim.
-       A coluna não perde o fecho: margem − despesas + absorção − depreciação = EBIT. */
-    if(EST_EBITDA.test(b0[0])) return;
-    const forte=(b0[3]!=null)?b0[3]===0:SUB.test(b0[0]), w=x=>forte?`<b>${x}</b>`:x;
-    const nome=esc(acentuaDre(b0[0]));
-    rows.push([b0[3]===2?`<span style="padding-left:20px" class="mut">${nome}</span>`:w(nome)]
-      .concat(CH.map(k=>w(cel(val(k,i))))));
-    const mp=PCT_ROL.find(x=>x[0].test(b0[0]));
-    if(mp) rows.push([rotPct(mp[1])].concat(CH.map(k=>celPct(sobreROL(k,val(k,i))))));
-  });
-  rows.push(['<b>(=) EBIT</b>'].concat(CH.map(k=>`<b>${cel(ebit(k))}</b>`)));
-  rows.push([rotPct('% EBIT sobre a ROL')].concat(CH.map(k=>celPct(sobreROL(k,ebit(k))))));
-  s+='<button id="est-grp-toggle" type="button" class="cxgrp-toggle">'
-    +(estAberto?'Recolher os subgrupos de despesa':'Abrir os 16 subgrupos de despesa')+'</button>';
-  s+=H3('O DRE por unidade','Modelo A · até o EBIT · '+esc(per),'est-dre');
-  s+=table(['Linha do DRE','Fábrica','Loja','Consolidado'],rows,
-    ['left','right','right','right'],null,ins('fabLojaLinhas'));
-  s+=cap('<b>Sem rateio.</b> Despesa operacional e depreciação vão direto para a entidade que as registrou: '
-    +'o que é da 55 Fábrica fica na Fábrica, o que é da 55 Design fica na Loja. Essas linhas batem, ao centavo, '
-    +'com as abas <code>REAL — 55 FÁBRICA</code> e <code>REAL — 55 DESIGN</code> do Painel. '
-    +'As áreas de suporte — Administrativo, Tesouraria, Presidência, TI, RH, Contabilidade, Facilities — ficam onde a '
-    +'entidade que as pagou as registrou, em sua maior parte na Fábrica; não há redistribuição por centro de custo.');
-  s+=cap('O quadro para no <b>EBIT</b>: a depreciação entra, o pacote financeiro sai — os juros vão integralmente para a '
-    +'Loja por premissa e diriam mais sobre onde está a dívida do que sobre a operação. Vale a ressalva de que no EBIT os '
-    +'dois modelos ainda não se encontram: o antigo reconhece a absorção abaixo do resultado operacional e o Modelo A a '
-    +'reconhece acima do EBITDA. A diferença some no resultado líquido, que é idêntico nos dois — a conciliação do item 7.6 '
-    +'da ata fecha lá, não aqui.');
-  s+='<div class="sources"><b>Fonte:</b> Modelo_Gerencial_Fabrica_Loja.xlsx, aba <code>12_DRE_Antigo_x_Mudanca</code>, apurada em '+esc(F.apurado)+'. '
-    +'Período em tela: '+esc(per)+'. Premissas: base = tudo vendido ao cliente final · fábrica por absorção · transferência a custo de absorção '
-    +'+ markup de '+(F.markup!=null?pct(F.markup,3):'—')+' · sem imposto na transferência interna · despesa e depreciação por entidade, sem rateio. '
-    +'O markup é premissa calibrada (01_Premissas), não os 10% originais do item 7.1: está ajustado para a Fábrica '
-    +'fechar '+esc(String(estAno))+' YTD com EBIT de 10% da receita de transferência.</div>';
+const icLead=D=>`<p class="lead">O DRE do <b>Modelo A</b> refeito com a receita de transferência interna trocada pelo valor apurado na tabela de preço — `
+  +`<b>${money(D.T)}</b>, coluna <code>TABELA LOJA SP</code> da aba <code>Intercompany</code> — no lugar dos ${money(D.T_regra)} que vêm da regra de custo de absorção `
+  +`mais markup. Período: ${D.ano} · ${D.per}.</p>`;
+function icHtmlResumo(D){
+  const tom=v=>v>=0?'ok':'warn';
+  let s='<div class="kpis k5">'
+    +kpi('Fábrica · EBIT',money(D.ebit.FABRICA),money(D.ebit.FABRICA/D.nmes)+'/mês · era '+money(D.ebit_regra.FABRICA),tom(D.ebit.FABRICA))
+    +kpi('Loja · EBIT',money(D.ebit.LOJA),money(D.ebit.LOJA/D.nmes)+'/mês · era '+money(D.ebit_regra.LOJA),tom(D.ebit.LOJA))
+    +kpi('Consolidado · EBIT',money(D.ebit.CONSOLIDADO),money(D.ebit.CONSOLIDADO/D.nmes)+'/mês · não se altera')
+    +kpi('Cobre do custo de absorção',pct(D.cobre,1),'regra atual cobre '+pct(1+D.markup,1),D.cobre<1?'warn':'ok')
+    +kpi('Composição do valor',pct(D.ap,1)+' apurado',pct(D.es,1)+' estimado pela média da categoria')+'</div>';
+  s+=call('<b>O valor entra integral.</b> Os '+money(D.T)+' são usados como a receita de transferência tal como apurados e estimados — a coluna '
+    +'<code>TABELA LOJA SP</code> já embute custo, frete, royalties, impostos e a margem de 2% da Fábrica. Nenhum markup é aplicado por cima.','note');
+  s+=D.cobre<1
+    ?call('<b>Mas o valor não cobre o custo do período.</b> A regra de hoje parte do custo de absorção e acrescenta '+pct(D.markup,1)+', chegando a '
+      +money(D.T_regra)+'. Os '+money(D.T)+' da tabela correspondem a <b>'+pct(D.cobre,1)+'</b> do que custou produzir no período — a Fábrica '
+      +'transferiria abaixo do próprio custo absorvido, e o prejuízo migra da Loja para a Fábrica.','warn')
+    :call('<b>O valor cobre o custo do período.</b> A regra de hoje parte do custo de absorção e acrescenta '+pct(D.markup,1)+', chegando a '+money(D.T_regra)
+      +'; os '+money(D.T)+' da tabela correspondem a <b>'+pct(D.cobre,1)+'</b> do custo absorvido.','ok');
   return s;
 }
-function drawEstudos(){
-  const body=document.getElementById('estudos-body'); if(!body) return;
-  window.FABLOJA_ANO=estAno;                       // os destaques automáticos leem daqui
-  body.innerHTML=renderEstudosBody();
-  remount('estudos');
+function icHtmlDre(D){
+  const cel=(v,mes)=>`<td class="right${mes?' ic-mes':''}">${v<-0.5?`<span style="color:${BAD}">${money(v)}</span>`:money(v)}</td>`;
+  const sobre=u=>D.V[u]['RECEITA OPERACIONAL LIQUIDA']?pct(D.V[u]['MARGEM DE CONTRIBUICAO']/D.V[u]['RECEITA OPERACIONAL LIQUIDA'],1):'—';
+  const corpo=[];
+  IC_LIN.forEach(([rot,k,cls])=>{
+    corpo.push(`<tr${cls?` class="${cls}"`:''}><th class="left">${rot}</th>`+IC_UN.map(u=>cel(D.V[u][k])).join('')+IC_UN.map(u=>cel(D.V[u][k]/D.nmes,true)).join('')+'</tr>');
+    if(k==='MARGEM DE CONTRIBUICAO')
+      corpo.push('<tr class="pct"><th class="left">% Margem de contribuição sobre a ROL</th>'+IC_UN.map(u=>`<td class="right">${sobre(u)}</td>`).join('')+'<td class="ic-mes"></td><td class="ic-mes"></td><td class="ic-mes"></td></tr>');
+  });
+  corpo.push('<tr class="forte ebit"><th class="left"><b>(=) EBIT</b></th>'+IC_UN.map(u=>cel(D.ebit[u])).join('')+IC_UN.map(u=>cel(D.ebit[u]/D.nmes,true)).join('')+'</tr>');
+  corpo.push('<tr class="pct"><th class="left">% EBIT sobre a ROL</th>'+IC_UN.map(u=>`<td class="right">${D.V[u]['RECEITA OPERACIONAL LIQUIDA']?pct(D.ebit[u]/D.V[u]['RECEITA OPERACIONAL LIQUIDA'],1):'—'}</td>`).join('')+'<td class="ic-mes"></td><td class="ic-mes"></td><td class="ic-mes"></td></tr>');
+  let s='<div class="tw"><table class="dt ic-dre"><thead><tr><th rowspan="2" class="left">Linha do DRE</th><th colspan="3" class="grp">Acumulado · '+D.per+'</th>'
+    +'<th colspan="3" class="grp ic-mes">Média mensal · ÷ '+D.nmes+'</th></tr><tr>'
+    +['Fábrica','Loja','Consolidado'].map(x=>`<th class="right sub">${x}</th>`).join('')+['Fábrica','Loja','Consolidado'].map(x=>`<th class="right sub ic-mes">${x}</th>`).join('')
+    +'</tr></thead><tbody>'+corpo.join('')+'</tbody></table></div>';
+  s+=call('As duas linhas destacadas são as únicas alteradas na origem; todas as demais são recálculo. <b>Despesa operacional, absorção e depreciação não mudam</b> — '
+    +'continuam na entidade que as registrou, sem rateio. O Consolidado é idêntico ao do Modelo A original: a transferência é receita de um lado e custo do outro, '
+    +'e se elimina na consolidação.','note');
+  s+=call('<b>A média mensal é o acumulado dividido por '+D.nmes+'</b> — os meses já realizados de '+D.per+'. É média aritmética simples, não reflete a sazonalidade: '
+    +D.mx+' concentrou o maior faturamento do período e '+D.mn+' o menor. Os percentuais não aparecem na coluna mensal porque não mudam: dividir numerador e '
+    +'denominador por '+D.nmes+' mantém a razão.','note');
+  s+='<div class="sources"><b>Fontes:</b> Painel Resultado 55 Design (aba MPP DB) e Modelo_Gerencial_Fabrica_Loja.xlsx (aba 12, coluna MUDANÇA Mod. A, markup '+pct(D.markup,2)
+    +') · tabela de preço Tabela +55 (abas Intercompany e Venda Loja SP Preço Percebido) · memória em '+esc(D.I.arquivo||'Analise_Intercompany.xlsx')
+    +'.'+(D.I.gerado_em?' Gerado em '+esc(D.I.gerado_em)+' por estudo_intercompany.py.':'')+'</div>';
+  return s;
 }
-function initEstudos(){
-  const F=window.FABLOJA; if(!F) return;
-  /* seção fixada no ano corrente; se o ano não conciliou na geração, cai no padrão em vez de sumir */
-  const anos=F.anos||[];
-  estAno=anos.indexOf(EST_ANO_FOCO)>=0?EST_ANO_FOCO:(F.ano_padrao||anos[anos.length-1]);
-  /* o botão dos subgrupos é redesenhado a cada draw — o clique fica delegado no corpo da
-     seção, que sobrevive, em vez de religado no botão */
-  const body=document.getElementById('estudos-body');
-  if(body) body.addEventListener('click',ev=>{
-    if(ev.target.closest('#est-grp-toggle')){ estAberto=!estAberto; drawEstudos(); }});
+function renderEstudos(){
+  const D=icCalcula(window.INTERCOMPANY,window.FABLOJA);
+  let s='<div class="sec-head"><div class="kick">Estudos e análises</div><h2>Intercompany pela tabela de preço</h2>'
+    +(D?icLead(D):'<p class="lead">O DRE do <b>Modelo A</b> refeito com a receita de transferência interna trocada pelo valor apurado na tabela de preço.</p>')+'</div>';
+  if(!D) return s+call('Estudo Intercompany não disponível nesta competência: envie o <code>Modelo_Gerencial_Fabrica_Loja.xlsx</code> e o <code>Analise_Intercompany_&lt;ano&gt;.xlsx</code> '
+    +'(gerado por <code>estudo_intercompany.py</code>) na base "Modelo gerencial Fábrica × Loja" e processe de novo. Seção não gerada.','warn');
+  s+=H3('Intercompany — resumo e leitura',D.per,'est-ic-resumo')+icHtmlResumo(D);
+  s+=H3('O DRE por unidade','Modelo A simulado · até o EBIT · '+D.ano+' · '+D.per,'est-dre')+icHtmlDre(D);
+  return s;
 }
 const _ALL_SECTIONS=[['resumo','Sumário',renderSumario],['evolutiva','Evolutiva histórica',renderEvolutiva],
  ['ytd','Comparativo YTD',renderYTD],['mensal','Análise mensal',null],['periodo','Análise por período',null],
@@ -4528,7 +4523,6 @@ function init(){
   if(_has('vendas')) initAnaliseVendas();
   if(_has('arquitetos')) initArquitetos();
   if(_has('carteira_dinamica')) initCarteiraDinamica();
-  if(_has('estudos')&&window.FABLOJA){ initEstudos(); drawEstudos(); }
   if(window.INSRT) INSRT.mount();
   /* a vitrine de fotos na barra lateral empurrava o menu para fora da tela e
      obrigava a rolar para chegar nas ultimas secoes — saiu de proposito */
