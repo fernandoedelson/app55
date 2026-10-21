@@ -983,6 +983,15 @@ function cdAndamentoMes(C){
   const yms=Object.keys(por).map(Number).sort((a,b)=>a-b); if(!yms.length) return null;
   return {yms:yms, qtd:yms.map(y=>por[y].q), valor:yms.map(y=>por[y].v), qtdPR:yms.map(y=>por[y].qpr)};
 }
+/* itens de um pedido abertos logo abaixo da linha dele (agrupamento de linhas); clicar de novo fecha */
+function cdAlternarItens(tr,itens,ncols){
+  const prox=tr.nextElementSibling, sin=tr.querySelector('.cdm-sin');
+  if(prox&&prox.classList.contains('cdm-itens')){ prox.remove(); tr.classList.remove('sel'); if(sin) sin.textContent='▸'; return; }
+  const d=document.createElement('tr'); d.className='cdm-itens';
+  d.innerHTML='<td colspan="'+ncols+'">'+table(['Produto','Qtd','Valor','Data venda','Data entrega'],
+    itens.map(l=>[esc(l[0]),nf(l[1]),money(l[2]),l[3]||'—',l[4]||'—']),['left','right','right','right','right'])+'</td>';
+  tr.after(d); tr.classList.add('sel'); if(sin) sin.textContent='▾';
+}
 /* data (ou faixa de datas) dos itens de um pedido: "03/07/2026" ou "03/07/2026 a 28/08/2026" */
 function cdFaixaData(vals){ const v=vals.filter(Boolean); if(!v.length) return '—';
   const k=d=>{ const m=String(d).split('/'); return (+m[2])*10000+(+m[1])*100+(+m[0]); };
@@ -1002,21 +1011,15 @@ function cdMesDrill(detId,C,ym){
   const box=document.getElementById(detId); if(!box) return;
   const peds=cdMesPedidos(C,ym), tq=peds.reduce((a,p)=>a+p.qtd,0), tv=peds.reduce((a,p)=>a+p.valor,0); let acc=0;
   const rows=peds.map(p=>{ acc+=p.valor;
-    return `<tr class="cdm-ped-row" data-p="${esc(String(p.ped))}"><td class="left">FOCCO-${esc(p.ped)}</td><td class="left">${esc(trunc(p.cliente,30))}${prTag(p.cliente)}</td>`
+    return `<tr class="cdm-ped-row" data-p="${esc(String(p.ped))}"><td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p.ped)}</td><td class="left">${esc(trunc(p.cliente,30))}${prTag(p.cliente)}</td>`
       +`<td class="right">${cdFaixaData(p.itens.map(l=>l[3]))}</td><td class="right">${cdFaixaData(p.itens.map(l=>l[4]))}</td><td class="right">${nf(p.itens.length)}</td><td class="right">${nf(p.qtd,0)}</td><td class="right">${money(p.valor)}</td>`
       +`<td class="right">${pct(tv?p.valor/tv:0,1)}</td><td class="right">${pct(tv?acc/tv:0,1)}</td></tr>`; }).join('');
   box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos')
     +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
     +`<th class="right">Valor</th><th class="right">% do mês</th><th class="right">% acumulada</th></tr></thead><tbody>${rows}</tbody></table></div>`
-    +prLegenda()+cap('Clique num pedido para ver os itens que entregam neste mês.')+'<div class="cdm-det"></div>';
+    +prLegenda()+cap('Clique num pedido para abrir, logo abaixo dele, os itens que entregam neste mês.');
   box.querySelectorAll('.cdm-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
-    tr.addEventListener('click',()=>{ const det=box.querySelector('.cdm-det'); const era=tr.classList.contains('sel');
-      box.querySelectorAll('.cdm-ped-row').forEach(r=>{r.classList.remove('sel'); r.style.background='';});
-      if(era){ det.innerHTML=''; return; }
-      tr.classList.add('sel'); tr.style.background='rgba(146,112,93,.12)';
-      const p=peds.find(x=>String(x.ped)===tr.dataset.p); if(!p) return;
-      det.innerHTML=H3('Itens do pedido FOCCO-'+esc(p.ped),ymLab(ym))
-        +table(['Produto','Qtd','Valor','Data venda','Data entrega'],p.itens.map(l=>[esc(l[0]),nf(l[1]),money(l[2]),l[3]||'—',l[4]||'—']),['left','right','right','right','right']); }); });
+    tr.addEventListener('click',()=>{ const p=peds.find(x=>String(x.ped)===tr.dataset.p); if(p) cdAlternarItens(tr,p.itens,9); }); });
 }
 /* barras dos gráficos de entrega: clicar abre os pedidos do mês; clicar de novo na mesma barra recolhe */
 function cdLigarMeses(){
@@ -1153,7 +1156,7 @@ function drawCartdinStatus(i,bars){
   let acc=0;
   const rows=peds.map(p=>{ acc+=p[2];
     return `<tr class="cartdin-ped-row" data-p="${esc(String(p[0]))}">`
-     +`<td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
+     +`<td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
      +`<td class="right">${cdFaixaData(p[4].map(l=>l[3]))}</td><td class="right">${cdFaixaData(p[4].map(l=>l[4]))}</td><td class="right">${nf(p[3])}</td><td class="right">${money(p[2])}</td>`
      +`<td class="right">${pct(total?p[2]/total:0,1)}</td><td class="right">${pct(total?acc/total:0,1)}</td></tr>`;}).join('');
   const box=document.getElementById('cartdin-status-detail'); if(!box) return;
@@ -1166,23 +1169,11 @@ function drawCartdinStatus(i,bars){
         ins('auto',{itens:peds.map(x=>({name:x[1]||('Pedido '+x[0]),v:x[2],q:x[3]})),escopo:'pedido',
           escopoPl:'pedidos',universo:'do status '+bucket.toLowerCase(),id:'cartdin-peds-'+bucket,
           tabela:true,preferir:['cauda','estrutura']})):'')+'</div>'
-    +prLegenda()+cap('Clique num pedido para ver os itens.')
-    +'<div id="cartdin-ped-detail"></div>';
+    +prLegenda()+cap('Clique num pedido para abrir os itens logo abaixo dele.');
   box.querySelectorAll('.cartdin-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
     tr.addEventListener('click',()=>toggleCartdinPedido(tr,peds)); });
 }
-function toggleCartdinPedido(tr,peds){
-  const detail=document.getElementById('cartdin-ped-detail'); if(!detail) return;
-  const wasSel=tr.classList.contains('sel');
-  tr.closest('table').querySelectorAll('.cartdin-ped-row').forEach(r=>{r.classList.remove('sel'); r.style.background='';});
-  if(wasSel){ tr.classList.remove('sel'); detail.innerHTML=''; return; }
-  tr.classList.add('sel'); tr.style.background='rgba(146,112,93,.12)';
-  const ped=peds.find(p=>String(p[0])===tr.dataset.p); if(!ped) return;
-  detail.innerHTML = H3('Itens do pedido FOCCO-'+esc(ped[0]))
-    + table(['Produto','Qtd','Valor','Data venda','Data entrega'],
-        ped[4].map(l=>[esc(l[0]),nf(l[1]),money(l[2]),l[3]||'—',l[4]||'—']),
-        ['left','right','right','right','right']);
-}
+function toggleCartdinPedido(tr,peds){ const ped=peds.find(p=>String(p[0])===tr.dataset.p); if(ped) cdAlternarItens(tr,ped[4],8); }
 /* ---- Custos de Produção / CPV (dinâmico por período) ---- */
 function custosMesLab(ym){ return MES[(ym%100)-1]+'/'+String(Math.floor(ym/100)).slice(2); }
 const CUSTOS_MAT_COLORS={}; ['Metal','Couro','Pedra','Madeira','Tecido','Espuma','Outros materiais'].forEach((c,i)=>CUSTOS_MAT_COLORS[c]=SER[i%8]);

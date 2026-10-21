@@ -78,6 +78,16 @@ DESENHO.carteira_dinamica=function(P){
 };
 /* Gráficos de entrega (previsão de faturamento e em andamento por mês): clicar na barra do mês abre os pedidos daquele mês;
    clicar no pedido abre os itens que entregam no mês (o servidor manda os pedidos; os itens vêm sob demanda). */
+/* itens de um pedido abertos logo abaixo da linha dele (agrupamento de linhas); clicar de novo fecha */
+function _cdAlternarItens(tr,itens,ncols){
+  const prox=tr.nextElementSibling, sin=tr.querySelector('.cdm-sin');
+  if(prox&&prox.classList.contains('cdm-itens')){ prox.remove(); tr.classList.remove('sel'); if(sin) sin.textContent='▸'; return; }
+  const d=document.createElement('tr'); d.className='cdm-itens';
+  d.innerHTML='<td colspan="'+ncols+'">'+table(['Produto','Qtd','Valor','Data venda','Data entrega'],
+    itens.map(l=>[esc(l[0]),nf(l[1]),money(l[2]),l[3]||'—',l[4]||'—']),['left','right','right','right','right'])+'</td>';
+  tr.after(d); tr.classList.add('sel'); if(sin) sin.textContent='▾';
+}
+
 function _cdLigarMeses(ctx){
   [['cartdin-previsao-fig','cartdin-previsao-det','cd-previsao',X=>X.evol.yms],
    ['cartdin-andamento-fig','cartdin-andamento-det','cd-andamento',X=>X.yms]].forEach(([fid,did,bk,fyms])=>{
@@ -89,25 +99,20 @@ function _cdLigarMeses(ctx){
       const ym=yms[i], peds=X.pedidos[String(ym)]||[], box=document.getElementById(did); if(!box) return;
       const tq=peds.reduce((a,p)=>a+p[3],0), tv=peds.reduce((a,p)=>a+p[4],0); let acc=0;
       const rows=peds.map(p=>{ acc+=p[4];
-        return `<tr class="cdm-ped-row" data-p="${esc(String(p[0]))}"><td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
+        return `<tr class="cdm-ped-row" data-p="${esc(String(p[0]))}"><td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
           +`<td class="right">${esc(p[5])}</td><td class="right">${esc(p[6])}</td><td class="right">${nf(p[2])}</td><td class="right">${nf(p[3],0)}</td><td class="right">${money(p[4])}</td>`
           +`<td class="right">${pct(tv?p[4]/tv:0,1)}</td><td class="right">${pct(tv?acc/tv:0,1)}</td></tr>`; }).join('');
       box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos')
         +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
         +`<th class="right">Valor</th><th class="right">% do mês</th><th class="right">% acumulada</th></tr></thead><tbody>${rows}</tbody></table></div>`
-        +prLegenda()+cap('Clique num pedido para ver os itens que entregam neste mês.')+'<div class="cdm-det"></div>';
+        +prLegenda()+cap('Clique num pedido para abrir, logo abaixo dele, os itens que entregam neste mês.');
       ctx.marcar();
       if(!ctx.pode('detalhar')) return;
       box.querySelectorAll('.cdm-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
         tr.addEventListener('click',async()=>{
-          const det=box.querySelector('.cdm-det'), era=tr.classList.contains('sel');
-          box.querySelectorAll('.cdm-ped-row').forEach(r=>{r.classList.remove('sel'); r.style.background='';});
-          if(era){ det.innerHTML=''; return; }
-          tr.classList.add('sel'); tr.style.background='rgba(146,112,93,.12)';
+          if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains('cdm-itens')){ _cdAlternarItens(tr,[],9); return; }
           const R=await ctx.detalhe('pedido',{ped:tr.dataset.p,status:'ANDAMENTO'});
-          det.innerHTML=H3('Itens do pedido FOCCO-'+esc(R.ped),ymLab(ym))
-            +table(['Produto','Qtd','Valor','Data venda','Data entrega'],R.itens.filter(l=>doMes(l,ym)).map(l=>[esc(l[0]),nf(l[1]),money(l[2]),l[3]||'—',l[4]||'—']),['left','right','right','right','right']);
-          ctx.marcar(); }); });
+          _cdAlternarItens(tr,R.itens.filter(l=>doMes(l,ym)),9); ctx.marcar(); }); });
     }
     bars.forEach(el=>el.addEventListener('click',()=>{
       const ativa=el.style.stroke!==''; bars.forEach(b=>{b.style.stroke='';b.style.strokeWidth='';});
@@ -131,7 +136,7 @@ DESENHO_POS.carteira_dinamica=function(sec,ctx){
     let acc=0;
     const rows=peds.map(p=>{ acc+=p[2];
       return `<tr class="cartdin-ped-row" data-p="${esc(String(p[0]))}">`
-       +`<td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
+       +`<td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
        +`<td class="right">${esc(p[4])}</td><td class="right">${esc(p[5])}</td><td class="right">${nf(p[3])}</td><td class="right">${money(p[2])}</td>`
        +`<td class="right">${pct(total?p[2]/total:0,1)}</td><td class="right">${pct(total?acc/total:0,1)}</td></tr>`;}).join('');
     const det=document.getElementById('cartdin-status-detail'); if(!det) return;
@@ -141,22 +146,13 @@ DESENHO_POS.carteira_dinamica=function(sec,ctx){
           <th class="right">Valor</th><th class="right">% do status</th><th class="right">% acumulada</th>
         </tr></thead><tbody>${rows}</tbody></table></div>`
       +'<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('auto','auto-cartdin-peds-'+bucket)):'')+'</div>'
-      +prLegenda()+cap('Clique num pedido para ver os itens.')
-      +'<div id="cartdin-ped-detail"></div>';
+      +prLegenda()+cap('Clique num pedido para abrir os itens logo abaixo dele.');
     if(!ctx.pode('detalhar')) return;
     det.querySelectorAll('.cartdin-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
       tr.addEventListener('click',async()=>{
-        const detail=document.getElementById('cartdin-ped-detail'); if(!detail) return;
-        const wasSel=tr.classList.contains('sel');
-        tr.closest('table').querySelectorAll('.cartdin-ped-row').forEach(r=>{r.classList.remove('sel'); r.style.background='';});
-        if(wasSel){ tr.classList.remove('sel'); detail.innerHTML=''; return; }
-        tr.classList.add('sel'); tr.style.background='rgba(146,112,93,.12)';
+        if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains('cdm-itens')){ _cdAlternarItens(tr,[],8); return; }
         const R=await ctx.detalhe('pedido',{ped:tr.dataset.p,status:bucket});
-        detail.innerHTML = H3('Itens do pedido FOCCO-'+esc(R.ped))
-          + table(['Produto','Qtd','Valor','Data venda','Data entrega'],
-              R.itens.map(l=>[esc(l[0]),nf(l[1]),money(l[2]),l[3]||'—',l[4]||'—']),
-              ['left','right','right','right','right']);
-      });
+        _cdAlternarItens(tr,R.itens,8); ctx.marcar(); });
     });
   }
   /* a lista de pedidos nasce recolhida: clicar numa barra (ou escolher o status) abre; clicar de novo na mesma barra recolhe */
