@@ -3749,7 +3749,7 @@ function icHtmlDre(D){
   });
   corpo.push('<tr class="forte ebit"><th class="left"><b>(=) EBIT</b></th>'+IC_UN.map(u=>cel(D.ebit[u])).join('')+IC_UN.map(u=>cel(D.ebit[u]/D.nmes,true)).join('')+'</tr>');
   corpo.push('<tr class="pct"><th class="left">% EBIT sobre a ROL</th>'+IC_UN.map(u=>`<td class="right">${D.V[u]['RECEITA OPERACIONAL LIQUIDA']?pct(D.ebit[u]/D.V[u]['RECEITA OPERACIONAL LIQUIDA'],1):'—'}</td>`).join('')+'<td class="ic-mes"></td><td class="ic-mes"></td><td class="ic-mes"></td></tr>');
-  let s='<div class="tw"><table class="dt ic-dre"><thead><tr><th rowspan="2" class="left">Linha do DRE</th><th colspan="3" class="grp">Acumulado · '+D.per+'</th>'
+  let s='<div class="tw ic-fit"><table class="dt ic-dre"><thead><tr><th rowspan="2" class="left">Linha do DRE</th><th colspan="3" class="grp">Acumulado · '+D.per+'</th>'
     +'<th colspan="3" class="grp ic-mes">Média mensal · ÷ '+D.nmes+'</th></tr><tr>'
     +['Fábrica','Loja','Consolidado'].map(x=>`<th class="right sub">${x}</th>`).join('')+['Fábrica','Loja','Consolidado'].map(x=>`<th class="right sub ic-mes">${x}</th>`).join('')
     +'</tr></thead><tbody>'+corpo.join('')+'</tbody></table></div>';

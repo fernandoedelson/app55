@@ -15,8 +15,35 @@
 
   const entradas = f => Array.from(f.querySelectorAll('input[type=file]'));
   /* planilhas escolhidas uma a uma e/ou uma pasta inteira; da pasta só entram .xlsx/.xlsm (sem os temporários ~$) */
-  const arquivos = f => entradas(f).flatMap(i => Array.from(i.files))
-    .filter(a => /\.(xlsx|xlsm)$/i.test(a.name) && !a.name.startsWith('~$'));
+  /* a escolha de cada linha fica numa lista própria: escolher de novo (outra planilha, ou a pasta) ACRESCENTA, em vez de
+     trocar o que já estava escolhido, e cada arquivo sai da lista pelo "×". Mesmo nome = o novo substitui o antigo. */
+  const escolhidos = f => f._sel || (f._sel = []);
+  const arquivos = f => escolhidos(f);
+  const valido = a => /\.(xlsx|xlsm)$/i.test(a.name) && !a.name.startsWith('~$');
+  function acrescentar(f, input) {
+    const novos = Array.from(input.files).filter(valido);
+    input.value = '';
+    if (!input.multiple && !input.hasAttribute('webkitdirectory')) f._sel = [];   // base de planilha única: troca
+    novos.forEach(a => { f._sel = escolhidos(f).filter(x => x.name !== a.name); f._sel.push(a); });
+  }
+  function lista_de(f) {
+    let l = f.querySelector('.up-lista');
+    if (!l) { l = document.createElement('span'); l.className = 'up-lista'; f.insertBefore(l, f.querySelector('.up-qtd') || f.firstChild.nextSibling); }
+    return l;
+  }
+  function desenharLista(f) {
+    const l = lista_de(f);
+    l.innerHTML = '';
+    arquivos(f).forEach(a => {
+      const c = document.createElement('span'); c.className = 'up-chip';
+      c.appendChild(document.createTextNode(a.name + ' '));
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'up-x'; x.textContent = '×'; x.disabled = enviando;
+      x.title = 'Retirar ' + a.name; x.setAttribute('aria-label', 'Retirar ' + a.name);
+      x.addEventListener('click', () => { f._sel = escolhidos(f).filter(y => y !== a); contar(); });
+      c.appendChild(x); l.appendChild(c);
+    });
+  }
   const rotulo = f => f.closest('tr').querySelector('td').childNodes[0].textContent.trim().replace(/\s+/g, ' ');
   /* onde o andamento aparece na linha: o contador das bases de pasta, ou um aviso criado ao lado do botão */
   function status(f) {
@@ -33,9 +60,9 @@
     forms.forEach(f => {
       f.querySelector('button[type=submit]').disabled = enviando;
       if (enviando) return;
-      const k = arquivos(f).length;
-      status(f).textContent = k === 1 ? arquivos(f)[0].name : k ? k + ' planilhas escolhidas' : '';
+      status(f).textContent = '';
     });
+    forms.forEach(desenharLista);
   }
 
   function linha(texto, ok) {
@@ -102,7 +129,8 @@
     lote.forEach(f => {
       const falhou = Array.from(lista.children).some(li => li.className === 'up-erro' &&
         arquivos(f).some(a => li.textContent.indexOf(a.name) >= 0));
-      if (!falhou) entradas(f).forEach(i => { i.value = ''; });
+      if (!falhou) f._sel = [];
+      else f._sel = escolhidos(f).filter(a => Array.from(lista.children).some(li => li.className === 'up-erro' && li.textContent.indexOf(a.name) >= 0));
     });
     enviando = false; contar();
     lote.forEach(f => { if (!arquivos(f).length) status(f).textContent = '✓ enviado'; });
@@ -126,7 +154,7 @@
     forms.forEach(f => {
       if (f.dataset.ligado) return;
       f.dataset.ligado = '1';
-      entradas(f).forEach(i => i.addEventListener('change', contar));
+      entradas(f).forEach(i => i.addEventListener('change', () => { acrescentar(f, i); contar(); }));
       /* o "Enviar" da linha usa o mesmo caminho: não recarrega, então as outras escolhas ficam */
       f.addEventListener('submit', ev => {
         ev.preventDefault();

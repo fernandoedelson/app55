@@ -216,6 +216,12 @@ tr.sel .cdm-sin{color:var(--blue)}
 .ic-dre tr.forte th,.ic-dre tr.forte td{font-weight:700}
 .ic-dre tr.pct th,.ic-dre tr.pct td{color:var(--muted);font-weight:600;font-size:12.5px}
 .ic-dre tr.ebit th,.ic-dre tr.ebit td{border-top:2px solid var(--ink2);background:rgba(146,112,93,.10)}
+.ic-fit{overflow-x:visible}
+table.dt.ic-dre{width:100%;table-layout:fixed;font-size:13px}
+table.dt.ic-dre th.left{width:25%}
+table.dt.ic-dre th,table.dt.ic-dre td{white-space:normal;word-break:break-word;padding:8px 8px}
+@media(max-width:900px){table.dt.ic-dre{font-size:10.5px}table.dt.ic-dre th,table.dt.ic-dre td{padding:6px 4px}table.dt.ic-dre th.left{width:22%}}
+@media(max-width:600px){table.dt.ic-dre{font-size:8.5px}table.dt.ic-dre th,table.dt.ic-dre td{padding:5px 2px}table.dt.ic-dre th.left{width:24%}}
 .lg i.pr-sw{background:linear-gradient(135deg,rgba(26,20,15,.18) 50%,rgba(26,20,15,.55) 50%)}
 .pr-legenda{margin-top:8px;font-size:12px;line-height:1.5;color:var(--muted)}
 .pe-kpi-tab{margin:2px 0 18px;padding:14px 16px 12px;background:var(--surface);border:1px solid var(--border);border-radius:2px}

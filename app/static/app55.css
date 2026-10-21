@@ -107,4 +107,9 @@ tr.reuso td{background:rgba(87,124,105,.05)}
 .up-resultado{list-style:none;margin:8px 0 0;padding:0;font-size:.9rem;line-height:1.7}
 .up-resultado .up-ok{color:var(--sage-deep,#577c69)}
 .up-resultado .up-erro{color:var(--crit)}
+.up-lista{display:flex;flex-wrap:wrap;gap:4px 6px;flex-basis:100%}
+.up-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 4px 2px 8px;border:1px solid var(--line,#d8d2c6);border-radius:12px;background:var(--bg-soft,#f4f0e8);font-size:12.5px}
+.up-x{border:0;background:transparent;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;color:var(--muted,#6b665c)}
+.up-x:hover{color:var(--crit)}
+.up-x:disabled{opacity:.4;cursor:default}
 #up-progresso .btn{margin-left:8px}
