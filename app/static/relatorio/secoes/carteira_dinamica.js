@@ -90,10 +90,10 @@ function _cdLigarMeses(ctx){
       const tq=peds.reduce((a,p)=>a+p[3],0), tv=peds.reduce((a,p)=>a+p[4],0); let acc=0;
       const rows=peds.map(p=>{ acc+=p[4];
         return `<tr class="cdm-ped-row" data-p="${esc(String(p[0]))}"><td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
-          +`<td class="right">${nf(p[2])}</td><td class="right">${nf(p[3],0)}</td><td class="right">${money(p[4])}</td>`
+          +`<td class="right">${esc(p[5])}</td><td class="right">${esc(p[6])}</td><td class="right">${nf(p[2])}</td><td class="right">${nf(p[3],0)}</td><td class="right">${money(p[4])}</td>`
           +`<td class="right">${pct(tv?p[4]/tv:0,1)}</td><td class="right">${pct(tv?acc/tv:0,1)}</td></tr>`; }).join('');
       box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos')
-        +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Itens</th><th class="right">Peças</th>`
+        +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
         +`<th class="right">Valor</th><th class="right">% do mês</th><th class="right">% acumulada</th></tr></thead><tbody>${rows}</tbody></table></div>`
         +prLegenda()+cap('Clique num pedido para ver os itens que entregam neste mês.')+'<div class="cdm-det"></div>';
       ctx.marcar();
@@ -132,12 +132,12 @@ DESENHO_POS.carteira_dinamica=function(sec,ctx){
     const rows=peds.map(p=>{ acc+=p[2];
       return `<tr class="cartdin-ped-row" data-p="${esc(String(p[0]))}">`
        +`<td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
-       +`<td class="right">${nf(p[3])}</td><td class="right">${money(p[2])}</td>`
+       +`<td class="right">${esc(p[4])}</td><td class="right">${esc(p[5])}</td><td class="right">${nf(p[3])}</td><td class="right">${money(p[2])}</td>`
        +`<td class="right">${pct(total?p[2]/total:0,1)}</td><td class="right">${pct(total?acc/total:0,1)}</td></tr>`;}).join('');
     const det=document.getElementById('cartdin-status-detail'); if(!det) return;
     det.innerHTML = H3('Pedidos em carteira — '+bucket, mi(total)+' · '+nf(peds.length)+' pedidos')
       +`<div class="tw"><table class="dt"><thead><tr>
-          <th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Itens</th>
+          <th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th>
           <th class="right">Valor</th><th class="right">% do status</th><th class="right">% acumulada</th>
         </tr></thead><tbody>${rows}</tbody></table></div>`
       +'<div class="tw-ins">'+(window.INSRT?INSRT.strip(ins('auto','auto-cartdin-peds-'+bucket)):'')+'</div>'

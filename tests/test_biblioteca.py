@@ -101,7 +101,7 @@ def test_detalhe_de_pedido_da_carteira_dinamica(admin):
     p = admin.get('/api/biblioteca/carteira_dinamica?comp=2026-07').get_json()
     status, peds = next((b, l) for b, l in p['cd-status']['pedidos'].items() if l)
     # a lista por status vai sem os itens; eles só vêm pelo detalhamento
-    assert all(len(x) == 4 for x in peds)
+    assert all(len(x) == 6 and isinstance(x[4], str) and isinstance(x[5], str) for x in peds)    # venda e entrega prevista, sem os itens
     r = admin.get('/api/biblioteca/carteira_dinamica/detalhe/pedido',
                   query_string={'comp': '2026-07', 'ped': peds[0][0], 'status': status})
     assert r.status_code == 200 and r.get_json()['itens']

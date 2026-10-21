@@ -105,4 +105,5 @@ def test_barras_de_entrega_trazem_os_pedidos_do_mes_que_fecham_com_o_grafico():
         assert abs(sum(p[3] for p in lista) - an['qtd'][i]) < 1e-6          # peças do mês = soma dos pedidos
         assert abs(sum(p[4] for p in lista) - an['valor'][i]) < 1           # valor do mês = soma dos pedidos
         assert [p[4] for p in lista] == sorted((p[4] for p in lista), reverse=True)
+        assert all(len(p) == 7 and p[5] and p[6] for p in lista)             # venda e entrega prevista de cada pedido
     assert din['cd-previsao']['pedidos'] == an['pedidos']                    # o gráfico de previsão usa os mesmos pedidos

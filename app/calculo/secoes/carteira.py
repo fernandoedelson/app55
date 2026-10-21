@@ -38,6 +38,16 @@ def calcular_carteira(C, params=None):
     return out
 
 
+def _faixa_data(datas):
+    """Data (ou faixa) dos itens de um pedido: '03/07/2026' ou '03/07/2026 a 28/08/2026' — o mesmo texto do Kit."""
+    v = [d for d in datas if d]
+    if not v:
+        return '—'
+    chave = lambda d: tuple(int(x) for x in reversed(d.split('/')))
+    u = sorted(set(v), key=chave)
+    return u[0] if len(u) == 1 else u[0] + ' a ' + u[-1]
+
+
 def _andamento_por_mes(C, CD):
     """Em andamento por mês de entrega prevista: peças, valor e peças de parte relacionada (a mesma leitura do Kit)."""
     peds = (CD.get('status_pedidos') or {}).get('ANDAMENTO') or []
@@ -70,7 +80,9 @@ def _andamento_por_mes(C, CD):
             o[1] += linha[1] or 0
             o[2] += linha[2] or 0
         for ym, (n, q, v) in meses.items():
-            pedidos.setdefault(str(ym), []).append([p[0], p[1], n, q, round(v, 2)])
+            itens_mes = [l for l in (p[4] or []) if l[4] and int(l[4].split('/')[2]) * 100 + int(l[4].split('/')[1]) == ym]
+            pedidos.setdefault(str(ym), []).append([p[0], p[1], n, q, round(v, 2),
+                                                    _faixa_data([l[3] for l in itens_mes]), _faixa_data([l[4] for l in itens_mes])])
     for lst in pedidos.values():
         lst.sort(key=lambda x: -x[4])
     return {'yms': yms, 'qtd': [por[y][0] for y in yms], 'valor': [por[y][1] for y in yms],
@@ -104,7 +116,8 @@ def calcular_dinamica(C, params=None):
     fonte = CD.get('fonte')
     pr = CD.get('pr')
     # detalhe por status sem os itens de cada pedido (os itens vêm por detalhamento)
-    por_status = {b: [p[:4] for p in lst] for b, lst in (CD.get('status_pedidos') or {}).items()}
+    por_status = {b: [p[:4] + [_faixa_data([l[3] for l in p[4]]), _faixa_data([l[4] for l in p[4]])] for p in lst]
+                  for b, lst in (CD.get('status_pedidos') or {}).items()}
     return {
         'carteira_dinamica.abertura': {'fonte': fonte, 'data_base': CD['data_base'], 'total': CD['total'],
                                        'itens': CD['itens'], 'pedidos': CD['pedidos'],
