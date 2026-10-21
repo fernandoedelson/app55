@@ -92,3 +92,17 @@ def test_novo_bloco_esta_no_catalogo_e_na_migracao_de_permissoes():
     from app.db import MIGRACOES
     assert 'cd-andamento' in C.BLOCO and C.BLOCO['cd-andamento']['secao'] == 'carteira_dinamica'
     assert any('bloco:cd-andamento' in v for m in MIGRACOES for v in m.values())
+
+
+@precisa_dados
+def test_barras_de_entrega_trazem_os_pedidos_do_mes_que_fecham_com_o_grafico():
+    C = comp_mod.Competencia('2026-07', REAL)
+    din = carteira.calcular_dinamica(C, {})
+    an = din['cd-andamento']
+    assert set(an['pedidos']) == {str(y) for y in an['yms']}
+    for i, y in enumerate(an['yms']):
+        lista = an['pedidos'][str(y)]
+        assert abs(sum(p[3] for p in lista) - an['qtd'][i]) < 1e-6          # peças do mês = soma dos pedidos
+        assert abs(sum(p[4] for p in lista) - an['valor'][i]) < 1           # valor do mês = soma dos pedidos
+        assert [p[4] for p in lista] == sorted((p[4] for p in lista), reverse=True)
+    assert din['cd-previsao']['pedidos'] == an['pedidos']                    # o gráfico de previsão usa os mesmos pedidos

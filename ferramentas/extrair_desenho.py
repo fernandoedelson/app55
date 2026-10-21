@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Copia do Kit congelado (tag gabarito-v13) as funções de DESENHO e FORMATAÇÃO do app.js para
+Copia do Kit congelado (tag gabarito-v14) as funções de DESENHO e FORMATAÇÃO do app.js para
 app/static/relatorio/kit.js, o runtime da régua de destaques do insights.js para
 app/static/relatorio/destaques.js, e o style2.css para app/static/relatorio/style2.css.
 
@@ -15,7 +15,7 @@ import subprocess
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT = r'C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design'
-TAG = 'gabarito-v13'
+TAG = 'gabarito-v14'
 DESTINO = os.path.join(RAIZ, 'app', 'static', 'relatorio')
 
 NOMES = [

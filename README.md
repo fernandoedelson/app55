@@ -90,7 +90,7 @@ nesse processo de revisão.
 aprovado**: menu lateral que recolhe, fotos, capítulos, modo Apresentar, zoom com laser e tudo o mais.
 Não há reconstrução: `app/apresentacao/kit_atos.py` serializa os dados da competência como o
 `montar_html` do Kit e passa pelo `montar_doc` e pelo `gerar_html_atos.py` do próprio Kit, copiados
-literalmente da tag `gabarito-v13` para `app/kit_congelado/` (`ferramentas/extrair_kit_atos.py`, com
+literalmente da tag `gabarito-v14` para `app/kit_congelado/` (`ferramentas/extrair_kit_atos.py`, com
 MANIFESTO.json de hashes conferido antes de cada geração). O teste
 `tests/test_apresentacao_kit.py` compara a resposta da rota com `relatorio_atos.html` do gabarito.
 

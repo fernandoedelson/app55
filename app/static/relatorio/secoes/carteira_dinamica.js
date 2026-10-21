@@ -38,16 +38,18 @@ DESENHO.carteira_dinamica=function(P){
   const R=P['cd-previsao'];
   if(R){ const C=R.evol;
     s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
-    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Previsto',values:C.valor,color:SER[0]}],C.acum,{valfmt:v=>mi(v,1),partes:R.pr||null}),ins('carteiraPicoEntrega','carteira-pico-entrega')||ins('auto','auto-cartdin-entrega'));
-    if(R.pr) s+=prCap(prSoma(R.pr[0]),prSoma(C.valor),'da previsão de faturamento'); }
+    s+='<div id="cartdin-previsao-fig">'+fig(evolCombo(C.yms.map(ymLab),[{name:'Previsto',values:C.valor,color:SER[0]}],C.acum,{valfmt:v=>mi(v,1),partes:R.pr||null,clicavel:true}),ins('carteiraPicoEntrega','carteira-pico-entrega')||ins('auto','auto-cartdin-entrega'))+'</div>';
+    if(R.pr) s+=prCap(prSoma(R.pr[0]),prSoma(C.valor),'da previsão de faturamento');
+    s+=cap('Clique numa barra para ver os pedidos daquele mês de entrega.')+'<div id="cartdin-previsao-det"></div>'; }
   const AN=P['cd-andamento'];
   if(AN){
     s+=H3('Em andamento — peças e valor por mês de entrega','por data de entrega prevista · barras = peças · linha = valor (eixo dir.)','cd-andamento');
-    s+=fig(evolCombo(AN.yms.map(ymLab),[{name:'Peças',values:AN.qtd,color:SER[0]}],AN.valor,
-      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,partes:AN.qtd_pr?[AN.qtd_pr]:null}));
+    s+='<div id="cartdin-andamento-fig">'+fig(evolCombo(AN.yms.map(ymLab),[{name:'Peças',values:AN.qtd,color:SER[0]}],AN.valor,
+      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,partes:AN.qtd_pr?[AN.qtd_pr]:null,clicavel:true}))+'</div>';
     s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos. Total: '
       +nf(prSoma(AN.qtd),0)+' peças · '+mi(prSoma(AN.valor),1)+'.'
-      +(AN.qtd_pr&&prSoma(AN.qtd_pr)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(AN.qtd_pr),0)+' peças ('+pct(prSoma(AN.qtd_pr)/prSoma(AN.qtd),0)+').':''));
+      +(AN.qtd_pr&&prSoma(AN.qtd_pr)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(AN.qtd_pr),0)+' peças ('+pct(prSoma(AN.qtd_pr)/prSoma(AN.qtd),0)+').':'')+' Clique numa barra para ver os pedidos do mês.');
+    s+='<div id="cartdin-andamento-det"></div>';
   }
   const V=P['cd-vend'], K=P['cd-peds'];
   if(V||K){
@@ -74,7 +76,49 @@ DESENHO.carteira_dinamica=function(P){
   if(S) s+='<div id="cartdin-status-detail" data-blk="cd-status"></div>';
   return s;
 };
+/* Gráficos de entrega (previsão de faturamento e em andamento por mês): clicar na barra do mês abre os pedidos daquele mês;
+   clicar no pedido abre os itens que entregam no mês (o servidor manda os pedidos; os itens vêm sob demanda). */
+function _cdLigarMeses(ctx){
+  [['cartdin-previsao-fig','cartdin-previsao-det','cd-previsao',X=>X.evol.yms],
+   ['cartdin-andamento-fig','cartdin-andamento-det','cd-andamento',X=>X.yms]].forEach(([fid,did,bk,fyms])=>{
+    const X=ctx.payload[bk], fg=document.getElementById(fid); if(!X||!fg||!X.pedidos) return;
+    window.PARTES_RELACIONADAS=X.pr_padroes||window.PARTES_RELACIONADAS||[];
+    const yms=fyms(X), bars=fg.querySelectorAll('.ec-bar');
+    const doMes=(l,ym)=>{ const m=String(l[4]||'').split('/'); return (+m[2])*100+(+m[1])===ym; };
+    function abre(i){
+      const ym=yms[i], peds=X.pedidos[String(ym)]||[], box=document.getElementById(did); if(!box) return;
+      const tq=peds.reduce((a,p)=>a+p[3],0), tv=peds.reduce((a,p)=>a+p[4],0); let acc=0;
+      const rows=peds.map(p=>{ acc+=p[4];
+        return `<tr class="cdm-ped-row" data-p="${esc(String(p[0]))}"><td class="left">FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>`
+          +`<td class="right">${nf(p[2])}</td><td class="right">${nf(p[3],0)}</td><td class="right">${money(p[4])}</td>`
+          +`<td class="right">${pct(tv?p[4]/tv:0,1)}</td><td class="right">${pct(tv?acc/tv:0,1)}</td></tr>`; }).join('');
+      box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos')
+        +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Itens</th><th class="right">Peças</th>`
+        +`<th class="right">Valor</th><th class="right">% do mês</th><th class="right">% acumulada</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        +prLegenda()+cap('Clique num pedido para ver os itens que entregam neste mês.')+'<div class="cdm-det"></div>';
+      ctx.marcar();
+      if(!ctx.pode('detalhar')) return;
+      box.querySelectorAll('.cdm-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
+        tr.addEventListener('click',async()=>{
+          const det=box.querySelector('.cdm-det'), era=tr.classList.contains('sel');
+          box.querySelectorAll('.cdm-ped-row').forEach(r=>{r.classList.remove('sel'); r.style.background='';});
+          if(era){ det.innerHTML=''; return; }
+          tr.classList.add('sel'); tr.style.background='rgba(146,112,93,.12)';
+          const R=await ctx.detalhe('pedido',{ped:tr.dataset.p,status:'ANDAMENTO'});
+          det.innerHTML=H3('Itens do pedido FOCCO-'+esc(R.ped),ymLab(ym))
+            +table(['Produto','Qtd','Valor','Data venda','Data entrega'],R.itens.filter(l=>doMes(l,ym)).map(l=>[esc(l[0]),nf(l[1]),money(l[2]),l[3]||'—',l[4]||'—']),['left','right','right','right','right']);
+          ctx.marcar(); }); });
+    }
+    bars.forEach(el=>el.addEventListener('click',()=>{
+      const ativa=el.style.stroke!==''; bars.forEach(b=>{b.style.stroke='';b.style.strokeWidth='';});
+      const box=document.getElementById(did);
+      if(ativa){ if(box) box.innerHTML=''; ctx.marcar(); return; }
+      el.style.stroke=INK; el.style.strokeWidth='2.5'; abre(+el.dataset.i); }));
+  });
+}
+
 DESENHO_POS.carteira_dinamica=function(sec,ctx){
+  _cdLigarMeses(ctx);
   const S=ctx.payload['cd-status']; if(!S) return;
   window.PARTES_RELACIONADAS=S.pr_padroes||window.PARTES_RELACIONADAS||[];
   const box=document.getElementById('cartdin-status-fig'); if(!box) return;

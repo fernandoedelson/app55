@@ -1,5 +1,5 @@
 /* ===== +55 · desenho do relatório =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v13.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v14.
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
@@ -683,7 +683,7 @@ function stackedCols(labels,series,o={}){ const {valfmt=v=>mi(v,1),w=980,h=320,s
   return s;}
 
 /* Barras empilhadas (eixo esq.) + área sombreada do acumulado (eixo dir., atrás das barras), com labels de valor. */
-function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=valfmt,w=980,h=340,dashName='Acumulado',dashArea=true,dashColor=MUT,dashLabels=false,leftLine=null,linesHidden=false,partes=null}=o;
+function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=valfmt,w=980,h=340,dashName='Acumulado',dashArea=true,dashColor=MUT,dashLabels=false,leftLine=null,linesHidden=false,partes=null,clicavel=false}=o;
   const temPR=!!(partes&&partes.some(a=>a&&a.some(x=>x>0)));
   /* leftLine aceita uma linha ou varias: cada uma ganha seu proprio <g class=cls> para que a
      tela de zoom ligue e desligue uma de cada vez. cls default mantem o nome antigo, para o
@@ -697,7 +697,8 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
   const X=i=>pl+i*(bw+gap)+bw/2, Ya=v=>pt+ph-ph*v/amax, YB=v=>pt+ph-ph*v/vmax;
   // "poluído": pouco espaço horizontal por ponto para caber a caixinha de valor (~46px) sem colidir
   const apertado=(bw+gap)<46;
-  let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:${w}px;width:100%;height:auto">`;
+  /* clicavel: só as barras recebem o clique (os rótulos e linhas ficam transparentes ao mouse) */
+  let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:${w}px;width:100%;height:auto${clicavel?';pointer-events:none':''}">`;
   for(let g=0;g<5;g++){const yv=vmax*g/4,yy=pt+ph-ph*g/4; s+=`<line x1="${pl}" y1="${W(yy)}" x2="${pl+pw}" y2="${W(yy)}" stroke="${GRID}"/>`;
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="10.5" fill="${MUT}">${esc(valfmt(yv))}</text>`;}
   /* grupo "evolcombo-dash": eixo direito + linha (com ou sem área) do acumulado — agrupados
@@ -716,7 +717,7 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
   if(dashArea) s+=dashSvg();
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
     series.forEach((se,si)=>{const v=se.values[i]||0; const bh=Math.max(0,ph*v/vmax); const y=pt+ph-ph*(acc+Math.max(0,v))/vmax;
-      s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
+      s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"${clicavel&&si===0?` class="ec-bar" data-i="${i}" style="cursor:pointer;pointer-events:all"`:''}><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
       if(temPR&&partes[si]) s+=prRect(x,y,bw,bh,partes[si],v,i,se.color);
       if(v>0 && bh>13) s+=`<text x="${W(x+bw/2)}" y="${W(y+bh/2+3.5)}" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">${esc(valfmt(v))}</text>`;
       acc+=v;});

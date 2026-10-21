@@ -983,6 +983,52 @@ function cdAndamentoMes(C){
   const yms=Object.keys(por).map(Number).sort((a,b)=>a-b); if(!yms.length) return null;
   return {yms:yms, qtd:yms.map(y=>por[y].q), valor:yms.map(y=>por[y].v), qtdPR:yms.map(y=>por[y].qpr)};
 }
+/* Pedidos em andamento que entregam no mês `ym`: só os itens daquele mês (peças e valor), do maior para o menor valor. */
+function cdMesPedidos(C,ym){
+  const out=[];
+  ((C.status_pedidos||{}).ANDAMENTO||[]).forEach(p=>{
+    const itens=(p[4]||[]).filter(l=>{ if(!l[4]) return false; const m=String(l[4]).split('/'); return (+m[2])*100+(+m[1])===ym; });
+    if(!itens.length) return;
+    out.push({ped:p[0],cliente:p[1],itens:itens,qtd:itens.reduce((a,l)=>a+(l[1]||0),0),valor:itens.reduce((a,l)=>a+(l[2]||0),0)});
+  });
+  return out.sort((a,b)=>b.valor-a.valor);
+}
+/* a lista de pedidos de um mês de entrega e, ao clicar no pedido, os itens dele naquele mês */
+function cdMesDrill(detId,C,ym){
+  const box=document.getElementById(detId); if(!box) return;
+  const peds=cdMesPedidos(C,ym), tq=peds.reduce((a,p)=>a+p.qtd,0), tv=peds.reduce((a,p)=>a+p.valor,0); let acc=0;
+  const rows=peds.map(p=>{ acc+=p.valor;
+    return `<tr class="cdm-ped-row" data-p="${esc(String(p.ped))}"><td class="left">FOCCO-${esc(p.ped)}</td><td class="left">${esc(trunc(p.cliente,30))}${prTag(p.cliente)}</td>`
+      +`<td class="right">${nf(p.itens.length)}</td><td class="right">${nf(p.qtd,0)}</td><td class="right">${money(p.valor)}</td>`
+      +`<td class="right">${pct(tv?p.valor/tv:0,1)}</td><td class="right">${pct(tv?acc/tv:0,1)}</td></tr>`; }).join('');
+  box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos')
+    +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Itens</th><th class="right">Peças</th>`
+    +`<th class="right">Valor</th><th class="right">% do mês</th><th class="right">% acumulada</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    +prLegenda()+cap('Clique num pedido para ver os itens que entregam neste mês.')+'<div class="cdm-det"></div>';
+  box.querySelectorAll('.cdm-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
+    tr.addEventListener('click',()=>{ const det=box.querySelector('.cdm-det'); const era=tr.classList.contains('sel');
+      box.querySelectorAll('.cdm-ped-row').forEach(r=>{r.classList.remove('sel'); r.style.background='';});
+      if(era){ det.innerHTML=''; return; }
+      tr.classList.add('sel'); tr.style.background='rgba(146,112,93,.12)';
+      const p=peds.find(x=>String(x.ped)===tr.dataset.p); if(!p) return;
+      det.innerHTML=H3('Itens do pedido FOCCO-'+esc(p.ped),ymLab(ym))
+        +table(['Produto','Qtd','Valor','Data venda','Data entrega'],p.itens.map(l=>[esc(l[0]),nf(l[1]),money(l[2]),l[3]||'—',l[4]||'—']),['left','right','right','right','right']); }); });
+}
+/* barras dos gráficos de entrega: clicar abre os pedidos do mês; clicar de novo na mesma barra recolhe */
+function cdLigarMeses(){
+  const C=window.CARTDIN; if(!C) return;
+  const alvos=[['cartdin-previsao-fig','cartdin-previsao-det',()=>C.andamento_entrega.yms],
+               ['cartdin-andamento-fig','cartdin-andamento-det',()=>(cdAndamentoMes(C)||{yms:[]}).yms]];
+  alvos.forEach(([fid,did,yms])=>{ const fig_=document.getElementById(fid); if(!fig_) return;
+    const bars=fig_.querySelectorAll('.ec-bar'), lista=yms();
+    bars.forEach(el=>el.addEventListener('click',()=>{
+      const ativa=el.style.stroke!=='';
+      bars.forEach(b=>{b.style.stroke='';b.style.strokeWidth='';});
+      const det=document.getElementById(did);
+      if(ativa){ if(det) det.innerHTML=''; return; }
+      el.style.stroke=INK; el.style.strokeWidth='2.5';
+      cdMesDrill(did,C,lista[+el.dataset.i]); })); });
+}
 function renderCarteiraDinamica(){
   if(!window.CARTDIN) return call('Fonte "VENDAS LOJA *.xlsx" não encontrada em fontes/. Seção não gerada.','warn');
   const C=CARTDIN;
@@ -1019,25 +1065,27 @@ function renderCarteiraDinamica(){
 
   if(C.pr) s+=prCap(prSoma(C.pr.adiado),prSoma(C.evol_adiado.valor),'dos pedidos adiados');
   s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
-  s+=fig(evolCombo(C.andamento_entrega.yms.map(ymLab),[
+  s+='<div id="cartdin-previsao-fig">'+fig(evolCombo(C.andamento_entrega.yms.map(ymLab),[
     {name:'Previsto',values:C.andamento_entrega.valor,color:SER[0]},
-  ],C.andamento_entrega.acum,{valfmt:v=>mi(v,1),partes:C.pr?[C.pr.entrega]:null}),
+  ],C.andamento_entrega.acum,{valfmt:v=>mi(v,1),partes:C.pr?[C.pr.entrega]:null,clicavel:true}),
     ins('carteiraPicoEntrega')
     ||ins('auto',{itens:C.andamento_entrega.yms.map((y,i)=>({name:ymLab(y),v:C.andamento_entrega.valor[i]})),
         escopo:'mês de entrega',escopoPl:'meses de entrega',universo:'do que está para faturar',
-        id:'cartdin-entrega',preferir:['cauda','estrutura']}));
+        id:'cartdin-entrega',preferir:['cauda','estrutura']}))+'</div>';
 
   if(C.pr) s+=prCap(prSoma(C.pr.entrega),prSoma(C.andamento_entrega.valor),'da previsão de faturamento');
+  s+=cap('Clique numa barra para ver os pedidos daquele mês de entrega.')+'<div id="cartdin-previsao-det"></div>';
 
   // o que está em andamento, por mês de entrega: quantas peças e quanto vale (barras = peças, linha = valor)
   const _an=cdAndamentoMes(C);
   if(_an){
     s+=H3('Em andamento — peças e valor por mês de entrega','por data de entrega prevista · barras = peças · linha = valor (eixo dir.)','cd-andamento');
-    s+=fig(evolCombo(_an.yms.map(ymLab),[{name:'Peças',values:_an.qtd,color:SER[0]}],_an.valor,
-      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,partes:C.pr?[_an.qtdPR]:null}));
+    s+='<div id="cartdin-andamento-fig">'+fig(evolCombo(_an.yms.map(ymLab),[{name:'Peças',values:_an.qtd,color:SER[0]}],_an.valor,
+      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,partes:C.pr?[_an.qtdPR]:null,clicavel:true}))+'</div>';
     s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos. Total: '
       +nf(prSoma(_an.qtd),0)+' peças · '+mi(prSoma(_an.valor),1)+'.'
-      +(C.pr&&prSoma(_an.qtdPR)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(_an.qtdPR),0)+' peças ('+pct(prSoma(_an.qtdPR)/prSoma(_an.qtd),0)+').':''));
+      +(C.pr&&prSoma(_an.qtdPR)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(_an.qtdPR),0)+' peças ('+pct(prSoma(_an.qtdPR)/prSoma(_an.qtd),0)+').':'')+' Clique numa barra para ver os pedidos do mês.');
+    s+='<div id="cartdin-andamento-det"></div>';
   }
   // mesmas duas leituras da Carteira estática, agora sobre a fonte dinâmica.
   // status_pedidos é indexado por status, e 14 pedidos têm itens em mais de um bucket. Achatar
@@ -1081,6 +1129,7 @@ function renderCarteiraDinamica(){
 }
 function initCarteiraDinamica(){
   if(!window.CARTDIN) return;
+  cdLigarMeses();
   const box=document.getElementById('cartdin-status-fig'); if(!box) return;
   const bars=box.querySelectorAll('.par-bar');
   /* a lista de pedidos nasce recolhida: clicar numa barra (ou escolher o status) abre; clicar de novo na mesma barra recolhe */
@@ -4775,7 +4824,7 @@ function stackedCols(labels,series,o={}){ const {valfmt=v=>mi(v,1),w=980,h=320,s
   return s;}
 
 /* Barras empilhadas (eixo esq.) + área sombreada do acumulado (eixo dir., atrás das barras), com labels de valor. */
-function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=valfmt,w=980,h=340,dashName='Acumulado',dashArea=true,dashColor=MUT,dashLabels=false,leftLine=null,linesHidden=false,partes=null}=o;
+function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=valfmt,w=980,h=340,dashName='Acumulado',dashArea=true,dashColor=MUT,dashLabels=false,leftLine=null,linesHidden=false,partes=null,clicavel=false}=o;
   const temPR=!!(partes&&partes.some(a=>a&&a.some(x=>x>0)));
   /* leftLine aceita uma linha ou varias: cada uma ganha seu proprio <g class=cls> para que a
      tela de zoom ligue e desligue uma de cada vez. cls default mantem o nome antigo, para o
@@ -4789,7 +4838,8 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
   const X=i=>pl+i*(bw+gap)+bw/2, Ya=v=>pt+ph-ph*v/amax, YB=v=>pt+ph-ph*v/vmax;
   // "poluído": pouco espaço horizontal por ponto para caber a caixinha de valor (~46px) sem colidir
   const apertado=(bw+gap)<46;
-  let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:${w}px;width:100%;height:auto">`;
+  /* clicavel: só as barras recebem o clique (os rótulos e linhas ficam transparentes ao mouse) */
+  let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" style="max-width:${w}px;width:100%;height:auto${clicavel?';pointer-events:none':''}">`;
   for(let g=0;g<5;g++){const yv=vmax*g/4,yy=pt+ph-ph*g/4; s+=`<line x1="${pl}" y1="${W(yy)}" x2="${pl+pw}" y2="${W(yy)}" stroke="${GRID}"/>`;
     s+=`<text x="${pl-8}" y="${W(yy+4)}" text-anchor="end" font-size="10.5" fill="${MUT}">${esc(valfmt(yv))}</text>`;}
   /* grupo "evolcombo-dash": eixo direito + linha (com ou sem área) do acumulado — agrupados
@@ -4808,7 +4858,7 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
   if(dashArea) s+=dashSvg();
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
     series.forEach((se,si)=>{const v=se.values[i]||0; const bh=Math.max(0,ph*v/vmax); const y=pt+ph-ph*(acc+Math.max(0,v))/vmax;
-      s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
+      s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"${clicavel&&si===0?` class="ec-bar" data-i="${i}" style="cursor:pointer;pointer-events:all"`:''}><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
       if(temPR&&partes[si]) s+=prRect(x,y,bw,bh,partes[si],v,i,se.color);
       if(v>0 && bh>13) s+=`<text x="${W(x+bw/2)}" y="${W(y+bh/2+3.5)}" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">${esc(valfmt(v))}</text>`;
       acc+=v;});
