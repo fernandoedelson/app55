@@ -1001,38 +1001,41 @@ function cdAlternarItens(tr,itens,ncols){
 function cdFaixaData(vals){ const v=vals.filter(Boolean); if(!v.length) return '—';
   const k=d=>{ const m=String(d).split('/'); return (+m[2])*10000+(+m[1])*100+(+m[0]); };
   const u=[...new Set(v)].sort((a,b)=>k(a)-k(b)); return u.length===1?u[0]:u[0]+' a '+u[u.length-1]; }
-/* Pedidos em andamento que entregam no mês `ym`: só os itens daquele mês (peças e valor), do maior para o menor valor. */
-function cdMesPedidos(C,ym){
+/* Pedidos de um status cujos itens caem no mês `ym` (col 4 = data de entrega prevista, 3 = data da venda): só os itens daquele mês
+   (peças e valor), do maior para o menor valor. Padrão: em andamento, por mês de entrega. */
+function cdMesPedidos(C,ym,bucket='ANDAMENTO',col=4){
   const out=[];
-  ((C.status_pedidos||{}).ANDAMENTO||[]).forEach(p=>{
-    const itens=(p[4]||[]).filter(l=>{ if(!l[4]) return false; const m=String(l[4]).split('/'); return (+m[2])*100+(+m[1])===ym; });
+  ((C.status_pedidos||{})[bucket]||[]).forEach(p=>{
+    const itens=(p[4]||[]).filter(l=>{ if(!l[col]) return false; const m=String(l[col]).split('/'); return (+m[2])*100+(+m[1])===ym; });
     if(!itens.length) return;
     out.push({ped:p[0],cliente:p[1],showroom:cdEhShowroom(p[1]),itens:itens,qtd:itens.reduce((a,l)=>a+(l[1]||0),0),valor:itens.reduce((a,l)=>a+(l[2]||0),0)});
   });
   return out.sort((a,b)=>b.valor-a.valor);
 }
 /* a lista de pedidos de um mês de entrega e, ao clicar no pedido, os itens dele naquele mês */
-function cdMesDrill(detId,C,ym){
+function cdMesDrill(detId,C,ym,o={}){
   const box=document.getElementById(detId); if(!box) return;
-  const peds=cdMesPedidos(C,ym), tq=peds.reduce((a,p)=>a+p.qtd,0), tv=peds.reduce((a,p)=>a+p.valor,0); let acc=0;
-  const vSh=peds.filter(p=>p.showroom).reduce((a,p)=>a+p.valor,0);
+  const bk=o.bucket||'ANDAMENTO', col=o.col||4, fat=bk==='ANDAMENTO';
+  const peds=cdMesPedidos(C,ym,bk,col), tq=peds.reduce((a,p)=>a+p.qtd,0), tv=peds.reduce((a,p)=>a+p.valor,0); let acc=0;
+  const vSh=fat?peds.filter(p=>p.showroom).reduce((a,p)=>a+p.valor,0):0;
   const rows=peds.map(p=>{ acc+=p.valor;
-    return `<tr class="cdm-ped-row" data-p="${esc(String(p.ped))}"><td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p.ped)}</td><td class="left">${esc(trunc(p.cliente,30))}${prTag(p.cliente)}</td><td class="left">${p.showroom?'Não · showroom':'Sim'}</td>`
+    return `<tr class="cdm-ped-row" data-p="${esc(String(p.ped))}"><td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p.ped)}</td><td class="left">${esc(trunc(p.cliente,30))}${prTag(p.cliente)}</td>${fat?`<td class="left">${p.showroom?'Não · showroom':'Sim'}</td>`:''}`
       +`<td class="right">${cdFaixaData(p.itens.map(l=>l[3]))}</td><td class="right">${cdFaixaData(p.itens.map(l=>l[4]))}</td><td class="right">${nf(p.itens.length)}</td><td class="right">${nf(p.qtd,0)}</td><td class="right">${money(p.valor)}</td>`
       +`<td class="right">${pct(tv?p.valor/tv:0,1)}</td><td class="right">${pct(tv?acc/tv:0,1)}</td></tr>`; }).join('');
-  box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos'+(vSh>0?' · fatura '+mi(tv-vSh,1)+' · showroom '+mi(vSh,1):''))
-    +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="left">Faturamento</th><th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
+  box.innerHTML=H3(o.titulo?o.titulo+' '+ymLab(ym):'Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos'+(vSh>0?' · fatura '+mi(tv-vSh,1)+' · showroom '+mi(vSh,1):''))
+    +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th>${fat?'<th class="left">Faturamento</th>':''}<th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
     +`<th class="right">Valor</th><th class="right">% do mês</th><th class="right">% acumulada</th></tr></thead><tbody>${rows}</tbody></table></div>`
     +prLegenda()+cap('Clique num pedido para abrir, logo abaixo dele, os itens que entregam neste mês.');
   box.querySelectorAll('.cdm-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
-    tr.addEventListener('click',()=>{ const p=peds.find(x=>String(x.ped)===tr.dataset.p); if(p) cdAlternarItens(tr,p.itens,10); }); });
+    tr.addEventListener('click',()=>{ const p=peds.find(x=>String(x.ped)===tr.dataset.p); if(p) cdAlternarItens(tr,p.itens,fat?10:9); }); });
 }
 /* barras dos gráficos de entrega: clicar abre os pedidos do mês; clicar de novo na mesma barra recolhe */
 function cdLigarMeses(){
   const C=window.CARTDIN; if(!C) return;
-  const alvos=[['cartdin-previsao-fig','cartdin-previsao-det',()=>C.andamento_entrega.yms],
-               ['cartdin-andamento-fig','cartdin-andamento-det',()=>(cdAndamentoMes(C)||{yms:[]}).yms]];
-  alvos.forEach(([fid,did,yms])=>{ const fig_=document.getElementById(fid); if(!fig_) return;
+  const alvos=[['cartdin-previsao-fig','cartdin-previsao-det',()=>C.andamento_entrega.yms,{}],
+               ['cartdin-andamento-fig','cartdin-andamento-det',()=>(cdAndamentoMes(C)||{yms:[]}).yms,{}],
+               ['cartdin-adiado-fig','cartdin-adiado-det',()=>C.evol_adiado.yms,{bucket:'ADIADO',col:3,titulo:'Pedidos adiados vendidos em'}]];
+  alvos.forEach(([fid,did,yms,opt])=>{ const fig_=document.getElementById(fid); if(!fig_) return;
     const bars=fig_.querySelectorAll('.ec-bar'), lista=yms();
     bars.forEach(el=>el.addEventListener('click',()=>{
       const ativa=el.style.stroke!=='';
@@ -1040,7 +1043,7 @@ function cdLigarMeses(){
       const det=document.getElementById(did);
       if(ativa){ if(det) det.innerHTML=''; return; }
       bars.forEach(b=>{ if(b.dataset.i===el.dataset.i){ b.style.stroke=INK; b.style.strokeWidth='2.5'; } });
-      cdMesDrill(did,C,lista[+el.dataset.i]); })); });
+      cdMesDrill(did,C,lista[+el.dataset.i],opt); })); });
 }
 function renderCarteiraDinamica(){
   if(!window.CARTDIN) return call('Fonte "VENDAS LOJA *.xlsx" não encontrada em fontes/. Seção não gerada.','warn');
@@ -1071,12 +1074,13 @@ function renderCarteiraDinamica(){
 
   if(C.pr) s+=prCap(prSoma(C.pr.evol.vendas),prSoma(C.evol.vendas),'das vendas em carteira');
   s+=H3('Carteira de pedidos adiados','evolutiva mensal · barras = valor do mês · área = acumulado','cd-adiados');
-  s+=fig(evolCombo(C.evol_adiado.yms.map(ymLab),[
+  s+='<div id="cartdin-adiado-fig">'+fig(evolCombo(C.evol_adiado.yms.map(ymLab),[
     {name:'Adiado',values:C.evol_adiado.valor,color:WARN},
-  ],C.evol_adiado.acum,{valfmt:v=>mi(v,1),partes:C.pr?[C.pr.adiado]:null}),
-    ins('carteiraAdiadoTicket'));
+  ],C.evol_adiado.acum,{valfmt:v=>mi(v,1),partes:C.pr?[C.pr.adiado]:null,clicavel:true}),
+    ins('carteiraAdiadoTicket'))+'</div>';
 
   if(C.pr) s+=prCap(prSoma(C.pr.adiado),prSoma(C.evol_adiado.valor),'dos pedidos adiados');
+  s+=cap('Clique numa barra para ver os pedidos adiados vendidos naquele mês.')+'<div id="cartdin-adiado-det"></div>';
   s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
   s+='<div id="cartdin-previsao-fig">'+fig(evolCombo(C.andamento_entrega.yms.map(ymLab),[
     {name:'Previsto',values:C.andamento_entrega.valor,color:SER[0]},
@@ -1095,12 +1099,16 @@ function renderCarteiraDinamica(){
     const _qS=prSoma(_an.qShow), _vS=prSoma(_an.vShow), _qF=prSoma(_an.qFat), _vF=prSoma(_an.vFat), _vT=_vF+_vS, _qT=_qF+_qS;
     const _sh=_qS>0||_vS>0;                        // só separa quando há showroom na carteira
     s+=H3('Em andamento — peças e valor por mês de entrega','por data de entrega prevista · barras = peças · linha = valor (eixo dir.)','cd-andamento');
-    const _series=_sh?[{name:'Vira faturamento',values:_an.qFat,color:SER[0]},{name:'Não vira faturamento (showroom)',values:_an.qShow,color:'#8e8a84'}]
-                     :[{name:'Peças',values:_an.qtd,color:SER[0]}];
-    s+='<div id="cartdin-andamento-fig">'+fig(evolCombo(_an.yms.map(ymLab),_series,_an.valor,
-      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,
+    /* a legenda de cada recorte traz as peças e o valor dele (sempre, com ou sem showroom) */
+    const _leg=(rot,q,v)=>rot+' · '+nf(q,0)+' peças · '+money(v);
+    const _series=_sh?[{name:'Vira faturamento',leg:_leg('Vira faturamento',_qF,_vF),values:_an.qFat,color:SER[0]},
+                      {name:'Não vira faturamento (showroom)',leg:_leg('Não vira faturamento (showroom)',_qS,_vS),values:_an.qShow,color:'#8e8a84'}]
+                     :[{name:'Peças',leg:_leg('Peças',_qT,_vT),values:_an.qtd,color:SER[0]}];
+    s+='<div id="cartdin-andamento-fig">'+fig(evolCombo(_an.yms.map(ymLab),_series,_sh?_an.vFat:_an.valor,
+      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:_sh?'Valor que fatura (R$)':'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,
+       dash2:_sh?{values:_an.vShow,color:'#5d5852',name:'Valor showroom — não fatura (R$)'}:null,
        partes:C.pr?(_sh?[_an.qprFat,_an.qprShow]:[_an.qtdPR]):null,clicavel:true}))+'</div>';
-    s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos. Total: '
+    s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos'+(_sh?' (azul = o que fatura; cinza = showroom, que não fatura)':'')+'. Total: '
       +nf(_qT,0)+' peças · '+mi(_vT,1)+'.'
       +(_sh?' Pedidos do cliente SHOW ROOM não viram faturamento: aparecem em cinza.':'')
       +(C.pr&&prSoma(_an.qtdPR)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(_an.qtdPR),0)+' peças ('+pct(prSoma(_an.qtdPR)/prSoma(_an.qtd),0)+').':'')+' Clique numa barra para ver os pedidos do mês.');
@@ -4829,7 +4837,7 @@ function stackedCols(labels,series,o={}){ const {valfmt=v=>mi(v,1),w=980,h=320,s
   return s;}
 
 /* Barras empilhadas (eixo esq.) + área sombreada do acumulado (eixo dir., atrás das barras), com labels de valor. */
-function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=valfmt,w=980,h=340,dashName='Acumulado',dashArea=true,dashColor=MUT,dashLabels=false,leftLine=null,linesHidden=false,partes=null,clicavel=false}=o;
+function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=valfmt,w=980,h=340,dashName='Acumulado',dashArea=true,dashColor=MUT,dashLabels=false,leftLine=null,linesHidden=false,partes=null,clicavel=false,dash2=null}=o;
   const temPR=!!(partes&&partes.some(a=>a&&a.some(x=>x>0)));
   /* leftLine aceita uma linha ou varias: cada uma ganha seu proprio <g class=cls> para que a
      tela de zoom ligue e desligue uma de cada vez. cls default mantem o nome antigo, para o
@@ -4838,7 +4846,7 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
     .map((l,i)=>Object.assign({cls:i?'evolcombo-leftline'+i:'evolcombo-leftline'},l));
   const pt=34,pr=64,pb=40,pl=64,pw=w-pl-pr,ph=h-pt-pb;
   const n=labels.length; const totals=labels.map((_,i)=>series.reduce((a,se)=>a+(se.values[i]||0),0));
-  const vmax=Math.max(...totals,...[].concat(...LL.map(l=>l.values)),1)*1.18, amax=Math.max(...acum,1)*1.05;
+  const vmax=Math.max(...totals,...[].concat(...LL.map(l=>l.values)),1)*1.18, amax=Math.max(...acum,...(dash2?dash2.values:[]),1)*1.05;
   const gap=8,bw=(pw-gap*(n-1))/n;
   const X=i=>pl+i*(bw+gap)+bw/2, Ya=v=>pt+ph-ph*v/amax, YB=v=>pt+ph-ph*v/vmax;
   // "poluído": pouco espaço horizontal por ponto para caber a caixinha de valor (~46px) sem colidir
@@ -4858,7 +4866,16 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
     if(dashArea){ const areaPts=[`${W(pl)},${W(pt+ph)}`].concat(labels.map((_,i)=>`${W(X(i))},${W(Ya(acum[i]))}`)).concat([`${W(pl+pw)},${W(pt+ph)}`]);
       d+=`<polygon points="${areaPts.join(' ')}" fill="${GRID}"/>`; }
     d+=`<polyline points="${labels.map((_,i)=>`${W(X(i))},${W(Ya(acum[i]))}`).join(' ')}" fill="none" stroke="${dashColor}" stroke-width="${dashArea?1.4:2.2}" stroke-linecap="round" stroke-dasharray="${dashArea?'3 3':'7 5'}"/>`;
-    if(dashLabels&&!apertado) labels.forEach((_,i)=>{ d+=boxLabel(X(i),Ya(acum[i]),acumfmt(acum[i]),dashColor,-12,w); });
+    /* dash2: segunda linha tracejada no mesmo eixo direito (ex.: o valor que fatura e o valor de showroom, em vez do total);
+       a que está mais alta leva o rótulo acima do ponto e a outra, abaixo, para as caixas não se sobreporem */
+    /* a segunda linha só existe onde há valor: ponto nos meses com valor e traço entre meses vizinhos com valor
+       (mês sem showroom não vira "queda a zero" nem leva rótulo R$ 0) */
+    if(dash2){ const v2=i=>dash2.values[i]||0;
+      labels.forEach((_,i)=>{ if(i&&v2(i)>0&&v2(i-1)>0) d+=`<line x1="${W(X(i-1))}" y1="${W(Ya(v2(i-1)))}" x2="${W(X(i))}" y2="${W(Ya(v2(i)))}" stroke="${dash2.color}" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="7 5"/>`;
+        if(v2(i)>0) d+=`<circle cx="${W(X(i))}" cy="${W(Ya(v2(i)))}" r="3.4" fill="${dash2.color}"/>`; }); }
+    if(dashLabels&&!apertado) labels.forEach((_,i)=>{ const y1=Ya(acum[i]), v2=dash2?(dash2.values[i]||0):0, y2=Ya(v2);
+      d+=boxLabel(X(i),y1,acumfmt(acum[i]),dashColor,(dash2&&v2>0&&y1>y2)?14:-12,w);
+      if(dash2&&v2>0) d+=boxLabel(X(i),y2,acumfmt(v2),dash2.color,y2>=y1?14:-12,w); });
     return d+'</g>'; };
   if(dashArea) s+=dashSvg();
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
@@ -4891,10 +4908,11 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
     if(!apertado) labels.forEach((_,i)=>{ s+=boxLabel(X(i),YB(L.values[i]||0),valfmt(L.values[i]||0),L.color,dyLL[li][i],w); });
     s+='</g>'; });
   if(!dashArea) s+=dashSvg();
-  s+='</svg>'; s+='<div class="legend">'+series.map(se=>`<span class="lg"><i style="background:${se.color}"></i>${esc(se.name)}</span>`).join('')
+  s+='</svg>'; s+='<div class="legend">'+series.map(se=>`<span class="lg"><i style="background:${se.color}"></i>${esc(se.leg||se.name)}</span>`).join('')
     +LL.map(L=>`<span class="lg" data-linha="${esc(L.cls)}"><i style="background:${L.color}"></i>${esc(L.name)}</span>`).join('')
     +(dashArea?`<span class="lg"><i style="background:${GRID};border:1px solid ${BASE}"></i>${esc(dashName)} (eixo dir.)</span>`
-      :`<span class="lg"><i style="background:${dashColor}"></i>${esc(dashName)} (eixo dir., tracejada)</span>`)+(temPR?prLeg:'')+'</div>';
+      :`<span class="lg"><i style="background:${dashColor}"></i>${esc(dashName)} (eixo dir., tracejada)</span>`)
+    +(dash2?`<span class="lg"><i style="background:${dash2.color}"></i>${esc(dash2.name)} (eixo dir., tracejada)</span>`:'')+(temPR?prLeg:'')+'</div>';
   return s;}
 
 /* área empilhada: cada série já é uma sequência acumulada; empilha em camadas (série1 = base, série2 por cima, ...) */

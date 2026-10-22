@@ -104,6 +104,26 @@ def _andamento_por_mes(C, CD):
             'pedidos': pedidos, 'pr_padroes': _partes_relacionadas(C)}
 
 
+def _adiados_por_mes(C, CD):
+    """Pedidos adiados de cada mês de VENDA (o eixo do gráfico), só com os itens daquele mês:
+    [pedido, cliente, itens, peças, valor, data da venda, entrega prevista] — a mesma forma do Em andamento."""
+    pedidos = {}
+    for p in (CD.get('status_pedidos') or {}).get('ADIADO') or []:
+        meses = {}
+        for linha in p[4] or []:
+            if not linha[3]:
+                continue
+            _d, mes, ano = linha[3].split('/')
+            meses.setdefault(int(ano) * 100 + int(mes), []).append(linha)
+        for ym, itens in meses.items():
+            pedidos.setdefault(str(ym), []).append([p[0], p[1], len(itens), sum(l[1] or 0 for l in itens),
+                                                    round(sum(l[2] or 0 for l in itens), 2),
+                                                    _faixa_data([l[3] for l in itens]), _faixa_data([l[4] for l in itens])])
+    for lst in pedidos.values():
+        lst.sort(key=lambda x: -x[4])
+    return {'pedidos': pedidos, 'pr_padroes': _partes_relacionadas(C)}
+
+
 def _pedidos_do_mes(C, CD):
     """Os pedidos de cada mês de entrega (e os padrões de PR) para o gráfico de previsão de faturamento."""
     a = _andamento_por_mes(C, CD)
@@ -140,7 +160,7 @@ def calcular_dinamica(C, params=None):
                       'pr_status': [pr['status'].get(x[0], 0) for x in CD['status']] if pr else None,
                       'pr_total': pr['total'] if pr else None, 'pr_padroes': _partes_relacionadas(C)},
         'cd-evol': {'evol': CD['evol'], 'pr': [pr['evol']['vendas'], pr['evol']['atrasados']] if pr else None},
-        'cd-adiados': {'evol': CD['evol_adiado'], 'pr': [pr['adiado']] if pr else None},
+        'cd-adiados': {'evol': CD['evol_adiado'], 'pr': [pr['adiado']] if pr else None, **_adiados_por_mes(C, CD)},
         'cd-previsao': {'evol': CD['andamento_entrega'], 'pr': [pr['entrega']] if pr else None, **_pedidos_do_mes(C, CD)},
         'cd-andamento': _andamento_por_mes(C, CD),
         'cd-vend': {'vend': [x for x in (CD.get('vend') or []) if x[0] not in PSEUDO_VEND], 'tem': bool(CD.get('vend')),

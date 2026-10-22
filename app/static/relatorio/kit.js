@@ -1,5 +1,5 @@
 /* ===== +55 · desenho do relatório =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v21.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v23.
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
@@ -790,7 +790,7 @@ function stackedCols(labels,series,o={}){ const {valfmt=v=>mi(v,1),w=980,h=320,s
   return s;}
 
 /* Barras empilhadas (eixo esq.) + área sombreada do acumulado (eixo dir., atrás das barras), com labels de valor. */
-function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=valfmt,w=980,h=340,dashName='Acumulado',dashArea=true,dashColor=MUT,dashLabels=false,leftLine=null,linesHidden=false,partes=null,clicavel=false}=o;
+function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=valfmt,w=980,h=340,dashName='Acumulado',dashArea=true,dashColor=MUT,dashLabels=false,leftLine=null,linesHidden=false,partes=null,clicavel=false,dash2=null}=o;
   const temPR=!!(partes&&partes.some(a=>a&&a.some(x=>x>0)));
   /* leftLine aceita uma linha ou varias: cada uma ganha seu proprio <g class=cls> para que a
      tela de zoom ligue e desligue uma de cada vez. cls default mantem o nome antigo, para o
@@ -799,7 +799,7 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
     .map((l,i)=>Object.assign({cls:i?'evolcombo-leftline'+i:'evolcombo-leftline'},l));
   const pt=34,pr=64,pb=40,pl=64,pw=w-pl-pr,ph=h-pt-pb;
   const n=labels.length; const totals=labels.map((_,i)=>series.reduce((a,se)=>a+(se.values[i]||0),0));
-  const vmax=Math.max(...totals,...[].concat(...LL.map(l=>l.values)),1)*1.18, amax=Math.max(...acum,1)*1.05;
+  const vmax=Math.max(...totals,...[].concat(...LL.map(l=>l.values)),1)*1.18, amax=Math.max(...acum,...(dash2?dash2.values:[]),1)*1.05;
   const gap=8,bw=(pw-gap*(n-1))/n;
   const X=i=>pl+i*(bw+gap)+bw/2, Ya=v=>pt+ph-ph*v/amax, YB=v=>pt+ph-ph*v/vmax;
   // "poluído": pouco espaço horizontal por ponto para caber a caixinha de valor (~46px) sem colidir
@@ -819,7 +819,16 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
     if(dashArea){ const areaPts=[`${W(pl)},${W(pt+ph)}`].concat(labels.map((_,i)=>`${W(X(i))},${W(Ya(acum[i]))}`)).concat([`${W(pl+pw)},${W(pt+ph)}`]);
       d+=`<polygon points="${areaPts.join(' ')}" fill="${GRID}"/>`; }
     d+=`<polyline points="${labels.map((_,i)=>`${W(X(i))},${W(Ya(acum[i]))}`).join(' ')}" fill="none" stroke="${dashColor}" stroke-width="${dashArea?1.4:2.2}" stroke-linecap="round" stroke-dasharray="${dashArea?'3 3':'7 5'}"/>`;
-    if(dashLabels&&!apertado) labels.forEach((_,i)=>{ d+=boxLabel(X(i),Ya(acum[i]),acumfmt(acum[i]),dashColor,-12,w); });
+    /* dash2: segunda linha tracejada no mesmo eixo direito (ex.: o valor que fatura e o valor de showroom, em vez do total);
+       a que está mais alta leva o rótulo acima do ponto e a outra, abaixo, para as caixas não se sobreporem */
+    /* a segunda linha só existe onde há valor: ponto nos meses com valor e traço entre meses vizinhos com valor
+       (mês sem showroom não vira "queda a zero" nem leva rótulo R$ 0) */
+    if(dash2){ const v2=i=>dash2.values[i]||0;
+      labels.forEach((_,i)=>{ if(i&&v2(i)>0&&v2(i-1)>0) d+=`<line x1="${W(X(i-1))}" y1="${W(Ya(v2(i-1)))}" x2="${W(X(i))}" y2="${W(Ya(v2(i)))}" stroke="${dash2.color}" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="7 5"/>`;
+        if(v2(i)>0) d+=`<circle cx="${W(X(i))}" cy="${W(Ya(v2(i)))}" r="3.4" fill="${dash2.color}"/>`; }); }
+    if(dashLabels&&!apertado) labels.forEach((_,i)=>{ const y1=Ya(acum[i]), v2=dash2?(dash2.values[i]||0):0, y2=Ya(v2);
+      d+=boxLabel(X(i),y1,acumfmt(acum[i]),dashColor,(dash2&&v2>0&&y1>y2)?14:-12,w);
+      if(dash2&&v2>0) d+=boxLabel(X(i),y2,acumfmt(v2),dash2.color,y2>=y1?14:-12,w); });
     return d+'</g>'; };
   if(dashArea) s+=dashSvg();
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
@@ -852,10 +861,11 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
     if(!apertado) labels.forEach((_,i)=>{ s+=boxLabel(X(i),YB(L.values[i]||0),valfmt(L.values[i]||0),L.color,dyLL[li][i],w); });
     s+='</g>'; });
   if(!dashArea) s+=dashSvg();
-  s+='</svg>'; s+='<div class="legend">'+series.map(se=>`<span class="lg"><i style="background:${se.color}"></i>${esc(se.name)}</span>`).join('')
+  s+='</svg>'; s+='<div class="legend">'+series.map(se=>`<span class="lg"><i style="background:${se.color}"></i>${esc(se.leg||se.name)}</span>`).join('')
     +LL.map(L=>`<span class="lg" data-linha="${esc(L.cls)}"><i style="background:${L.color}"></i>${esc(L.name)}</span>`).join('')
     +(dashArea?`<span class="lg"><i style="background:${GRID};border:1px solid ${BASE}"></i>${esc(dashName)} (eixo dir.)</span>`
-      :`<span class="lg"><i style="background:${dashColor}"></i>${esc(dashName)} (eixo dir., tracejada)</span>`)+(temPR?prLeg:'')+'</div>';
+      :`<span class="lg"><i style="background:${dashColor}"></i>${esc(dashName)} (eixo dir., tracejada)</span>`)
+    +(dash2?`<span class="lg"><i style="background:${dash2.color}"></i>${esc(dash2.name)} (eixo dir., tracejada)</span>`:'')+(temPR?prLeg:'')+'</div>';
   return s;}
 
 /* área empilhada: cada série já é uma sequência acumulada; empilha em camadas (série1 = base, série2 por cima, ...) */

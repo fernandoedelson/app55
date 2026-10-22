@@ -33,8 +33,9 @@ DESENHO.carteira_dinamica=function(P){
   const D=P['cd-adiados'];
   if(D){ const C=D.evol;
     s+=H3('Carteira de pedidos adiados','evolutiva mensal · barras = valor do mês · área = acumulado','cd-adiados');
-    s+=fig(evolCombo(C.yms.map(ymLab),[{name:'Adiado',values:C.valor,color:WARN}],C.acum,{valfmt:v=>mi(v,1),partes:D.pr||null}),ins('carteiraAdiadoTicket','carteira-adiado-ticket'));
-    if(D.pr) s+=prCap(prSoma(D.pr[0]),prSoma(C.valor),'dos pedidos adiados'); }
+    s+='<div id="cartdin-adiado-fig">'+fig(evolCombo(C.yms.map(ymLab),[{name:'Adiado',values:C.valor,color:WARN}],C.acum,{valfmt:v=>mi(v,1),partes:D.pr||null,clicavel:true}),ins('carteiraAdiadoTicket','carteira-adiado-ticket'))+'</div>';
+    if(D.pr) s+=prCap(prSoma(D.pr[0]),prSoma(C.valor),'dos pedidos adiados');
+    s+=cap('Clique numa barra para ver os pedidos adiados vendidos naquele mês.')+'<div id="cartdin-adiado-det"></div>'; }
   const R=P['cd-previsao'];
   if(R){ const C=R.evol;
     s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
@@ -46,12 +47,16 @@ DESENHO.carteira_dinamica=function(P){
     const _qS=prSoma(AN.q_show), _vS=prSoma(AN.v_show), _qF=prSoma(AN.q_fat), _vF=prSoma(AN.v_fat), _vT=_vF+_vS, _qT=_qF+_qS;
     const _sh=_qS>0||_vS>0;                        // só separa quando há showroom na carteira
     s+=H3('Em andamento — peças e valor por mês de entrega','por data de entrega prevista · barras = peças · linha = valor (eixo dir.)','cd-andamento');
-    const _series=_sh?[{name:'Vira faturamento',values:AN.q_fat,color:SER[0]},{name:'Não vira faturamento (showroom)',values:AN.q_show,color:'#8e8a84'}]
-                     :[{name:'Peças',values:AN.qtd,color:SER[0]}];
-    s+='<div id="cartdin-andamento-fig">'+fig(evolCombo(AN.yms.map(ymLab),_series,AN.valor,
-      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,
+    /* a legenda de cada recorte traz as peças e o valor dele (sempre, com ou sem showroom) */
+    const _leg=(rot,q,v)=>rot+' · '+nf(q,0)+' peças · '+money(v);
+    const _series=_sh?[{name:'Vira faturamento',leg:_leg('Vira faturamento',_qF,_vF),values:AN.q_fat,color:SER[0]},
+                      {name:'Não vira faturamento (showroom)',leg:_leg('Não vira faturamento (showroom)',_qS,_vS),values:AN.q_show,color:'#8e8a84'}]
+                     :[{name:'Peças',leg:_leg('Peças',_qT,_vT),values:AN.qtd,color:SER[0]}];
+    s+='<div id="cartdin-andamento-fig">'+fig(evolCombo(AN.yms.map(ymLab),_series,_sh?AN.v_fat:AN.valor,
+      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:_sh?'Valor que fatura (R$)':'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,
+       dash2:_sh?{values:AN.v_show,color:'#5d5852',name:'Valor showroom — não fatura (R$)'}:null,
        partes:AN.qtd_pr?(_sh?[AN.qpr_fat,AN.qpr_show]:[AN.qtd_pr]):null,clicavel:true}))+'</div>';
-    s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos. Total: '
+    s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos'+(_sh?' (azul = o que fatura; cinza = showroom, que não fatura)':'')+'. Total: '
       +nf(_qT,0)+' peças · '+mi(_vT,1)+'.'
       +(_sh?' Pedidos do cliente SHOW ROOM não viram faturamento: aparecem em cinza.':'')
       +(AN.qtd_pr&&prSoma(AN.qtd_pr)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(AN.qtd_pr),0)+' peças ('+pct(prSoma(AN.qtd_pr)/prSoma(AN.qtd),0)+').':'')+' Clique numa barra para ver os pedidos do mês.');
@@ -102,31 +107,33 @@ function _cdAlternarItens(tr,itens,ncols){
 function _cdEhShowroom(c){ return String(c==null?'':c).normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase().indexOf('SHOWROOM')>=0; }
 
 function _cdLigarMeses(ctx){
-  [['cartdin-previsao-fig','cartdin-previsao-det','cd-previsao',X=>X.evol.yms],
-   ['cartdin-andamento-fig','cartdin-andamento-det','cd-andamento',X=>X.yms]].forEach(([fid,did,bk,fyms])=>{
+  [['cartdin-previsao-fig','cartdin-previsao-det','cd-previsao',X=>X.evol.yms,{}],
+   ['cartdin-andamento-fig','cartdin-andamento-det','cd-andamento',X=>X.yms,{}],
+   ['cartdin-adiado-fig','cartdin-adiado-det','cd-adiados',X=>X.evol.yms,{bucket:'ADIADO',col:3,titulo:'Pedidos adiados vendidos em'}]].forEach(([fid,did,bk,fyms,opt])=>{
+    const BK=opt.bucket||'ANDAMENTO', COL=opt.col||4, FAT=BK==='ANDAMENTO';
     const X=ctx.payload[bk], fg=document.getElementById(fid); if(!X||!fg||!X.pedidos) return;
     window.PARTES_RELACIONADAS=X.pr_padroes||window.PARTES_RELACIONADAS||[];
     const yms=fyms(X), bars=fg.querySelectorAll('.ec-bar');
-    const doMes=(l,ym)=>{ const m=String(l[4]||'').split('/'); return (+m[2])*100+(+m[1])===ym; };
+    const doMes=(l,ym)=>{ const m=String(l[COL]||'').split('/'); return (+m[2])*100+(+m[1])===ym; };
     function abre(i){
       const ym=yms[i], peds=X.pedidos[String(ym)]||[], box=document.getElementById(did); if(!box) return;
       const tq=peds.reduce((a,p)=>a+p[3],0), tv=peds.reduce((a,p)=>a+p[4],0); let acc=0;
-      const vSh=peds.filter(p=>_cdEhShowroom(p[1])).reduce((a,p)=>a+p[4],0);
+      const vSh=FAT?peds.filter(p=>_cdEhShowroom(p[1])).reduce((a,p)=>a+p[4],0):0;
       const rows=peds.map(p=>{ acc+=p[4];
-        return `<tr class="cdm-ped-row" data-p="${esc(String(p[0]))}"><td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td><td class="left">${_cdEhShowroom(p[1])?'Não · showroom':'Sim'}</td>`
+        return `<tr class="cdm-ped-row" data-p="${esc(String(p[0]))}"><td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p[0])}</td><td class="left">${esc(trunc(p[1],30))}${prTag(p[1])}</td>${FAT?`<td class="left">${_cdEhShowroom(p[1])?'Não · showroom':'Sim'}</td>`:''}`
           +`<td class="right">${esc(p[5])}</td><td class="right">${esc(p[6])}</td><td class="right">${nf(p[2])}</td><td class="right">${nf(p[3],0)}</td><td class="right">${money(p[4])}</td>`
           +`<td class="right">${pct(tv?p[4]/tv:0,1)}</td><td class="right">${pct(tv?acc/tv:0,1)}</td></tr>`; }).join('');
-      box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos'+(vSh>0?' · fatura '+mi(tv-vSh,1)+' · showroom '+mi(vSh,1):''))
-        +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="left">Faturamento</th><th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
+      box.innerHTML=H3(opt.titulo?opt.titulo+' '+ymLab(ym):'Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos'+(vSh>0?' · fatura '+mi(tv-vSh,1)+' · showroom '+mi(vSh,1):''))
+        +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th>${FAT?'<th class="left">Faturamento</th>':''}<th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
         +`<th class="right">Valor</th><th class="right">% do mês</th><th class="right">% acumulada</th></tr></thead><tbody>${rows}</tbody></table></div>`
         +prLegenda()+cap('Clique num pedido para abrir, logo abaixo dele, os itens que entregam neste mês.');
       ctx.marcar();
       if(!ctx.pode('detalhar')) return;
       box.querySelectorAll('.cdm-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
         tr.addEventListener('click',async()=>{
-          if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains('cdm-itens')){ _cdAlternarItens(tr,[],10); return; }
-          const R=await ctx.detalhe('pedido',{ped:tr.dataset.p,status:'ANDAMENTO'});
-          _cdAlternarItens(tr,R.itens.filter(l=>doMes(l,ym)),10); ctx.marcar(); }); });
+          if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains('cdm-itens')){ _cdAlternarItens(tr,[],FAT?10:9); return; }
+          const R=await ctx.detalhe('pedido',{ped:tr.dataset.p,status:BK});
+          _cdAlternarItens(tr,R.itens.filter(l=>doMes(l,ym)),FAT?10:9); ctx.marcar(); }); });
     }
     bars.forEach(el=>el.addEventListener('click',()=>{
       const ativa=el.style.stroke!==''; bars.forEach(b=>{b.style.stroke='';b.style.strokeWidth='';});
