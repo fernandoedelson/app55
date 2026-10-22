@@ -1,5 +1,5 @@
 /* ===== +55 · desenho do relatório =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v19.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v20.
    Não editar à mão: é o mesmo código que desenhou o gabarito. O cálculo vem do servidor.
    ====================================================================== */
 'use strict';
@@ -824,7 +824,7 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
   if(dashArea) s+=dashSvg();
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
     series.forEach((se,si)=>{const v=se.values[i]||0; const bh=Math.max(0,ph*v/vmax); const y=pt+ph-ph*(acc+Math.max(0,v))/vmax;
-      s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"${clicavel&&si===0?` class="ec-bar" data-i="${i}" style="cursor:pointer;pointer-events:all"`:''}><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
+      s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"${clicavel?` class="ec-bar" data-i="${i}" style="cursor:pointer;pointer-events:all"`:''}><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
       if(temPR&&partes[si]) s+=prRect(x,y,bw,bh,partes[si],v,i,se.color);
       if(v>0 && bh>13) s+=`<text x="${W(x+bw/2)}" y="${W(y+bh/2+3.5)}" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">${esc(valfmt(v))}</text>`;
       acc+=v;});

@@ -975,13 +975,18 @@ function renderCarteira(){
 /* ---- Carteira dinâmica (fonte: VENDAS LOJA <ano>.xlsx — o nome real vem em CARTDIN.fonte) ---- */
 /* Em andamento por mês de entrega prevista: peças (soma da quantidade dos itens), valor e quantas dessas peças são de parte relacionada.
    Sai dos itens de cada pedido (status_pedidos), então vale para qualquer mês já processado. */
+/* SHOW ROOM não vira faturamento: o pedido de showroom fica na carteira, mas não gera nota. Vale o nome do cliente, sem acento nem espaço. */
+function cdEhShowroom(cliente){ return String(cliente==null?'':cliente).normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase().indexOf('SHOWROOM')>=0; }
 function cdAndamentoMes(C){
   const peds=(C.status_pedidos||{}).ANDAMENTO||[], por={};
-  peds.forEach(p=>{ const pr=ehPR(p[1]);
+  peds.forEach(p=>{ const pr=ehPR(p[1]), sh=cdEhShowroom(p[1]);
     (p[4]||[]).forEach(l=>{ if(!l[4]) return; const m=String(l[4]).split('/'); const ym=(+m[2])*100+(+m[1]);
-      const o=por[ym]||(por[ym]={q:0,v:0,qpr:0}); o.q+=l[1]||0; o.v+=l[2]||0; if(pr) o.qpr+=l[1]||0; }); });
+      const o=por[ym]||(por[ym]={qF:0,vF:0,qprF:0,qS:0,vS:0,qprS:0}); const q=l[1]||0, v=l[2]||0;
+      if(sh){ o.qS+=q; o.vS+=v; if(pr) o.qprS+=q; } else { o.qF+=q; o.vF+=v; if(pr) o.qprF+=q; } }); });
   const yms=Object.keys(por).map(Number).sort((a,b)=>a-b); if(!yms.length) return null;
-  return {yms:yms, qtd:yms.map(y=>por[y].q), valor:yms.map(y=>por[y].v), qtdPR:yms.map(y=>por[y].qpr)};
+  const col=k=>yms.map(y=>por[y][k]), soma=(a,b)=>a.map((x,i)=>x+b[i]);
+  return {yms:yms, qFat:col('qF'), qShow:col('qS'), vFat:col('vF'), vShow:col('vS'), qprFat:col('qprF'), qprShow:col('qprS'),
+    qtd:soma(col('qF'),col('qS')), valor:soma(col('vF'),col('vS')), qtdPR:soma(col('qprF'),col('qprS'))};
 }
 /* itens de um pedido abertos logo abaixo da linha dele (agrupamento de linhas); clicar de novo fecha */
 function cdAlternarItens(tr,itens,ncols){
@@ -1002,7 +1007,7 @@ function cdMesPedidos(C,ym){
   ((C.status_pedidos||{}).ANDAMENTO||[]).forEach(p=>{
     const itens=(p[4]||[]).filter(l=>{ if(!l[4]) return false; const m=String(l[4]).split('/'); return (+m[2])*100+(+m[1])===ym; });
     if(!itens.length) return;
-    out.push({ped:p[0],cliente:p[1],itens:itens,qtd:itens.reduce((a,l)=>a+(l[1]||0),0),valor:itens.reduce((a,l)=>a+(l[2]||0),0)});
+    out.push({ped:p[0],cliente:p[1],showroom:cdEhShowroom(p[1]),itens:itens,qtd:itens.reduce((a,l)=>a+(l[1]||0),0),valor:itens.reduce((a,l)=>a+(l[2]||0),0)});
   });
   return out.sort((a,b)=>b.valor-a.valor);
 }
@@ -1010,16 +1015,17 @@ function cdMesPedidos(C,ym){
 function cdMesDrill(detId,C,ym){
   const box=document.getElementById(detId); if(!box) return;
   const peds=cdMesPedidos(C,ym), tq=peds.reduce((a,p)=>a+p.qtd,0), tv=peds.reduce((a,p)=>a+p.valor,0); let acc=0;
+  const vSh=peds.filter(p=>p.showroom).reduce((a,p)=>a+p.valor,0);
   const rows=peds.map(p=>{ acc+=p.valor;
-    return `<tr class="cdm-ped-row" data-p="${esc(String(p.ped))}"><td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p.ped)}</td><td class="left">${esc(trunc(p.cliente,30))}${prTag(p.cliente)}</td>`
+    return `<tr class="cdm-ped-row" data-p="${esc(String(p.ped))}"><td class="left"><span class="cdm-sin">▸</span> FOCCO-${esc(p.ped)}</td><td class="left">${esc(trunc(p.cliente,30))}${prTag(p.cliente)}</td><td class="left">${p.showroom?'Não · showroom':'Sim'}</td>`
       +`<td class="right">${cdFaixaData(p.itens.map(l=>l[3]))}</td><td class="right">${cdFaixaData(p.itens.map(l=>l[4]))}</td><td class="right">${nf(p.itens.length)}</td><td class="right">${nf(p.qtd,0)}</td><td class="right">${money(p.valor)}</td>`
       +`<td class="right">${pct(tv?p.valor/tv:0,1)}</td><td class="right">${pct(tv?acc/tv:0,1)}</td></tr>`; }).join('');
-  box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos')
-    +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
+  box.innerHTML=H3('Pedidos em andamento — '+ymLab(ym), nf(tq,0)+' peças · '+mi(tv,1)+' · '+nf(peds.length)+' pedidos'+(vSh>0?' · fatura '+mi(tv-vSh,1)+' · showroom '+mi(vSh,1):''))
+    +`<div class="tw"><table class="dt"><thead><tr><th class="left">Pedido</th><th class="left">Cliente</th><th class="left">Faturamento</th><th class="right">Venda</th><th class="right">Entrega prevista</th><th class="right">Itens</th><th class="right">Peças</th>`
     +`<th class="right">Valor</th><th class="right">% do mês</th><th class="right">% acumulada</th></tr></thead><tbody>${rows}</tbody></table></div>`
     +prLegenda()+cap('Clique num pedido para abrir, logo abaixo dele, os itens que entregam neste mês.');
   box.querySelectorAll('.cdm-ped-row').forEach(tr=>{ tr.style.cursor='pointer';
-    tr.addEventListener('click',()=>{ const p=peds.find(x=>String(x.ped)===tr.dataset.p); if(p) cdAlternarItens(tr,p.itens,9); }); });
+    tr.addEventListener('click',()=>{ const p=peds.find(x=>String(x.ped)===tr.dataset.p); if(p) cdAlternarItens(tr,p.itens,10); }); });
 }
 /* barras dos gráficos de entrega: clicar abre os pedidos do mês; clicar de novo na mesma barra recolhe */
 function cdLigarMeses(){
@@ -1033,7 +1039,7 @@ function cdLigarMeses(){
       bars.forEach(b=>{b.style.stroke='';b.style.strokeWidth='';});
       const det=document.getElementById(did);
       if(ativa){ if(det) det.innerHTML=''; return; }
-      el.style.stroke=INK; el.style.strokeWidth='2.5';
+      bars.forEach(b=>{ if(b.dataset.i===el.dataset.i){ b.style.stroke=INK; b.style.strokeWidth='2.5'; } });
       cdMesDrill(did,C,lista[+el.dataset.i]); })); });
 }
 function renderCarteiraDinamica(){
@@ -1086,12 +1092,22 @@ function renderCarteiraDinamica(){
   // o que está em andamento, por mês de entrega: quantas peças e quanto vale (barras = peças, linha = valor)
   const _an=cdAndamentoMes(C);
   if(_an){
+    const _qS=prSoma(_an.qShow), _vS=prSoma(_an.vShow), _qF=prSoma(_an.qFat), _vF=prSoma(_an.vFat), _vT=_vF+_vS, _qT=_qF+_qS;
+    const _sh=_qS>0||_vS>0;                        // só separa quando há showroom na carteira
     s+=H3('Em andamento — peças e valor por mês de entrega','por data de entrega prevista · barras = peças · linha = valor (eixo dir.)','cd-andamento');
-    s+='<div id="cartdin-andamento-fig">'+fig(evolCombo(_an.yms.map(ymLab),[{name:'Peças',values:_an.qtd,color:SER[0]}],_an.valor,
-      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,partes:C.pr?[_an.qtdPR]:null,clicavel:true}))+'</div>';
+    const _series=_sh?[{name:'Vira faturamento',values:_an.qFat,color:SER[0]},{name:'Não vira faturamento (showroom)',values:_an.qShow,color:'#8e8a84'}]
+                     :[{name:'Peças',values:_an.qtd,color:SER[0]}];
+    s+='<div id="cartdin-andamento-fig">'+fig(evolCombo(_an.yms.map(ymLab),_series,_an.valor,
+      {valfmt:v=>nf(v,0),acumfmt:v=>mi(v,1),dashName:'Valor (R$)',dashArea:false,dashColor:SER[2],dashLabels:true,
+       partes:C.pr?(_sh?[_an.qprFat,_an.qprShow]:[_an.qtdPR]):null,clicavel:true}))+'</div>';
     s+=cap('Peças = soma da quantidade dos itens dos pedidos em andamento, no mês da entrega prevista; a linha tracejada é o valor desses pedidos. Total: '
-      +nf(prSoma(_an.qtd),0)+' peças · '+mi(prSoma(_an.valor),1)+'.'
+      +nf(_qT,0)+' peças · '+mi(_vT,1)+'.'
+      +(_sh?' Pedidos do cliente SHOW ROOM não viram faturamento: aparecem em cinza.':'')
       +(C.pr&&prSoma(_an.qtdPR)>0?' Tom mais escuro = parte relacionada (PR): '+nf(prSoma(_an.qtdPR),0)+' peças ('+pct(prSoma(_an.qtdPR)/prSoma(_an.qtd),0)+').':'')+' Clique numa barra para ver os pedidos do mês.');
+    if(_sh) s+='<div class="kpis k3">'
+      +kpi('Vira faturamento',money(_vF),nf(_qF,0)+' peças · '+pct(_vT?_vF/_vT:0,0)+' do valor')
+      +kpi('Não vira faturamento (showroom)',money(_vS),nf(_qS,0)+' peças · '+pct(_vT?_vS/_vT:0,0)+' do valor')
+      +kpi('Total em andamento',money(_vT),nf(_qT,0)+' peças')+'</div>';
     s+='<div id="cartdin-andamento-det"></div>';
   }
   // mesmas duas leituras da Carteira estática, agora sobre a fonte dinâmica.
@@ -4847,7 +4863,7 @@ function evolCombo(labels,series,acum,o={}){ const {valfmt=v=>mi(v,1),acumfmt=va
   if(dashArea) s+=dashSvg();
   labels.forEach((lb,i)=>{let acc=0; const x=pl+i*(bw+gap);
     series.forEach((se,si)=>{const v=se.values[i]||0; const bh=Math.max(0,ph*v/vmax); const y=pt+ph-ph*(acc+Math.max(0,v))/vmax;
-      s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"${clicavel&&si===0?` class="ec-bar" data-i="${i}" style="cursor:pointer;pointer-events:all"`:''}><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
+      s+=`<rect x="${W(x)}" y="${W(y)}" width="${W(bw)}" height="${W(bh)}" fill="${se.color}"${clicavel?` class="ec-bar" data-i="${i}" style="cursor:pointer;pointer-events:all"`:''}><title>${esc(lb)} · ${esc(se.name)}: ${esc(valfmt(v))}${prT(partes&&partes[si],i,v,valfmt)}${se===series[series.length-1]?' · '+esc(dashName)+': '+esc(acumfmt(acum[i])):''}</title></rect>`;
       if(temPR&&partes[si]) s+=prRect(x,y,bw,bh,partes[si],v,i,se.color);
       if(v>0 && bh>13) s+=`<text x="${W(x+bw/2)}" y="${W(y+bh/2+3.5)}" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">${esc(valfmt(v))}</text>`;
       acc+=v;});

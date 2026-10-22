@@ -48,6 +48,13 @@ def _faixa_data(datas):
     return u[0] if len(u) == 1 else u[0] + ' a ' + u[-1]
 
 
+def eh_showroom(cliente):
+    """SHOW ROOM não vira faturamento: vale o nome do cliente, sem acento nem espaço (o mesmo teste do Kit)."""
+    import re
+    import unicodedata
+    return 'SHOWROOM' in re.sub('[^A-Za-z]', '', unicodedata.normalize('NFD', str(cliente or ''))).upper()
+
+
 def _andamento_por_mes(C, CD):
     """Em andamento por mês de entrega prevista: peças, valor e peças de parte relacionada (a mesma leitura do Kit)."""
     peds = (CD.get('status_pedidos') or {}).get('ANDAMENTO') or []
@@ -55,15 +62,18 @@ def _andamento_por_mes(C, CD):
     por = {}
     for p in peds:
         pr = bool(pats) and any(x in str(p[1] or '').upper() for x in pats)
+        sh = eh_showroom(p[1])
         for linha in p[4] or []:
             if not linha[4]:
                 continue
             _d, mes, ano = linha[4].split('/')
-            o = por.setdefault(int(ano) * 100 + int(mes), [0.0, 0.0, 0.0])
-            o[0] += linha[1] or 0
-            o[1] += linha[2] or 0
+            # [peças que faturam, valor que fatura, peças PR que faturam, peças showroom, valor showroom, peças PR showroom]
+            o = por.setdefault(int(ano) * 100 + int(mes), [0.0] * 6)
+            k = 3 if sh else 0
+            o[k] += linha[1] or 0
+            o[k + 1] += linha[2] or 0
             if pr:
-                o[2] += linha[1] or 0
+                o[k + 2] += linha[1] or 0
     if not por:
         return None
     yms = sorted(por)
@@ -85,9 +95,13 @@ def _andamento_por_mes(C, CD):
                                                     _faixa_data([l[3] for l in itens_mes]), _faixa_data([l[4] for l in itens_mes])])
     for lst in pedidos.values():
         lst.sort(key=lambda x: -x[4])
-    return {'yms': yms, 'qtd': [por[y][0] for y in yms], 'valor': [por[y][1] for y in yms],
-            'qtd_pr': [por[y][2] for y in yms] if pats else None, 'pedidos': pedidos,
-            'pr_padroes': _partes_relacionadas(C)}
+    col = lambda i: [por[y][i] for y in yms]
+    soma = lambda a, b: [x + y for x, y in zip(a, b)]
+    return {'yms': yms, 'qtd': soma(col(0), col(3)), 'valor': soma(col(1), col(4)),
+            'qtd_pr': soma(col(2), col(5)) if pats else None,
+            'q_fat': col(0), 'v_fat': col(1), 'qpr_fat': col(2) if pats else None,
+            'q_show': col(3), 'v_show': col(4), 'qpr_show': col(5) if pats else None,
+            'pedidos': pedidos, 'pr_padroes': _partes_relacionadas(C)}
 
 
 def _pedidos_do_mes(C, CD):
