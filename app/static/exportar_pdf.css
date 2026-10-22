@@ -18,7 +18,7 @@ html.pdf-medindo .hl-bar,html.pdf-medindo .figzoom{display:none}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   html,body{background:#f7f3ea!important}
   /* respiro bege igual em cima, embaixo e nos lados de TODA página (o zoom de 60% faz 15mm valer 9mm no papel) */
-  main{margin-left:0!important;max-width:none!important;padding:15mm 15mm 10mm!important;
+  main{margin-left:0!important;max-width:none!important;overflow:visible!important;padding:15mm 15mm 10mm!important;
     -webkit-box-decoration-break:clone;box-decoration-break:clone}
   .rv{opacity:1!important;transform:none!important;transition:none!important}
   #side,#navtoggle,#admintoggle,#adminpanel,#presentbtn,#curtain,.side-tools,.filterbar,.figzoom,.cmt-btn,.hl-bar,
@@ -56,7 +56,7 @@ html.pdf-medindo .hl-bar,html.pdf-medindo .figzoom{display:none}
   .ato-head .ato-min{color:#c9a284!important;border-color:rgba(201,162,132,.45)!important;top:18px!important;right:30px!important;
     background:rgba(255,255,255,.04)}
   /* título nunca fica sozinho no pé da página: vai junto com o gráfico ou a tabela dele */
-  h3,.ato-sub,.sec-head,.fb-moved,.cap{break-after:avoid;break-inside:avoid}
+  h3,.ato-sub,.sec-head{break-after:avoid;break-inside:avoid}
   .ato-slot{break-inside:auto}
   .fig,.tw,.twz,.kpis,.kpi,.hl,.callout,.cxgrp-table,p.cap{break-inside:avoid}
   p.cap{break-before:avoid}
