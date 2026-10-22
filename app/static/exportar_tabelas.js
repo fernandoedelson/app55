@@ -328,5 +328,50 @@
       });
     });
   }
+  /* ---------------------------------------------------------------- PDF: capa e rodapé por página */
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  function mesDaCompetencia() {
+    const m = /^(\d{4})-(\d{2})$/.exec(CFG.comp || '');
+    if (!m) return CFG.comp || '';
+    const nome = MESES[parseInt(m[2], 10) - 1] || '';
+    return nome.charAt(0).toUpperCase() + nome.slice(1) + ' de ' + m[1];
+  }
+  function montarCapa() {
+    if (document.getElementById('pdf-capa')) return;
+    const atos = Array.from(document.querySelectorAll('section.ato'));
+    if (!atos.length) return;
+    const mes = mesDaCompetencia(), capa = document.createElement('div');
+    capa.id = 'pdf-capa';
+    const logo = document.querySelector('.brand'), bg = logo ? getComputedStyle(logo, '::before').backgroundImage : 'none';
+    const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    const l = el('div', 'pc-logo'); if (bg && bg !== 'none') l.style.backgroundImage = bg;
+    capa.appendChild(l);
+    capa.appendChild(el('div', 'pc-k', 'Roteiro executivo em atos'));
+    capa.appendChild(el('h1', '', 'Análise de Vendas e DRE'));
+    capa.appendChild(el('div', 'pc-mes', mes));
+    capa.appendChild(el('div', 'pc-reg'));
+    const ol = el('ol');
+    atos.forEach(a => {
+      const n = a.querySelector('.ato-n'), t = a.querySelector('h2'), q = a.querySelector('.ato-q'), m = a.querySelector('.ato-min');
+      const li = el('li');
+      li.appendChild(el('span', 'n', ((n && n.textContent.match(/\d+/)) || [''])[0].padStart(2, '0')));
+      li.appendChild(el('span', 't', t ? t.textContent : ''));
+      li.appendChild(el('span', 'm', m ? m.textContent : ''));
+      if (q && q.textContent) li.appendChild(el('span', 'q', q.textContent));
+      ol.appendChild(li);
+    });
+    capa.appendChild(ol);
+    capa.appendChild(el('div', 'pc-pe', '+55 Design · Controladoria'));
+    document.body.insertBefore(capa, document.body.firstChild);
+    /* rodapé de cada página (a capa não tem: a primeira página tem margem zero) */
+    let st = document.getElementById('pdf-rodape');
+    if (!st) { st = document.createElement('style'); st.id = 'pdf-rodape'; document.head.appendChild(st); }
+    const txt = ('+55 Design · Roteiro executivo · ' + mes).replace(/["\\]/g, '');
+    const base = 'font-family:Jost,"Avenir Next","Century Gothic","Segoe UI",sans-serif;font-size:7.5pt;letter-spacing:.16em;text-transform:uppercase;color:#9c8e80;vertical-align:top;padding-top:4mm;';
+    st.textContent = '@page{@bottom-left{content:"' + txt + '";' + base + '}@bottom-right{content:counter(page);' + base + '}}';
+  }
+  window.addEventListener('beforeprint', montarCapa);
+  window.addEventListener('load', () => setTimeout(montarCapa, 2500));
+
   window.Exportar55 = { baixarTabela, baixarReuniao };
 })();

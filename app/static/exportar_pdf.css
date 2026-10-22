@@ -1,18 +1,51 @@
-/* +55 Design — layout de papel da reunião (PDF): A4 retrato, um ato por seção, texto selecionável.
+/* +55 Design — layout de papel da reunião (PDF): A4 retrato, capa, um ato por seção, rodapé com a marca e a página.
    Só vale na impressão; a tela não muda. A reunião é desenhada para ~1150 px de largura: o zoom leva essa
-   largura para dentro da folha, em vez de cortar tabelas e gráficos. */
-@page{size:A4 portrait;margin:11mm 9mm}
+   largura para dentro da folha, em vez de cortar tabelas e gráficos. A capa e o rodapé por página são montados
+   pelo exportar_tabelas.js (precisam do mês e do roteiro). */
+@page{size:A4 portrait;margin:11mm 9mm 15mm}
+@page:first{margin:0}
+#pdf-capa{display:none}
 @media print{
   html{zoom:.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{background:#fff!important}
+  html,body{background:#f7f3ea!important}
   main{margin-left:0!important;max-width:none!important}
   .rv{opacity:1!important;transform:none!important;transition:none!important}
   #side,#navtoggle,#admintoggle,#adminpanel,#presentbtn,#curtain,.side-tools,.filterbar,.figzoom,.cmt-btn,.hl-bar,
   .quoteband,.fb-moved,.xl-flut,.xl-aviso,.enc-painel,[id^="enc-"]{display:none!important}
-  section.ato{break-before:page;padding:0!important;min-height:0!important}
-  section.ato:first-of-type{break-before:auto}
-  .ato-head{break-after:avoid;min-height:0!important;height:auto!important;padding:10px 0 14px!important}
+
+  /* ---------- capa: página inteira, café-escuro, com o roteiro como sumário ---------- */
+  #pdf-capa{display:flex;flex-direction:column;box-sizing:border-box;width:100%;height:493mm;padding:46mm 34mm 30mm;
+    background:linear-gradient(160deg,#2b221b 0%,#211a14 62%,#1a1410 100%);color:#f2eee4;break-after:page;position:relative;overflow:hidden}
+  #pdf-capa::before{content:'';position:absolute;right:-60mm;top:-40mm;width:210mm;height:210mm;border-radius:50%;
+    border:1.5px solid rgba(201,162,132,.22);box-shadow:0 0 0 22mm rgba(201,162,132,.05),0 0 0 48mm rgba(201,162,132,.035)}
+  #pdf-capa .pc-logo{width:70mm;height:30mm;background:no-repeat left center/contain;margin-bottom:34mm;position:relative}
+  #pdf-capa .pc-k{font:600 10.5pt/1 var(--sans);letter-spacing:.34em;text-transform:uppercase;color:#c9a284;position:relative}
+  #pdf-capa h1{font:400 44pt/1.05 var(--serif);margin:9mm 0 6mm;color:#f2eee4;letter-spacing:-.01em;position:relative}
+  #pdf-capa .pc-mes{font:italic 400 22pt/1.2 var(--serif);color:#c9a284;position:relative}
+  #pdf-capa .pc-reg{width:38mm;height:0;border-top:2px solid #92705d;margin:14mm 0 12mm;position:relative}
+  #pdf-capa ol{list-style:none;margin:0;padding:0;position:relative;max-width:230mm}
+  #pdf-capa li{display:grid;grid-template-columns:20mm 1fr auto;gap:0 6mm;align-items:baseline;padding:4.2mm 0;
+    border-top:1px solid rgba(242,238,228,.12)}
+  #pdf-capa li:last-child{border-bottom:1px solid rgba(242,238,228,.12)}
+  #pdf-capa li .n{font:400 20pt/1 var(--serif);color:#92705d}
+  #pdf-capa li .t{font:500 13pt/1.25 var(--serif);color:#f2eee4}
+  #pdf-capa li .q{grid-column:2;font:italic 400 9.5pt/1.4 var(--serif);color:#b9ad9f;margin-top:1.2mm}
+  #pdf-capa li .m{font:600 8.5pt/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:#8d8175}
+  #pdf-capa .pc-pe{margin-top:auto;font:500 8.5pt/1.5 var(--sans);letter-spacing:.22em;text-transform:uppercase;color:#8d8175;position:relative}
+
+  /* ---------- ato: faixa escura com o número grande ---------- */
+  section.ato{break-before:page;padding:0!important;min-height:0!important;border-bottom:0!important}
+  .ato-head{break-after:avoid;min-height:0!important;height:auto!important;margin:0 0 18px!important;
+    padding:22px 30px 22px 28px!important;background:#211a14;border-left:7px solid #92705d;border-bottom:0!important;
+    border-radius:0 3px 3px 0;overflow:hidden}
+  .ato-head::before{color:#f2eee4!important;opacity:.07!important;font-size:130px!important;top:-12px!important;right:18px!important}
+  .ato-head .ato-n{color:#c9a284!important}
+  .ato-head h2{color:#f2eee4!important;font-size:34px!important}
+  .ato-head .ato-q{color:#cfc4b6!important}
+  .ato-head .ato-min{color:#c9a284!important;border-color:rgba(201,162,132,.45)!important;top:18px!important;right:30px!important;
+    background:rgba(255,255,255,.04)}
+  .ato-sub{break-after:avoid}
   .ato-slot{break-inside:auto}
   .fig,.tw,.kpis,.kpi,.hl{break-inside:avoid}
   .tw,.twz{overflow:visible!important;max-height:none!important}
