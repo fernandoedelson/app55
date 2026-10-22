@@ -356,6 +356,8 @@ table.dt tfoot .right{text-align:right}
 .pv-n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--espresso);color:#e3cdb6;font-family:var(--serif);font-weight:500;display:flex;align-items:center;justify-content:center;font-size:13px}
 .pv b{font-size:13.5px;letter-spacing:.01em}.pv p{margin:5px 0 0;font-size:12.5px;color:var(--ink2);line-height:1.6}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.two>*{min-width:0}
+.two table.dt th:not(.right),.two table.dt td:not(.right){white-space:normal}
 .defs{display:grid;grid-template-columns:190px 1fr;gap:2px 18px;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:16px 18px}
 .defs dt{font-weight:600}.defs dd{margin:0;color:var(--ink2);padding-bottom:9px;line-height:1.65}
 .sources{font-size:12px;color:var(--muted);margin:18px 0 6px;padding-top:12px;border-top:1px solid var(--grid);letter-spacing:.02em}

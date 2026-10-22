@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Leitura das planilhas — GERADO por ferramentas/extrair_parser.py a partir do gerar_relatorio.py
-do Kit na tag gabarito-v18. Não editar à mão: é o mesmo código que leu as fontes do gabarito.
+do Kit na tag gabarito-v19. Não editar à mão: é o mesmo código que leu as fontes do gabarito.
 
 A montagem do HTML não vem junto (isso é do Kit). As pastas de cada competência entram por
 definir_pastas(); o resto do arquivo é cópia literal.

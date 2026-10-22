@@ -1,5 +1,5 @@
 /* ===== +55 · motor de leitura dos Custos =====
-   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v18.
+   GERADO por ferramentas/extrair_desenho.py a partir do app.js do Kit na tag gabarito-v19.
    Não editar à mão: é o mesmo código que escreveu o texto das leituras no gabarito. Os números
    (períodos A e B, produtos, materiais, centros de custo...) chegam do servidor no formato do Kit.
    ====================================================================== */

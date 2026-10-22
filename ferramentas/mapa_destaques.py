@@ -11,7 +11,7 @@ import subprocess
 import sys
 
 KIT = r'C:\Scripts\Kit_Relatorio_Vendas_DRE_55Design'
-TAG = 'gabarito-v18'
+TAG = 'gabarito-v19'
 
 
 def trechos(js):
