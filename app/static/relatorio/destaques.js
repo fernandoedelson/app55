@@ -1,5 +1,5 @@
 /* ===== +55 · régua de destaques (runtime) =====
-   GERADO por ferramentas/extrair_desenho.py a partir do insights.js do Kit na tag gabarito-v20.
+   GERADO por ferramentas/extrair_desenho.py a partir do insights.js do Kit na tag gabarito-v21.
    Só apresentação: quem decide se o destaque existe, com que número e para qual perfil
    é o servidor (app/destaques). Os textos são montados em destaques_texto.js.
    ====================================================================== */

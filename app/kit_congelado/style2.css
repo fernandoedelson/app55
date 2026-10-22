@@ -208,6 +208,11 @@ th[data-memoria],.kpi[data-memoria] .kpi-l{cursor:help;text-decoration:underline
 tr.sel .cdm-sin{color:var(--blue)}
 .dt tr.cdm-itens>td{background:#fbf8f2;padding:6px 10px 14px 36px;white-space:normal}
 .cdm-itens .tw{margin:0}.cdm-itens table{font-size:12.5px}
+#cartdin-previsao-det .tw,#cartdin-andamento-det .tw,#cartdin-status-detail .tw{overflow-x:visible}
+#cartdin-previsao-det table.dt,#cartdin-andamento-det table.dt,#cartdin-status-detail table.dt{width:100%}
+#cartdin-previsao-det table.dt th,#cartdin-previsao-det table.dt td,#cartdin-andamento-det table.dt th,#cartdin-andamento-det table.dt td,#cartdin-status-detail table.dt th,#cartdin-status-detail table.dt td{padding:9px 8px;white-space:normal}
+#cartdin-previsao-det table.dt .right,#cartdin-andamento-det table.dt .right,#cartdin-status-detail table.dt .right{white-space:nowrap}
+#cartdin-previsao-det .dt tr.cdm-itens>td,#cartdin-andamento-det .dt tr.cdm-itens>td,#cartdin-status-detail .dt tr.cdm-itens>td{padding:6px 8px 12px 22px}
 .kpis.k5{grid-template-columns:repeat(5,1fr)}
 @media (max-width:900px){.kpis.k5{grid-template-columns:repeat(2,1fr)}}
 .ic-dre th.grp{text-align:center;border-bottom:1px solid var(--border)}
