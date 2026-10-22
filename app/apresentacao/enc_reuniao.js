@@ -13,11 +13,8 @@
 
   var st = document.createElement('style');
   st.textContent =
-    '#enc-bt{position:fixed;right:22px;bottom:22px;z-index:85;display:inline-flex;align-items:center;gap:8px;min-height:42px;' +
-    'padding:10px 18px;border:0;border-radius:999px;background:var(--espresso,#211a14);color:#f2eee4;cursor:pointer;' +
-    'font:500 13px/1 var(--sans);letter-spacing:.06em;box-shadow:0 10px 30px -10px rgba(33,26,20,.6)}' +
-    '#enc-bt:hover{background:#3a2e24}#enc-bt b{display:inline-block;min-width:20px;padding:3px 6px;border-radius:999px;' +
-    'background:var(--blue,#92705d);font-size:11px;text-align:center}' +
+    '#enc-bt b{display:inline-block;min-width:16px;margin-left:6px;padding:1px 5px;border-radius:999px;background:var(--blue,#92705d);color:#f2eee4;' +
+    'font-size:9.5px;letter-spacing:0;text-align:center;vertical-align:1px}' +
     '#enc-bt:focus-visible,#enc-p button:focus-visible{outline:2px solid var(--blue,#92705d);outline-offset:2px}' +
     '#enc-p{position:fixed;top:0;right:0;bottom:0;z-index:90;width:min(440px,100vw);display:flex;flex-direction:column;' +
     'background:#fbf9f4;color:var(--ink,#2a211b);box-shadow:-20px 0 60px -20px rgba(33,26,20,.45);' +
@@ -47,9 +44,10 @@
     '@media (prefers-reduced-motion:reduce){#enc-p{transition:none}}';
   document.head.appendChild(st);
 
-  var bt = document.createElement('button');
-  bt.id = 'enc-bt'; bt.type = 'button'; bt.setAttribute('aria-controls', 'enc-p');
-  document.body.appendChild(bt);
+  /* discreto, na barra lateral, junto de "Apresentar" (o botão fixo sobre a reunião saiu da tela) */
+  var bt = document.createElement('a');
+  bt.id = 'enc-bt'; bt.href = '#'; bt.setAttribute('role', 'button'); bt.setAttribute('aria-controls', 'enc-p');
+  (document.querySelector('#side .side-tools') || document.getElementById('side') || document.body).appendChild(bt);
   var p = document.createElement('aside');
   p.id = 'enc-p'; p.setAttribute('aria-label', 'Encaminhamentos da reunião'); p.hidden = true;
   p.innerHTML = '<header><div><p>Reunião · ' + esc(C.comp) + '</p><h2>Encaminhamentos</h2></div>' +
@@ -135,7 +133,7 @@
     aberto = false; p.classList.remove('on'); bt.setAttribute('aria-expanded', 'false');
     setTimeout(function () { if (!aberto) p.hidden = true; }, 230); bt.focus();
   }
-  bt.addEventListener('click', function () { aberto ? fechar() : abrir(); });
+  bt.addEventListener('click', function (ev) { ev.preventDefault(); aberto ? fechar() : abrir(); });
   p.querySelector('#enc-x').addEventListener('click', fechar);
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && aberto) { ev.stopPropagation(); fechar(); } }, true);
   /* as setas e as teclas do modo apresentação não podem agir enquanto se digita no painel */

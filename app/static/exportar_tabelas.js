@@ -370,6 +370,54 @@
     const base = 'font-family:Jost,"Avenir Next","Century Gothic","Segoe UI",sans-serif;font-size:7.5pt;letter-spacing:.16em;text-transform:uppercase;color:#9c8e80;vertical-align:top;padding-top:4mm;';
     st.textContent = '@page{@bottom-left{content:"' + txt + '";' + base + '}@bottom-right{content:counter(page);' + base + '}}';
   }
+  /* título + gráfico/tabela + legenda formam um grupo que não se parte entre páginas (o título nunca fica sozinho no pé);
+     o cabeçalho do ato vai junto do primeiro grupo. Feito só ao imprimir: na tela, o grupo é transparente (display:contents). */
+  function juntarTitulos() {
+    document.querySelectorAll('section.ato').forEach(sec => {
+      if (sec.dataset.juntado) return;
+      sec.dataset.juntado = '1';
+      sec.querySelectorAll('.ato-slot > h3').forEach(h => {
+        const n = h.nextElementSibling;
+        if (!n || h.parentElement.classList.contains('pdf-junto')) return;
+        const g = [h, n];
+        if (n.nextElementSibling && n.nextElementSibling.matches('p.cap')) g.push(n.nextElementSibling);
+        const w = document.createElement('div'); w.className = 'pdf-junto';
+        h.parentElement.insertBefore(w, h); g.forEach(x => w.appendChild(x));
+      });
+      sec.querySelectorAll(':scope > .ato-sub').forEach(sub => {   // o subtítulo do trecho vai junto do primeiro grupo dele
+        const slot = sub.nextElementSibling, g = slot && slot.classList.contains('ato-slot') ? slot.querySelector(':scope > .pdf-junto') : null;
+        if (!g) {                                  // o slot não abre com um grupo (ex.: começa por um aviso): embrulha subtítulo + slot
+          if (slot && slot.classList.contains('ato-slot') && !(sub.previousElementSibling && sub.previousElementSibling.classList.contains('ato-head'))) {
+            const w = document.createElement('div'); w.className = 'pdf-junto'; w.dataset.novoTrecho = '1';
+            sub.parentElement.insertBefore(w, sub); w.appendChild(sub); w.appendChild(slot);
+          }
+          return;
+        }
+        g.insertBefore(sub, g.firstChild);
+        const logo = sub.parentElement; // (o subtítulo agora mora no grupo)
+        if (!(g.parentElement.previousElementSibling && g.parentElement.previousElementSibling.classList.contains('ato-head')) && logo) g.dataset.novoTrecho = '1';
+      });
+      const cab = sec.querySelector('.ato-head'), primeiro = sec.querySelector('.pdf-junto');
+      if (cab && primeiro && !primeiro.parentElement.classList.contains('pdf-junto-ato')) {
+        const slot = primeiro.parentElement, w = document.createElement('div'); w.className = 'pdf-junto pdf-junto-ato';
+        sec.insertBefore(w, cab); w.appendChild(cab);
+        // o grupo só entra se o slot dele for o primeiro conteúdo do ato (sem subtítulo no meio)
+        const antes = Array.from(sec.children).filter(c => c !== w);
+        if (antes[0] === slot) w.appendChild(slot); else sec.insertBefore(cab, w), w.remove();
+      }
+    });
+  }
+  function medirGrupos() {
+    const raiz = document.documentElement;
+    raiz.classList.add('pdf-medindo');                    // largura da folha impressa (A4 a 60%), sem a barra lateral
+    document.querySelectorAll('.pdf-junto:not(.pdf-junto-ato)').forEach(w => {
+      w.classList.toggle('pdf-grande', w.dataset.novoTrecho === '1' || w.getBoundingClientRect().height > 1250);
+    });
+    raiz.classList.remove('pdf-medindo');
+  }
+  window.addEventListener('beforeprint', () => { juntarTitulos(); medirGrupos(); });
+  if (/montar_pdf/.test(location.search)) window.addEventListener('load', () => setTimeout(() => { juntarTitulos(); medirGrupos(); }, 2600));
+
   window.addEventListener('beforeprint', montarCapa);
   window.addEventListener('load', () => setTimeout(montarCapa, 2500));
 

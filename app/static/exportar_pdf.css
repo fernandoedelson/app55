@@ -2,9 +2,19 @@
    Só vale na impressão; a tela não muda. A reunião é desenhada para ~1150 px de largura: o zoom leva essa
    largura para dentro da folha, em vez de cortar tabelas e gráficos. A capa e o rodapé por página são montados
    pelo exportar_tabelas.js (precisam do mês e do roteiro). */
-@page{size:A4 portrait;margin:11mm 9mm 15mm}
+@page{size:A4 portrait;margin:14mm 9mm 15mm;
+  /* a linha marrom no topo de TODAS as páginas (a capa, de margem zero, fica sem) */
+  @top-left{content:"";width:33.4%;border-top:2.4mm solid #92705d}
+  @top-center{content:"";width:33.3%;border-top:2.4mm solid #92705d}
+  @top-right{content:"";width:33.3%;border-top:2.4mm solid #92705d}}
 @page:first{margin:0}
 #pdf-capa{display:none}
+.pdf-junto{display:contents}
+html.pdf-medindo{width:1209px}
+html.pdf-medindo main{margin-left:0!important}
+html.pdf-medindo .pdf-junto{display:block}
+html.pdf-medindo .hl .hl-body{display:block!important;margin-top:0;padding:14px 18px}
+html.pdf-medindo .hl-bar,html.pdf-medindo .figzoom{display:none}
 @media print{
   html{zoom:.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -37,7 +47,7 @@
   /* ---------- ato: faixa escura com o número grande ---------- */
   section.ato{break-before:page;padding:0!important;min-height:0!important;border-bottom:0!important}
   .ato-head{break-after:avoid;min-height:0!important;height:auto!important;margin:0 0 18px!important;
-    padding:22px 30px 22px 28px!important;background:#211a14;border-left:7px solid #92705d;border-top:6px solid #92705d;border-bottom:0!important;
+    padding:22px 30px 22px 28px!important;background:#211a14;border-left:7px solid #92705d;border-bottom:0!important;
     border-radius:0 3px 3px 0;overflow:hidden}
   .ato-head::before{color:#f2eee4!important;opacity:.07!important;font-size:130px!important;top:-12px!important;right:18px!important}
   .ato-head .ato-n{color:#c9a284!important}
@@ -45,9 +55,17 @@
   .ato-head .ato-q{color:#cfc4b6!important}
   .ato-head .ato-min{color:#c9a284!important;border-color:rgba(201,162,132,.45)!important;top:18px!important;right:30px!important;
     background:rgba(255,255,255,.04)}
-  .ato-sub{break-after:avoid}
+  /* título nunca fica sozinho no pé da página: vai junto com o gráfico ou a tabela dele */
+  h3,.ato-sub,.sec-head,.fb-moved,.cap{break-after:avoid;break-inside:avoid}
   .ato-slot{break-inside:auto}
-  .fig,.tw,.kpis,.kpi,.hl{break-inside:avoid}
+  .fig,.tw,.twz,.kpis,.kpi,.hl,.callout,.cxgrp-table,p.cap{break-inside:avoid}
+  p.cap{break-before:avoid}
+  .pdf-junto{display:flow-root;break-inside:avoid;page-break-inside:avoid}
+  h3{page-break-after:avoid}
+  .pdf-grande{break-before:page;break-inside:auto}
+  .pdf-grande .fig{break-inside:auto}
+  tr{break-inside:avoid}
+  section,section.ato,.ato-slot,main{break-inside:auto!important}
   .tw,.twz{overflow:visible!important;max-height:none!important}
   table.dt{font-size:11.5px}
   .anexo-abre,.anexo-head{display:none!important}
