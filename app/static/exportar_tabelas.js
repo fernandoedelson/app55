@@ -51,6 +51,10 @@
 
   /* ---------------------------------------------------------------- texto da tela -> célula do Excel */
   const FORMATOS = ['gen', 'money', 'money2', 'pct0', 'pct1', 'pct2', 'int', 'dec1', 'dec2', 'num'];
+  /* com "+" explícito na tela (+7,3%, +R$ 1.369.335) o formato também mostra o "+" */
+  const MAIS = { money: 169, money2: 170, pct0: 171, pct1: 172, pct2: 173, int: 174, dec1: 175, dec2: 176, num: 177 };
+  const CODIGOS = { 169: '+&quot;R$ &quot;#,##0;-&quot;R$ &quot;#,##0;&quot;R$ &quot;0', 170: '+&quot;R$ &quot;#,##0.00;-&quot;R$ &quot;#,##0.00;&quot;R$ &quot;0.00',
+    171: '+0%;-0%;0%', 172: '+0.0%;-0.0%;0.0%', 173: '+0.00%;-0.00%;0.00%', 174: '+#,##0;-#,##0;0', 175: '+#,##0.0;-#,##0.0;0.0', 176: '+#,##0.00;-#,##0.00;0.00', 177: '+0;-0;0' };
   const NUMFMT = { gen: 0, money: 164, money2: 165, pct0: 9, pct1: 166, pct2: 167, int: 3, dec1: 168, dec2: 4, num: 1 };
   const MIL = '(?:\\d{1,3}(?:\\.\\d{3})+|\\d+)';          // 1.234.567 ou 1234
   const RE_NUM = new RegExp('^([+-]?)' + MIL + '(?:,(\\d+))?$');
@@ -66,17 +70,17 @@
     let m;
     if ((m = RE_MONEY.exec(s))) {
       const neg = m[1] === '-' || m[2] === '-', v = aNumero(m[3], m[4]);
-      return { v: neg ? -v : v, t: 'n', f: m[4] ? 'money2' : 'money' };
+      return { v: neg ? -v : v, t: 'n', f: m[4] ? 'money2' : 'money', mais: m[1] === '+' || m[2] === '+' };
     }
     if ((m = RE_PCT.exec(s))) {
       const v = Math.round(aNumero(m[2], m[3]) * 1e8 / 100) / 1e8, d = (m[3] || '').length;
-      return { v: m[1] === '-' ? -v : v, t: 'n', f: d === 0 ? 'pct0' : d === 1 ? 'pct1' : 'pct2' };
+      return { v: m[1] === '-' ? -v : v, t: 'n', f: d === 0 ? 'pct0' : d === 1 ? 'pct1' : 'pct2', mais: m[1] === '+' };
     }
     if ((m = RE_NUM.exec(s)) && !/^-?0\d/.test(s)) {
       const sem = s.replace(/^[+-]/, ''), agrupado = sem.indexOf('.') >= 0, dec = (m[2] || '').length;
       if (!agrupado && !dec && sem.length > 6) return { v: s, t: 's', f: 'gen' };     // código/pedido: continua texto
       const v = aNumero(sem, m[2]);
-      return { v: m[1] === '-' ? -v : v, t: 'n', f: dec ? (dec === 1 ? 'dec1' : 'dec2') : agrupado ? 'int' : 'num' };
+      return { v: m[1] === '-' ? -v : v, t: 'n', f: dec ? (dec === 1 ? 'dec1' : 'dec2') : agrupado ? 'int' : 'num', mais: m[1] === '+' };
     }
     return { v: s, t: 's', f: 'gen' };
   }
@@ -99,8 +103,7 @@
         const x = celula(td.innerText);
         x.b = nocab || td.tagName === 'TH' || peso >= 600;
         x.cab = nocab;
-        const al = getComputedStyle(td).textAlign;
-        x.al = al === 'right' || al === 'end' ? 'right' : al === 'center' ? 'center' : 'left';
+        x.al = c === 0 ? 'left' : 'right';                // descrição à esquerda; todo o resto à direita
         linha[c] = x;
         for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) if (i || j) ocupa[(r + i) + ',' + (c + j)] = 1;
         if (cs > 1 || rs > 1) mesclas.push([r, c, r + rs - 1, c + cs - 1]);
@@ -121,10 +124,10 @@
   let XFS = [], XIDX = {};
   function estilo(x) {
     if (x.cab) return 1;                                  // cabeçalho: centralizado
-    const al = x.t === 'n' ? 'right' : (x.al || 'left'), k = x.f + '|' + (x.b ? 1 : 0) + '|' + al;
+    const al = x.al || (x.t === 'n' ? 'right' : 'left'), k = x.f + (x.mais ? '+' : '') + '|' + (x.b ? 1 : 0) + '|' + al;
     if (!(k in XIDX)) {
       XIDX[k] = XFS.length + 2;
-      XFS.push('<xf numFmtId="' + NUMFMT[x.f] + '" fontId="' + (x.b ? 1 : 0) + '" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyAlignment="1"><alignment horizontal="' + al + '" vertical="center"/></xf>');
+      XFS.push('<xf numFmtId="' + (x.mais && MAIS[x.f] ? MAIS[x.f] : NUMFMT[x.f]) + '" fontId="' + (x.b ? 1 : 0) + '" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyAlignment="1"><alignment horizontal="' + al + '" vertical="center"/></xf>');
     }
     return XIDX[k];
   }
@@ -159,9 +162,10 @@
     const xfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>',
       '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'].concat(XFS);
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-      + '<numFmts count="5"><numFmt numFmtId="164" formatCode="&quot;R$ &quot;#,##0;-&quot;R$ &quot;#,##0"/>'
+      + '<numFmts count="14">' + '<numFmt numFmtId="164" formatCode="&quot;R$ &quot;#,##0;-&quot;R$ &quot;#,##0"/>'
       + '<numFmt numFmtId="165" formatCode="&quot;R$ &quot;#,##0.00;-&quot;R$ &quot;#,##0.00"/><numFmt numFmtId="166" formatCode="0.0%"/>'
-      + '<numFmt numFmtId="167" formatCode="0.00%"/><numFmt numFmtId="168" formatCode="#,##0.0"/></numFmts>'
+      + '<numFmt numFmtId="167" formatCode="0.00%"/><numFmt numFmtId="168" formatCode="#,##0.0"/>'
+      + Object.keys(CODIGOS).map(k => '<numFmt numFmtId="' + k + '" formatCode="' + CODIGOS[k] + '"/>').join('') + '</numFmts>'
       + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
       + '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
       + '<fill><patternFill patternType="solid"><fgColor rgb="FFF2EEE4"/><bgColor indexed="64"/></patternFill></fill></fills>'
