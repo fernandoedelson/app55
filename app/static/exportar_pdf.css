@@ -2,11 +2,9 @@
    Só vale na impressão; a tela não muda. A reunião é desenhada para ~1150 px de largura: o zoom leva essa
    largura para dentro da folha, em vez de cortar tabelas e gráficos. A capa e o rodapé por página são montados
    pelo exportar_tabelas.js (precisam do mês e do roteiro). */
-@page{size:A4 portrait;margin:14mm 9mm 15mm;
-  /* a linha marrom no topo de TODAS as páginas (a capa, de margem zero, fica sem) */
-  @top-left{content:"";width:33.4%;border-top:2.4mm solid #92705d}
-  @top-center{content:"";width:33.3%;border-top:2.4mm solid #92705d}
-  @top-right{content:"";width:33.3%;border-top:2.4mm solid #92705d}}
+/* A folha inteira é "papel": sem margem em cima e dos lados (o respiro bege vem do preenchimento do main, repetido em cada página)
+   e só o rodapé tem faixa própria, pintada da mesma cor. */
+@page{size:A4 portrait;margin:0 0 15mm 0;background:#f7f3ea}
 @page:first{margin:0}
 #pdf-capa{display:none}
 .pdf-junto{display:contents}
@@ -19,7 +17,9 @@ html.pdf-medindo .hl-bar,html.pdf-medindo .figzoom{display:none}
   html{zoom:.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   html,body{background:#f7f3ea!important}
-  main{margin-left:0!important;max-width:none!important}
+  /* respiro bege igual em cima, embaixo e nos lados de TODA página (o zoom de 60% faz 15mm valer 9mm no papel) */
+  main{margin-left:0!important;max-width:none!important;padding:15mm 15mm 10mm!important;
+    -webkit-box-decoration-break:clone;box-decoration-break:clone}
   .rv{opacity:1!important;transform:none!important;transition:none!important}
   #side,#navtoggle,#admintoggle,#adminpanel,#presentbtn,#curtain,.side-tools,.filterbar,.figzoom,.cmt-btn,.hl-bar,
   .quoteband,.fb-moved,.xl-flut,.xl-aviso,.enc-painel,[id^="enc-"]{display:none!important}

@@ -368,7 +368,9 @@
     if (!st) { st = document.createElement('style'); st.id = 'pdf-rodape'; document.head.appendChild(st); }
     const txt = ('+55 Design · Roteiro executivo · ' + mes).replace(/["\\]/g, '');
     const base = 'font-family:Jost,"Avenir Next","Century Gothic","Segoe UI",sans-serif;font-size:7.5pt;letter-spacing:.16em;text-transform:uppercase;color:#9c8e80;vertical-align:top;padding-top:4mm;';
-    st.textContent = '@page{@bottom-left{content:"' + txt + '";' + base + '}@bottom-right{content:counter(page);' + base + '}}';
+    const caixa = 'background:#f7f3ea;';
+    st.textContent = '@page{@bottom-left{content:"' + txt + '";width:70%;padding-left:9mm;' + caixa + base + '}'
+      + '@bottom-right{content:counter(page);width:30%;padding-right:9mm;text-align:right;' + caixa + base + '}}';
   }
   /* título + gráfico/tabela + legenda formam um grupo que não se parte entre páginas (o título nunca fica sozinho no pé);
      o cabeçalho do ato vai junto do primeiro grupo. Feito só ao imprimir: na tela, o grupo é transparente (display:contents). */
