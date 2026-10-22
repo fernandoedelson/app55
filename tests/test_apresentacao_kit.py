@@ -36,6 +36,9 @@ def _aprovado():
 def _sem_a_troca(html):
     """O documento servido com o script do roteiro devolvido ao atos.js do Kit e sem o painel ao vivo."""
     from app.apresentacao import kit_atos
+    if '<style id="exportar-55-css">' in html:        # a camada de exportação (Excel/PDF) entra depois do Kit
+        i = html.index('<style id="exportar-55-css">')
+        html = html[:i] + html[html.index('</script>', html.index('<script id="exportar-55">')) + len('</script>'):]
     if '<script>window.ENC_55=' in html:
         html = html[:html.index('<script>window.ENC_55=')] + html[html.rindex('</body>'):]
     ini = html.index('<script>window.ROTEIRO_55=')
@@ -184,3 +187,14 @@ def test_kit_mexido_para_a_geracao(app, tmp_path, monkeypatch):
     monkeypatch.setattr(kit_atos, 'PASTA_KIT', str(copia))
     with pytest.raises(RuntimeError):
         kit_atos.conferir_manifesto()
+
+
+def test_a_reuniao_traz_o_excel_por_tabela_e_o_pdf_e_a_lista_oferece_os_tres_formatos(app, admin):
+    html = admin.get('/apresentacao/2026-07').get_data(as_text=True)
+    assert 'window.EXPORTAR_55={"comp":"2026-07","pode":true}' in html
+    assert 'function baixarReuniao' in html and '@page{size:A4 portrait' in html
+    lista = admin.get('/apresentacao/').get_data(as_text=True)
+    assert 'Baixar o HTML' in lista and 'Baixar o PDF' in lista and 'Baixar o Excel' in lista
+    assert 'acao=pdf' in lista and 'acao=excel' in lista
+    baixada = admin.get('/apresentacao/2026-07/baixar').get_data(as_text=True)
+    assert 'window.EXPORTAR_55=' in baixada             # o arquivo para levar também exporta, sem a aplicação

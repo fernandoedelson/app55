@@ -112,7 +112,7 @@ def _json_script(obj):
     return json.dumps(obj, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 
 
-def montar(html_kit, roteiro, comentarios=None, extra=''):
+def montar(html_kit, roteiro, comentarios=None, extra='', exportar=None):
     """O documento do Kit com o roteiro pilotado na aplicação.
 
     Uma troca só, e conferida: o <script> do atos.js do Kit vira o atos_app.js (a mesma camada de
@@ -127,16 +127,28 @@ def montar(html_kit, roteiro, comentarios=None, extra=''):
     novo = ('<script>' + dados + '</script><script>'
             + io.open(ATOS_APP, encoding='utf-8', newline='').read() + '</script>')
     html = html_kit.replace(velho, novo)
+    if exportar:
+        extra = _camada_exportar(exportar) + (extra or '')
     if extra:
         i = html.rindex('</body>')
         html = html[:i] + extra + html[i:]
     return html
 
 
-def documento(codigo, roteiro, comentarios=None, extra=''):
+def _camada_exportar(cfg):
+    """Excel por tabela, Excel e PDF da reunião (static/exportar_tabelas.js e exportar_pdf.css), embutidos no
+    documento: o arquivo para levar continua sozinho. Entram depois do documento do Kit, que segue idêntico."""
+    pasta = os.path.join(os.path.dirname(PASTA_KIT), 'static')
+    js = io.open(os.path.join(pasta, 'exportar_tabelas.js'), encoding='utf-8', newline='').read()
+    css = io.open(os.path.join(pasta, 'exportar_pdf.css'), encoding='utf-8', newline='').read()
+    return ('<style id="exportar-55-css">' + css + '</style><script id="exportar-55">window.EXPORTAR_55='
+            + _json_script(cfg) + ';' + js + '</script>')
+
+
+def documento(codigo, roteiro, comentarios=None, extra='', exportar=None):
     """A reunião da competência: o Kit (em cache) montado com o roteiro em vigor e os comentários."""
     html = io.open(obter(codigo), encoding='utf-8', newline='').read()
-    return montar(html, roteiro, comentarios, extra)
+    return montar(html, roteiro, comentarios, extra, exportar)
 
 
 def pode_ver_inteiro(ctx):

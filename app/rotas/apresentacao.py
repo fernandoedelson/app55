@@ -102,7 +102,8 @@ def _documento(comp, ao_vivo=False):
     roteiro = {'atos': atos, 'anexos': A.ANEXOS, 'ocultar': A.ocultos_nos_anexos(atos),
                'repetidos': A.repetidos_nos_anexos(atos)}
     extra = _painel_encaminhamentos(comp, atos) if ao_vivo else ''
-    return kit_atos.documento(comp, roteiro, _comentarios_da_reuniao(comp), extra)
+    exportar = {'comp': comp, 'pode': bool(U.pode(g.usuario, 'recurso:exportar'))}
+    return kit_atos.documento(comp, roteiro, _comentarios_da_reuniao(comp), extra, exportar)
 
 
 @bp.route('/<codigo>/baixar')

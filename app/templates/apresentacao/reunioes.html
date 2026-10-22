@@ -33,7 +33,9 @@
       <a class="btn btn-primary btn-sm" href="{{ url_for('apresentacao.ver', codigo=r.codigo) }}" target="_blank" rel="noopener">Abrir a reunião ↗</a>
       <a class="btn btn-sm" href="{{ url_for('apresentacao.encaminhamentos', codigo=r.codigo) }}">Encaminhamentos</a>
       {% if pode_pilotar %}<a class="btn btn-sm" href="{{ url_for('apresentacao.pilotar', codigo=r.codigo) }}">Pilotar</a>{% endif %}
-      {% if pode_baixar %}<a class="btn btn-sm" href="{{ url_for('apresentacao.baixar', codigo=r.codigo) }}">Baixar o HTML</a>{% endif %}
+      {% if pode_baixar %}<a class="btn btn-sm" href="{{ url_for('apresentacao.baixar', codigo=r.codigo) }}">Baixar o HTML</a>
+      <a class="btn btn-sm" href="{{ url_for('apresentacao.ver', codigo=r.codigo, acao='pdf') }}" target="_blank" rel="opener" title="Abre a reunião no formato de papel (A4); na janela de impressão, escolha Salvar como PDF">Baixar o PDF</a>
+      <a class="btn btn-sm" href="{{ url_for('apresentacao.ver', codigo=r.codigo, acao='excel') }}" target="_blank" rel="opener" title="Uma planilha com todas as tabelas dos atos, uma por aba">Baixar o Excel</a>{% endif %}
     </p>
   </article>
   {% endfor %}
