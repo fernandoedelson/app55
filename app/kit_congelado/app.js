@@ -981,11 +981,11 @@ function cdAndamentoMes(C){
   const peds=(C.status_pedidos||{}).ANDAMENTO||[], por={};
   peds.forEach(p=>{ const pr=ehPR(p[1]), sh=cdEhShowroom(p[1]);
     (p[4]||[]).forEach(l=>{ if(!l[4]) return; const m=String(l[4]).split('/'); const ym=(+m[2])*100+(+m[1]);
-      const o=por[ym]||(por[ym]={qF:0,vF:0,qprF:0,qS:0,vS:0,qprS:0}); const q=l[1]||0, v=l[2]||0;
-      if(sh){ o.qS+=q; o.vS+=v; if(pr) o.qprS+=q; } else { o.qF+=q; o.vF+=v; if(pr) o.qprF+=q; } }); });
+      const o=por[ym]||(por[ym]={qF:0,vF:0,qprF:0,vprF:0,qS:0,vS:0,qprS:0,vprS:0}); const q=l[1]||0, v=l[2]||0;
+      if(sh){ o.qS+=q; o.vS+=v; if(pr){ o.qprS+=q; o.vprS+=v; } } else { o.qF+=q; o.vF+=v; if(pr){ o.qprF+=q; o.vprF+=v; } } }); });
   const yms=Object.keys(por).map(Number).sort((a,b)=>a-b); if(!yms.length) return null;
   const col=k=>yms.map(y=>por[y][k]), soma=(a,b)=>a.map((x,i)=>x+b[i]);
-  return {yms:yms, qFat:col('qF'), qShow:col('qS'), vFat:col('vF'), vShow:col('vS'), qprFat:col('qprF'), qprShow:col('qprS'),
+  return {yms:yms, qFat:col('qF'), qShow:col('qS'), vFat:col('vF'), vShow:col('vS'), qprFat:col('qprF'), qprShow:col('qprS'), vprFat:col('vprF'), vprShow:col('vprS'),
     qtd:soma(col('qF'),col('qS')), valor:soma(col('vF'),col('vS')), qtdPR:soma(col('qprF'),col('qprS'))};
 }
 /* itens de um pedido abertos logo abaixo da linha dele (agrupamento de linhas); clicar de novo fecha */
@@ -1081,17 +1081,28 @@ function renderCarteiraDinamica(){
 
   if(C.pr) s+=prCap(prSoma(C.pr.adiado),prSoma(C.evol_adiado.valor),'dos pedidos adiados');
   s+=cap('Clique numa barra para ver os pedidos adiados vendidos naquele mês.')+'<div id="cartdin-adiado-det"></div>';
-  s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
-  s+='<div id="cartdin-previsao-fig">'+fig(evolCombo(C.andamento_entrega.yms.map(ymLab),[
-    {name:'Previsto',values:C.andamento_entrega.valor,color:SER[0]},
-  ],C.andamento_entrega.acum,{valfmt:v=>mi(v,1),partes:C.pr?[C.pr.entrega]:null,clicavel:true}),
+  /* mesma separação do "Em andamento": o que vira faturamento e o que é showroom (não vira). O acumulado é só do que fatura. */
+  const _pv=cdAndamentoMes(C), _pvY=C.andamento_entrega.yms;
+  const _pvCol=k=>_pvY.map(ym=>{ const i=_pv?_pv.yms.indexOf(ym):-1; return i<0?0:_pv[k][i]; });
+  const _pvSh=!!_pv&&(prSoma(_pv.qShow)>0||prSoma(_pv.vShow)>0);
+  const _pvLeg=(rot,q,v)=>rot+' · '+nf(q,0)+' peças · '+money(v);
+  s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado'+(_pvSh?' do que fatura':''),'cd-previsao');
+  let _pvSer,_pvAc,_pvPartes;
+  if(_pvSh){ const vF=_pvCol('vFat'), vS=_pvCol('vShow'); let ac=0; _pvAc=vF.map(x=>(ac+=x));
+    _pvSer=[{name:'Vira faturamento',leg:_pvLeg('Vira faturamento',prSoma(_pv.qFat),prSoma(vF)),values:vF,color:SER[0]},
+            {name:'Não vira faturamento (showroom)',leg:_pvLeg('Não vira faturamento (showroom)',prSoma(_pv.qShow),prSoma(vS)),values:vS,color:'#8e8a84'}];
+    _pvPartes=C.pr?[_pvCol('vprFat'),_pvCol('vprShow')]:null;
+  } else { _pvAc=C.andamento_entrega.acum;
+    _pvSer=[{name:'Previsto',leg:_pv?_pvLeg('Previsto',prSoma(_pv.qtd),prSoma(C.andamento_entrega.valor)):undefined,values:C.andamento_entrega.valor,color:SER[0]}];
+    _pvPartes=C.pr?[C.pr.entrega]:null; }
+  s+='<div id="cartdin-previsao-fig">'+fig(evolCombo(_pvY.map(ymLab),_pvSer,_pvAc,{valfmt:v=>mi(v,1),dashName:_pvSh?'Acumulado do que fatura':'Acumulado',partes:_pvPartes,clicavel:true}),
     ins('carteiraPicoEntrega')
     ||ins('auto',{itens:C.andamento_entrega.yms.map((y,i)=>({name:ymLab(y),v:C.andamento_entrega.valor[i]})),
         escopo:'mês de entrega',escopoPl:'meses de entrega',universo:'do que está para faturar',
         id:'cartdin-entrega',preferir:['cauda','estrutura']}))+'</div>';
 
   if(C.pr) s+=prCap(prSoma(C.pr.entrega),prSoma(C.andamento_entrega.valor),'da previsão de faturamento');
-  s+=cap('Clique numa barra para ver os pedidos daquele mês de entrega.')+'<div id="cartdin-previsao-det"></div>';
+  s+=cap('Clique numa barra para ver os pedidos daquele mês de entrega.'+(_pvSh?' Pedidos do cliente SHOW ROOM não viram faturamento: aparecem em cinza e ficam fora do acumulado.':''))+'<div id="cartdin-previsao-det"></div>';
 
   // o que está em andamento, por mês de entrega: quantas peças e quanto vale (barras = peças, linha = valor)
   const _an=cdAndamentoMes(C);

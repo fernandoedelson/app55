@@ -37,11 +37,22 @@ DESENHO.carteira_dinamica=function(P){
     if(D.pr) s+=prCap(prSoma(D.pr[0]),prSoma(C.valor),'dos pedidos adiados');
     s+=cap('Clique numa barra para ver os pedidos adiados vendidos naquele mês.')+'<div id="cartdin-adiado-det"></div>'; }
   const R=P['cd-previsao'];
-  if(R){ const C=R.evol;
-    s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado','cd-previsao');
-    s+='<div id="cartdin-previsao-fig">'+fig(evolCombo(C.yms.map(ymLab),[{name:'Previsto',values:C.valor,color:SER[0]}],C.acum,{valfmt:v=>mi(v,1),partes:R.pr||null,clicavel:true}),ins('carteiraPicoEntrega','carteira-pico-entrega')||ins('auto','auto-cartdin-entrega'))+'</div>';
+  if(R){ const C=R.evol, SP=R.separada;
+    /* mesma separação do "Em andamento": o que vira faturamento e o que é showroom (não vira). O acumulado é só do que fatura. */
+    const _pvSh=!!SP&&(prSoma(SP.q_show)>0||prSoma(SP.v_show)>0);
+    const _pvLeg=(rot,q,v)=>rot+' · '+nf(q,0)+' peças · '+money(v);
+    s+=H3('Previsão de faturamento — pedidos em andamento','por data de entrega prevista · área = acumulado'+(_pvSh?' do que fatura':''),'cd-previsao');
+    let _pvSer,_pvAc,_pvPartes;
+    if(_pvSh){ let ac=0; _pvAc=SP.v_fat.map(x=>(ac+=x));
+      _pvSer=[{name:'Vira faturamento',leg:_pvLeg('Vira faturamento',prSoma(SP.q_fat),prSoma(SP.v_fat)),values:SP.v_fat,color:SER[0]},
+              {name:'Não vira faturamento (showroom)',leg:_pvLeg('Não vira faturamento (showroom)',prSoma(SP.q_show),prSoma(SP.v_show)),values:SP.v_show,color:'#8e8a84'}];
+      _pvPartes=R.pr?[SP.vpr_fat,SP.vpr_show]:null;
+    } else { _pvAc=C.acum;
+      _pvSer=[{name:'Previsto',leg:SP?_pvLeg('Previsto',prSoma(SP.q_fat)+prSoma(SP.q_show),prSoma(C.valor)):undefined,values:C.valor,color:SER[0]}];
+      _pvPartes=R.pr||null; }
+    s+='<div id="cartdin-previsao-fig">'+fig(evolCombo(C.yms.map(ymLab),_pvSer,_pvAc,{valfmt:v=>mi(v,1),dashName:_pvSh?'Acumulado do que fatura':'Acumulado',partes:_pvPartes,clicavel:true}),ins('carteiraPicoEntrega','carteira-pico-entrega')||ins('auto','auto-cartdin-entrega'))+'</div>';
     if(R.pr) s+=prCap(prSoma(R.pr[0]),prSoma(C.valor),'da previsão de faturamento');
-    s+=cap('Clique numa barra para ver os pedidos daquele mês de entrega.')+'<div id="cartdin-previsao-det"></div>'; }
+    s+=cap('Clique numa barra para ver os pedidos daquele mês de entrega.'+(_pvSh?' Pedidos do cliente SHOW ROOM não viram faturamento: aparecem em cinza e ficam fora do acumulado.':''))+'<div id="cartdin-previsao-det"></div>'; }
   const AN=P['cd-andamento'];
   if(AN){
     const _qS=prSoma(AN.q_show), _vS=prSoma(AN.v_show), _qF=prSoma(AN.q_fat), _vF=prSoma(AN.v_fat), _vT=_vF+_vS, _qT=_qF+_qS;

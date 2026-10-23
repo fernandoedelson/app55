@@ -68,12 +68,13 @@ def _andamento_por_mes(C, CD):
                 continue
             _d, mes, ano = linha[4].split('/')
             # [peças que faturam, valor que fatura, peças PR que faturam, peças showroom, valor showroom, peças PR showroom]
-            o = por.setdefault(int(ano) * 100 + int(mes), [0.0] * 6)
+            o = por.setdefault(int(ano) * 100 + int(mes), [0.0] * 8)
             k = 3 if sh else 0
             o[k] += linha[1] or 0
             o[k + 1] += linha[2] or 0
             if pr:
                 o[k + 2] += linha[1] or 0
+                o[6 + (1 if sh else 0)] += linha[2] or 0     # valor PR do segmento (barras de valor da previsão)
     if not por:
         return None
     yms = sorted(por)
@@ -101,6 +102,7 @@ def _andamento_por_mes(C, CD):
             'qtd_pr': soma(col(2), col(5)) if pats else None,
             'q_fat': col(0), 'v_fat': col(1), 'qpr_fat': col(2) if pats else None,
             'q_show': col(3), 'v_show': col(4), 'qpr_show': col(5) if pats else None,
+            'vpr_fat': col(6) if pats else None, 'vpr_show': col(7) if pats else None,
             'pedidos': pedidos, 'pr_padroes': _partes_relacionadas(C)}
 
 
@@ -122,6 +124,16 @@ def _adiados_por_mes(C, CD):
     for lst in pedidos.values():
         lst.sort(key=lambda x: -x[4])
     return {'pedidos': pedidos, 'pr_padroes': _partes_relacionadas(C)}
+
+
+def _previsao_separada(C, CD):
+    """O que vira faturamento e o que é showroom em cada mês da previsão (mesmos meses do gráfico): peças e valor."""
+    a = _andamento_por_mes(C, CD)
+    if not a:
+        return None
+    ix = {y: i for i, y in enumerate(a['yms'])}
+    pega = lambda k: None if a.get(k) is None else [a[k][ix[y]] if y in ix else 0 for y in CD['andamento_entrega']['yms']]
+    return {k: pega(k) for k in ('q_fat', 'v_fat', 'vpr_fat', 'q_show', 'v_show', 'vpr_show')}
 
 
 def _pedidos_do_mes(C, CD):
@@ -161,7 +173,8 @@ def calcular_dinamica(C, params=None):
                       'pr_total': pr['total'] if pr else None, 'pr_padroes': _partes_relacionadas(C)},
         'cd-evol': {'evol': CD['evol'], 'pr': [pr['evol']['vendas'], pr['evol']['atrasados']] if pr else None},
         'cd-adiados': {'evol': CD['evol_adiado'], 'pr': [pr['adiado']] if pr else None, **_adiados_por_mes(C, CD)},
-        'cd-previsao': {'evol': CD['andamento_entrega'], 'pr': [pr['entrega']] if pr else None, **_pedidos_do_mes(C, CD)},
+        'cd-previsao': {'evol': CD['andamento_entrega'], 'pr': [pr['entrega']] if pr else None,
+                        'separada': _previsao_separada(C, CD), **_pedidos_do_mes(C, CD)},
         'cd-andamento': _andamento_por_mes(C, CD),
         'cd-vend': {'vend': [x for x in (CD.get('vend') or []) if x[0] not in PSEUDO_VEND], 'tem': bool(CD.get('vend')),
                     'pr': pr['vend'] if pr else None},

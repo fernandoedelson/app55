@@ -1,4 +1,4 @@
-/* GERADO por ferramentas/extrair_desenho.py a partir do dredin.js do Kit na tag gabarito-v23 — não editar. */
+/* GERADO por ferramentas/extrair_desenho.py a partir do dredin.js do Kit na tag gabarito-v24 — não editar. */
 /* =====================================================================
    DRE no padrão da empresa ("DRE DINÂMICO" do Painel de Resultado)
    ---------------------------------------------------------------------
