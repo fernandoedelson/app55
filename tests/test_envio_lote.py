@@ -10,10 +10,10 @@ def test_tela_tem_o_envio_em_lote(app, admin):
     assert 'id="up-data-geral"' in html
     n_bases = html.count('class="actions upload-form"')
     assert n_bases >= 8                                  # uma linha de envio por base
-    # as bases de pasta (Custos, Fábrica × Loja) aceitam vários arquivos na mesma escolha
-    assert html.count(' multiple hidden>') == 2
+    # as bases de pasta (Custos, Fábrica × Loja, Carteiras dos vendedores) aceitam vários arquivos na mesma escolha
+    assert html.count(' multiple hidden>') == 3
     # e também permitem escolher a pasta inteira (a tela dizia "pasta" mas só pedia arquivo)
-    assert html.count('webkitdirectory') == 2
+    assert html.count('webkitdirectory') == 3
 
 
 def test_envio_um_a_um_continua_valendo(app, admin):
