@@ -2,7 +2,7 @@
 """Cálculo no servidor: cada seção devolve {id_do_bloco: payload}.
 
 As seções entram aqui à medida que são portadas e conferidas contra o gabarito (fase 3)."""
-from .secoes import analise_vendas, arquitetos, carteira, custofixo, custos, custosx, divida, dre, estudos, evolutiva, mensal, performance, periodo, resumo, ytd
+from .secoes import analise_vendas, arquitetos, carteira, custofixo, custos, custosx, divida, dre, estudos, evolutiva, mapa, mensal, performance, periodo, resumo, ytd
 
 SECOES_PORTADAS = {
     'resumo': resumo.calcular,
@@ -20,6 +20,7 @@ SECOES_PORTADAS = {
     'vendas': analise_vendas.calcular,
     'arquitetos': arquitetos.calcular,
     'estudos': estudos.calcular,
+    'mapa': mapa.calcular,
     'custosx': custosx.calcular,
     'custos': custos.calcular,
 }

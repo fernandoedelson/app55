@@ -75,6 +75,7 @@ PERGUNTA_SECAO = {
     'custosx': 'O custo dos produtos vendidos: onde se concentra, o que o move e o que pesa na matéria-prima.',
     'custos': 'O custo de produção da fábrica, linha a linha: produtos, volumes e custos operacionais.',
     'estudos': 'Estudos fora do fechamento recorrente, como o resultado por unidade.',
+    'mapa': 'Onde estão as vendas: a receita bruta por estado do cliente, com período à escolha e os pedidos de cada UF.',
 }
 
 

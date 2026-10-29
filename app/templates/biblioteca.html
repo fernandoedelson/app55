@@ -29,6 +29,7 @@
 <script src="{{ url_for('static', filename='relatorio/destaques_texto.js') }}"></script>
 {% if secao.id in ('custos', 'custosx') %}<script src="{{ url_for('static', filename='relatorio/leituras.js') }}"></script>{% endif %}
 {% if secao.id == 'dre' %}<script src="{{ url_for('static', filename='relatorio/dredin.js') }}"></script>{% endif %}
+{% if secao.id == 'mapa' %}<script src="{{ url_for('static', filename='relatorio/mapa_br.js', v='20261029') }}"></script>{% endif %}
 <script src="{{ url_for('static', filename='relatorio/secoes/' + secao.id + '.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded',function(){

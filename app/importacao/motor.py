@@ -14,7 +14,7 @@ import os
 import threading
 
 from . import kit_parser as K
-from . import recorte
+from . import mapa_vendas, recorte
 
 _trava = threading.Lock()
 
@@ -48,7 +48,7 @@ BASES = {
 
 # blob -> arquivo json da competência (o cálculo lê por esses nomes)
 BLOBS = ['DATA', 'DRE', 'DPNL', 'DECK', 'CF', 'CUSTOS', 'CARTDIN', 'CFMENSAL', 'MAXYM_DRE', 'APORTES',
-         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH', 'DREDIN', 'INTERCOMPANY']
+         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH', 'DREDIN', 'INTERCOMPANY', 'MAPAVENDAS']
 PASTA_CARTEIRA_FECH = 'Carteira_Fechamento'
 
 
@@ -113,6 +113,7 @@ def processar(fontes, base=None, custos=None, ate_ym=None):
             'FABLOJA': recorte.sem_foto(_fabloja(fontes, base), ate_ym),
             'INTERCOMPANY': recorte.sem_foto(_intercompany(fontes, base), ate_ym),   # foto do período todo: não se recorta
             'PARTES_RELACIONADAS': cfg.get('partes_relacionadas', []),
+            'MAPAVENDAS': mapa_vendas.ler(painel, ate_ym),        # receita bruta por UF do cliente (aba MPP DB do Painel)
             'DREDIN': recorte.dredin(K.parse_dre_din(painel), ate_ym),     # DRE no padrão da empresa (aba DRE DINÂMICO)
             'DESTAQUES_MANUAIS': cfg.get('destaques_manuais', {}),
             'CARTDIN_FECH': recorte.sem_foto(

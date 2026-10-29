@@ -26,7 +26,8 @@ SECOES = [{'id': 'resumo', 'titulo': 'Sumário', 'grupo': 'Comercial', 'bases': 
  {'id': 'divida', 'titulo': 'Dívida e endividamento', 'grupo': 'Gestão', 'bases': ['DPNL', 'DRE', 'APORTES']},
  {'id': 'custosx', 'titulo': 'Custos — Executivo', 'grupo': 'Fábrica', 'bases': ['CUSTOS']},
  {'id': 'custos', 'titulo': 'Custos — Operacional', 'grupo': 'Fábrica', 'bases': ['CUSTOS']},
- {'id': 'estudos', 'titulo': 'Estudos e Análises', 'grupo': 'Gestão', 'bases': ['FABLOJA']}]
+ {'id': 'estudos', 'titulo': 'Estudos e Análises', 'grupo': 'Gestão', 'bases': ['FABLOJA']},
+ {'id': 'mapa', 'titulo': 'Mapa de vendas', 'grupo': 'Comercial', 'bases': ['MAPAVENDAS']}]
 
 BLOCOS = [{'id': 'resumo.abertura',
   'secao': 'resumo',
@@ -911,4 +912,18 @@ BLOCOS = [{'id': 'resumo.abertura',
   'bases': ['FABLOJA', 'INTERCOMPANY'],
   'nomes_pf': False,
   'vigencia': '2026-07',
+  'depende_de': []},
+ {'id': 'mapa.abertura',
+  'secao': 'mapa',
+  'titulo': 'Abertura — título e período',
+  'bases': ['MAPAVENDAS'],
+  'nomes_pf': False,
+  'vigencia': '2026-09',
+  'depende_de': []},
+ {'id': 'mapa-uf',
+  'secao': 'mapa',
+  'titulo': 'Mapa de vendas por UF',
+  'bases': ['MAPAVENDAS'],
+  'nomes_pf': True,
+  'vigencia': '2026-09',
   'depende_de': []}]
