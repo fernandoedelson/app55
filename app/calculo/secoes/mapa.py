@@ -13,4 +13,5 @@ def calcular(C, params=None):
         ausente = {'ausente': True}
         return {'mapa.abertura': ausente, 'mapa-uf': ausente}
     return {'mapa.abertura': {'fonte': M['fonte'], 'ate': M['ate'], 'n': len(M['rows'])},
-            'mapa-uf': {'rows': M['rows'], 'ate': M['ate'], 'fonte': M['fonte'], 'pr_padroes': _partes_relacionadas(C)}}
+            'mapa-uf': {'rows': M['rows'], 'ate': M['ate'], 'fonte': M['fonte'], 'pr_padroes': _partes_relacionadas(C),
+                        'arq': C.blob('ARQUITETOS_MAPA')}}

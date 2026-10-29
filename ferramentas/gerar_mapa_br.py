@@ -55,7 +55,7 @@ def main():
     ufs = {COD[f['properties']['codarea']]: caminho(f['geometry']) for f in json.load(open(GEO, encoding='utf-8'))['features']}
     assert len(ufs) == 27, len(ufs)
     centros = {uf: [round(X(lo), 1), round(Y(la), 1)] for uf, (la, lo) in CENTRO.items()}
-    obj = {'w': W, 'h': H, 'vizinhos': viz, 'ufs': ufs, 'centros': centros}
+    obj = {'w': W, 'h': H, 'proj': [LON0, LON1, LAT0, LAT1], 'vizinhos': viz, 'ufs': ufs, 'centros': centros}
     with open(SAIDA, 'w', encoding='utf-8') as f:
         f.write('/* Gerado por ferramentas/gerar_mapa_br.py — divisas dos estados: IBGE (malha simplificada). Não editar à mão. */\n')
         f.write('window.MAPA_BR=' + json.dumps(obj, ensure_ascii=False, separators=(',', ':')) + ';\n')

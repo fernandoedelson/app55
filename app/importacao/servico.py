@@ -23,7 +23,7 @@ from . import comparar, motor
 
 RE_COMP = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
 SUBPASTA = {'custos': 'Custos', 'fabloja': 'Modelo_Gerencial_Fabrica_Loja',
-            'carteira_fech': motor.PASTA_CARTEIRA_FECH}
+            'carteira_fech': motor.PASTA_CARTEIRA_FECH, 'carteiras': motor.PASTA_CARTEIRAS}
 
 
 def pasta_fontes(codigo):

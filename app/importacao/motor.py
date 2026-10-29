@@ -14,7 +14,7 @@ import os
 import threading
 
 from . import kit_parser as K
-from . import mapa_vendas, recorte
+from . import arquitetos_mapa, mapa_vendas, recorte
 
 _trava = threading.Lock()
 
@@ -44,12 +44,15 @@ BASES = {
                'reaproveitavel': True},
     'fabloja': {'padroes': ['Modelo_Gerencial_Fabrica_Loja/*.xlsx'], 'obrigatoria': False,
                 'titulo': 'Modelo gerencial Fábrica × Loja', 'reaproveitavel': True},
+    'carteiras': {'padroes': ['Carteiras_Vendedores/*.xlsx'], 'obrigatoria': False,
+                  'titulo': 'Carteiras dos vendedores (escritórios de arquitetura)', 'reaproveitavel': True},
 }
 
 # blob -> arquivo json da competência (o cálculo lê por esses nomes)
 BLOBS = ['DATA', 'DRE', 'DPNL', 'DECK', 'CF', 'CUSTOS', 'CARTDIN', 'CFMENSAL', 'MAXYM_DRE', 'APORTES',
-         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH', 'DREDIN', 'INTERCOMPANY', 'MAPAVENDAS']
+         'METAS', 'FABLOJA', 'PARTES_RELACIONADAS', 'DESTAQUES_MANUAIS', 'CARTDIN_FECH', 'DREDIN', 'INTERCOMPANY', 'MAPAVENDAS', 'ARQUITETOS_MAPA']
 PASTA_CARTEIRA_FECH = 'Carteira_Fechamento'
+PASTA_CARTEIRAS = 'Carteiras_Vendedores'
 
 
 def _config(base):
@@ -71,6 +74,12 @@ def _fabloja(fontes, base):
         return K.parse_fabloja()
     finally:
         K.AQUI = base
+
+
+def _arquitetos_mapa(fontes):
+    """Escritórios das carteiras dos vendedores, quando a pasta foi enviada; sem ela, o mapa fica só com as vendas."""
+    pasta = os.path.join(fontes, PASTA_CARTEIRAS)
+    return arquitetos_mapa.ler(pasta) if os.path.isdir(pasta) else None
 
 
 def _intercompany(fontes, base):
@@ -114,6 +123,7 @@ def processar(fontes, base=None, custos=None, ate_ym=None):
             'INTERCOMPANY': recorte.sem_foto(_intercompany(fontes, base), ate_ym),   # foto do período todo: não se recorta
             'PARTES_RELACIONADAS': cfg.get('partes_relacionadas', []),
             'MAPAVENDAS': mapa_vendas.ler(painel, ate_ym),        # receita bruta por UF do cliente (aba MPP DB do Painel)
+            'ARQUITETOS_MAPA': _arquitetos_mapa(fontes),          # onde estão os escritórios das carteiras (camada do mapa)
             'DREDIN': recorte.dredin(K.parse_dre_din(painel), ate_ym),     # DRE no padrão da empresa (aba DRE DINÂMICO)
             'DESTAQUES_MANUAIS': cfg.get('destaques_manuais', {}),
             'CARTDIN_FECH': recorte.sem_foto(

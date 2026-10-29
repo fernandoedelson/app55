@@ -284,6 +284,8 @@ MIGRACOES = [
     # seção nova: Mapa de vendas (receita bruta por UF do cliente)
     {'gestao55': ['bloco:mapa.abertura', 'bloco:mapa-uf'], 'controladoria': ['bloco:mapa.abertura', 'bloco:mapa-uf'],
      'gestao_comercial': ['bloco:mapa.abertura', 'bloco:mapa-uf']},
+    # carteiras dos vendedores: a Controladoria envia o arquivo (camada Arquitetos do Mapa de vendas)
+    {'controladoria': ['base:upload:carteiras']},
 ]
 
 

@@ -51,6 +51,7 @@ BASES_UPLOAD = [
     ('apelidos', 'Apelidos (de-para de nomes)'),
     ('designers', 'Designers'),
     ('fabloja', 'Modelo gerencial Fábrica × Loja'),
+    ('carteiras', 'Carteiras dos vendedores (escritórios de arquitetura)'),
 ]
 BASE_UPLOAD = dict(BASES_UPLOAD)
 

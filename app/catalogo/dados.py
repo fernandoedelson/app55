@@ -923,7 +923,7 @@ BLOCOS = [{'id': 'resumo.abertura',
  {'id': 'mapa-uf',
   'secao': 'mapa',
   'titulo': 'Mapa de vendas por UF',
-  'bases': ['MAPAVENDAS'],
+  'bases': ['MAPAVENDAS', 'ARQUITETOS_MAPA'],
   'nomes_pf': True,
   'vigencia': '2026-09',
   'depende_de': []}]
